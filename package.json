@@ -3,21 +3,35 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=24.11.0 <25"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "tsx server.ts",
+    "build": "next build && tsc -p tsconfig.server.json",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "next start",
+    "start": "NODE_ENV=production node dist/server.js",
+    "test": "node --test src/*.test.ts"
   },
   "dependencies": {
+    "@hocuspocus/extension-sqlite": "^4.3.0",
+    "@hocuspocus/provider": "^4.3.0",
+    "@hocuspocus/server": "^4.3.0",
+    "better-sqlite3": "^12.11.1",
+    "cookie": "^2.0.0",
+    "next": "^16.2.9",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
@@ -27,6 +41,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.6.0",
+    "tsx": "^4.22.4",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.61.0",
     "vite": "^8.1.0"

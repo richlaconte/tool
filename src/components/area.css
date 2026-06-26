@@ -1,27 +1,221 @@
-textarea {
-  border: none;
-  background-color: transparent;
-  resize: none;
-  width: 100%;
-  overflow-y: hidden;
+.area-shell {
+  position: absolute;
+  overflow: visible;
 }
 
-textarea:focus-visible {
+.area {
+  position: relative;
+  box-sizing: border-box;
+  border: 1px dashed;
+  border-radius: 5px;
+  width: 100%;
+  height: 100%;
+  min-height: 28px;
+  display: flex;
+  padding-left: 4px;
+  color: #1d1d1f;
+  font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow: visible;
+}
+
+.area-editor {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.area-image-frame {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+.area-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.area-highlight,
+.area-editable {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  padding: 2px 4px;
+  font: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow: visible;
+}
+
+.area-highlight {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  color: transparent;
+  pointer-events: none;
+}
+
+.area-command-highlight {
+  color: transparent;
+  background-color: rgb(250 204 21 / 45%);
+  border-radius: 3px;
+}
+
+.area-command-highlight--invalid {
+  background-color: rgb(248 113 113 / 34%);
+  box-shadow: inset 0 -1px 0 rgb(185 28 28 / 42%);
+}
+
+.area-editable {
+  position: relative;
+  z-index: 1;
+  display: block;
+  border: none;
+  background-color: transparent;
+  color: inherit;
+  overflow: visible;
   outline: none;
+}
+
+.area-editable:empty::before {
+  color: #9ca3af;
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
+
+.area-editable:focus-visible {
+  outline: none;
+}
+
+.area--read-only .area-editable {
+  cursor: default;
+}
+
+.area-toolbar-bridge {
+  position: absolute;
+  top: -34px;
+  left: -4px;
+  right: -4px;
+  z-index: 1;
+  display: none;
+  height: 34px;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .draggy {
   display: none;
   position: absolute;
-  height: 20px;
-  width: 20px;
+  height: 24px;
+  width: 24px;
   left: 0;
-  top: -20px;
+  top: -28px;
+  z-index: 2;
+  place-items: center;
+  border: 1px solid rgb(156 163 175 / 55%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 2px 6px rgb(15 23 42 / 12%);
+  color: #6b7280;
   cursor: move;
   user-select: none;
   touch-action: none;
 }
 
-.area:hover .draggy {
+.area-actions {
+  position: absolute;
+  top: -28px;
+  right: 0;
+  z-index: 2;
+  display: none;
+  gap: 4px;
+  grid-auto-flow: column;
+}
+
+.area-action-button {
+  display: grid;
+  height: 24px;
+  width: 24px;
+  place-items: center;
+  border: 1px solid rgb(156 163 175 / 55%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 2px 6px rgb(15 23 42 / 12%);
+  color: #374151;
+  cursor: pointer;
+  padding: 0;
+  user-select: none;
+}
+
+.draggy:hover,
+.area-action-button:hover,
+.area-action-button:focus-visible {
+  background: #f9fafb;
+  color: #111827;
+  outline: 2px solid rgb(107 114 128 / 22%);
+  outline-offset: 1px;
+}
+
+.area-action-button--danger:hover,
+.area-action-button--danger:focus-visible {
+  color: #b91c1c;
+}
+
+.area-resize-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  z-index: 3;
+  display: none;
+  height: 10px;
+  width: 10px;
+  border: 1px solid rgb(107 114 128 / 72%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 14%);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.area-resize-handle:hover {
+  background: #f3f4f6;
+}
+
+.area-control-icon {
+  height: 15px;
+  width: 15px;
+}
+
+.area-control-icon--grip {
+  fill: currentColor;
+}
+
+.area-control-icon--stroke {
+  fill: none;
+}
+
+.area:hover .draggy,
+.area:focus-within .draggy,
+.area:hover .area-actions,
+.area:focus-within .area-actions {
+  display: grid;
+}
+
+.area:hover .area-toolbar-bridge,
+.area:focus-within .area-toolbar-bridge {
+  display: block;
+}
+
+.area:hover .area-resize-handle,
+.area:focus-within .area-resize-handle {
   display: block;
 }

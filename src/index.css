@@ -5,6 +5,8 @@ html {
 
 body {
   height: 100%;
+  margin: 0;
+  overflow: hidden;
   width: 100%;
 }
 
@@ -15,5 +17,7 @@ body {
 
 #canvas {
   height: 100%;
+  overflow: auto;
+  position: relative;
   width: 100%;
 }

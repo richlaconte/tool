@@ -1,77 +1,91 @@
-# React + TypeScript + Vite
+# Cascadery
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Cascadery is a CSS-native canvas for developer thinking.
 
-Currently, two official plugins are available:
+It is a collaborative spatial workspace where notes, sketches, decisions, images, and implementation context live as movable Areas. Cascadery assumes its users are comfortable with the web platform: an Area can be styled directly with CSS slash commands, arranged spatially, nested inside other Areas, shared with collaborators, and eventually read or updated by AI agents through a controlled MCP interface.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Product Direction
 
-## React Compiler
+Cascadery is not trying to be a general notes app or another meeting whiteboard. The sharpest wedge is developer-native thinking:
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- Map an implementation before touching code.
+- Turn an issue, PRD, or repo scan into a visual plan.
+- Discuss architecture and UI states asynchronously with enough structure to preserve decisions.
+- Use CSS as an editing language instead of hiding all styling behind palettes and inspectors.
+- Give coding agents a readable, writable project context surface without making chat the center of the product.
 
-Note: This will impact Vite dev & build performances.
+Working tagline:
 
-## Expanding the ESLint configuration
+> CSS-native canvas for developer thinking.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Current Capabilities
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Click the canvas to create a text Area.
+- Move, resize, duplicate, delete, and nest Areas.
+- Style Areas with CSS slash commands such as `/border: 1px solid red`.
+- Define page theme color tokens and use them inside style commands.
+- Insert and replace images.
+- Toggle snap-grid movement and grid visibility.
+- Import and export durable page JSON.
+- Generate edit and view links.
+- Show save status, access mode, connection status, and collaborator presence.
+- Run server-backed collaboration through the Next.js custom server and Hocuspocus/Yjs.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Research-Informed Principles
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Cascadery's follow-up specs are grounded in current market and interaction research:
 
+- Infinite-canvas tools such as tldraw, Obsidian Canvas, Heptabase, Miro, and FigJam show that spatial canvases work best when they combine lightweight creation with durable structure.
+- Developer teams need accelerators, but they still need visible, discoverable commands. Cascadery should support keyboard-first experts without becoming invisible to newer users.
+- Collaboration should expose clear save, sync, connection, access, and agent-action status.
+- AI should act through explicit, reviewable operations. It should summarize, organize, annotate, and create Areas, but sensitive or destructive changes need human approval.
+- MCP support should use least privilege, clear consent, tool allow-lists, structured outputs, audit logs, and fail-closed behavior.
+
+## Follow-Up Specs
+
+- [Product and Developer Experience Direction](docs/specs/2026-06-26-cascadery-product-dx.md)
+- [AI and MCP Agent Interface](docs/specs/2026-06-26-cascadery-ai-mcp-interface.md)
+- [Security and Privacy Baseline](docs/specs/2026-06-26-cascadery-security-privacy.md)
+
+Existing feature specs are in [docs/specs](docs/specs).
+
+## Development
+
+Use Node.js `>=24.11.0 <25`.
+
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The development server runs the custom Next.js/Hocuspocus server from `server.ts`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Build:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm build
 ```
+
+Lint:
+
+```bash
+pnpm lint
+```
+
+## AI Posture
+
+AI in Cascadery should feel like an interface to the canvas, not the product's personality. The preferred model is:
+
+- Human and team context lives on the canvas.
+- Agents can read board structure through MCP.
+- Agents propose changes as structured patches.
+- Users can review, accept, reject, or roll back those changes.
+- Security boundaries are enforced by the app, not delegated to prompts.
+
+## Domain
+
+Preferred name: `Cascadery`
+
+Preferred domain to verify and purchase: `cascadery.com`
+
+The initial availability research found a strong "likely available" signal for `cascadery.com`, but final domain choice still needs registrar checkout and a trademark search.

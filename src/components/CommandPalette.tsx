@@ -28,6 +28,7 @@ const CommandPalette = ({
   onClose,
 }: CommandPaletteProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const selectedOptionRefs = useRef(new Map<string, HTMLButtonElement>())
   const filteredOptions = useMemo(
     () => getFilteredCommandOptions(options, query),
     [options, query]
@@ -44,6 +45,16 @@ const CommandPalette = ({
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  useEffect(() => {
+    const selectedOption = filteredOptions[selectedIndex]
+
+    if (!selectedOption) return
+
+    selectedOptionRefs.current
+      .get(selectedOption.id)
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [filteredOptions, selectedIndex])
 
   const openSelectedOption = () => {
     const selectedOption = filteredOptions[selectedIndex]
@@ -124,6 +135,13 @@ const CommandPalette = ({
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, optionIndex) => (
               <button
+                ref={(element) => {
+                  if (element) {
+                    selectedOptionRefs.current.set(option.id, element)
+                  } else {
+                    selectedOptionRefs.current.delete(option.id)
+                  }
+                }}
                 className={`command-palette-option${
                   optionIndex === selectedIndex
                     ? ' command-palette-option--selected'

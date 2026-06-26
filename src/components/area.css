@@ -110,6 +110,8 @@
   height: 34px;
   background: transparent;
   pointer-events: auto;
+  transform: scale(var(--canvas-ui-scale));
+  transform-origin: bottom left;
 }
 
 .draggy {
@@ -127,6 +129,8 @@
   box-shadow: 0 2px 6px rgb(15 23 42 / 12%);
   color: #6b7280;
   cursor: move;
+  transform: scale(var(--canvas-ui-scale));
+  transform-origin: bottom left;
   user-select: none;
   touch-action: none;
 }
@@ -139,6 +143,8 @@
   display: none;
   gap: 4px;
   grid-auto-flow: column;
+  transform: scale(var(--canvas-ui-scale));
+  transform-origin: bottom right;
 }
 
 .area-action-button {
@@ -183,6 +189,8 @@
   background: rgb(255 255 255 / 96%);
   box-shadow: 0 1px 4px rgb(15 23 42 / 14%);
   cursor: nwse-resize;
+  transform: scale(var(--canvas-ui-scale));
+  transform-origin: center;
   touch-action: none;
 }
 

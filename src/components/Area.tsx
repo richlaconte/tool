@@ -31,6 +31,7 @@ type AreaProps = {
   isNewest: boolean
   isSelected: boolean
   isReadOnly: boolean
+  canvasZoom: number
   onSelect: (id: string) => void
   onTextChange: (id: string, text: string) => void
   onMove: (
@@ -69,6 +70,7 @@ const Area = ({
   isNewest,
   isSelected,
   isReadOnly,
+  canvasZoom,
   onSelect,
   onTextChange,
   onMove,
@@ -240,8 +242,8 @@ const Area = ({
       e.currentTarget.getBoundingClientRect()
 
     dragOffset.current = {
-      x: e.clientX - shellRect.left,
-      y: e.clientY - shellRect.top,
+      x: (e.clientX - shellRect.left) / canvasZoom,
+      y: (e.clientY - shellRect.top) / canvasZoom,
     }
 
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -258,14 +260,10 @@ const Area = ({
         : null
     const offsetParentRect = offsetParent?.getBoundingClientRect()
     const x =
-      e.clientX -
-      (offsetParentRect?.left ?? 0) +
-      (offsetParent?.scrollLeft ?? 0) -
+      (e.clientX - (offsetParentRect?.left ?? 0)) / canvasZoom -
       dragOffset.current.x
     const y =
-      e.clientY -
-      (offsetParentRect?.top ?? 0) +
-      (offsetParent?.scrollTop ?? 0) -
+      (e.clientY - (offsetParentRect?.top ?? 0)) / canvasZoom -
       dragOffset.current.y
 
     onMove(area.id, x, y, e.altKey)
@@ -307,10 +305,10 @@ const Area = ({
 
     const nextWidth =
       resizeStart.current.width +
-      (e.clientX - resizeStart.current.pointerX)
+      (e.clientX - resizeStart.current.pointerX) / canvasZoom
     const nextHeight =
       resizeStart.current.height +
-      (e.clientY - resizeStart.current.pointerY)
+      (e.clientY - resizeStart.current.pointerY) / canvasZoom
 
     onResize(area.id, nextWidth, nextHeight, e.altKey)
   }

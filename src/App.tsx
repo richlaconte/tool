@@ -38,6 +38,15 @@ import {
   type CollaborationProfile,
   type PresenceState,
 } from './collaboration'
+import {
+  clampCanvasZoom,
+  formatCanvasZoom,
+  getAnchorPreservingScroll,
+  getCanvasWorldSize,
+  getNextCanvasZoom,
+  getZoomToFit,
+  screenToCanvasPoint,
+} from './canvasViewport'
 import type { CssSlashCommand } from './cssSlashCommand'
 import { removeCssSlashCommand } from './cssSlashCommand'
 import type { ImageSlashCommand } from './imageSupport'
@@ -179,6 +188,31 @@ const COMMAND_PALETTE_OPTIONS: CommandPaletteOption[] = [
     title: 'Insert image',
     description: 'Add a movable image to the page',
   },
+  {
+    id: 'zoom-in',
+    title: 'Zoom in',
+    description: 'Increase canvas zoom',
+  },
+  {
+    id: 'zoom-out',
+    title: 'Zoom out',
+    description: 'Decrease canvas zoom',
+  },
+  {
+    id: 'reset-zoom',
+    title: 'Reset zoom',
+    description: 'Return the canvas to 100%',
+  },
+  {
+    id: 'zoom-to-fit',
+    title: 'Zoom to fit',
+    description: 'Fit all Areas in view',
+  },
+  {
+    id: 'zoom-to-selection',
+    title: 'Zoom to selection',
+    description: 'Center the selected Area',
+  },
 ]
 
 const COMMAND_DIALOGS: Record<
@@ -190,7 +224,7 @@ const COMMAND_DIALOGS: Record<
 > = {
   help: {
     title: 'Help',
-    body: 'Click anywhere to create an Area. Type freely, or enter CSS commands like /border: 1px solid red to style the selected Area. Press Escape to leave an Area.',
+    body: 'Click anywhere to create an Area. Type freely, or enter CSS commands like /border: 1px solid red to style the selected Area. Press Escape to leave an Area. Use Command or Control with +, -, or 0 to zoom the canvas.',
   },
   settings: {
     title: 'Settings',
@@ -314,7 +348,11 @@ const getPresenceInitials = (userName: string) =>
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('') || '?'
 
-const getCanvasPoint = (clientX: number, clientY: number) => {
+const getCanvasPoint = (
+  clientX: number,
+  clientY: number,
+  zoom = 1
+) => {
   const canvas = document.getElementById('canvas')
 
   if (!canvas) {
@@ -326,14 +364,21 @@ const getCanvasPoint = (clientX: number, clientY: number) => {
 
   const canvasRect = canvas.getBoundingClientRect()
 
-  return {
-    x: clientX - canvasRect.left + canvas.scrollLeft,
-    y: clientY - canvasRect.top + canvas.scrollTop,
-  }
+  return screenToCanvasPoint(clientX, clientY, {
+    rectLeft: canvasRect.left,
+    rectTop: canvasRect.top,
+    scrollLeft: canvas.scrollLeft,
+    scrollTop: canvas.scrollTop,
+    zoom,
+  })
 }
 
-const getViewportCenterPoint = () =>
-  getCanvasPoint(window.innerWidth / 2, window.innerHeight / 2)
+const getViewportCenterPoint = (zoom = 1) =>
+  getCanvasPoint(
+    window.innerWidth / 2,
+    window.innerHeight / 2,
+    zoom
+  )
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -426,6 +471,7 @@ function App({ pageId }: { pageId?: string }) {
   const [commandPaletteQuery, setCommandPaletteQuery] = useState<
     string | null
   >(null)
+  const [canvasZoom, setCanvasZoom] = useState(1)
   const [openDialogId, setOpenDialogId] = useState<string | null>(
     null
   )
@@ -448,6 +494,7 @@ function App({ pageId }: { pageId?: string }) {
   const nextThemeColorId = useRef(0)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
+  const canvasRef = useRef<HTMLDivElement | null>(null)
   const collaborationChannelRef = useRef<BroadcastChannel | null>(
     null
   )
@@ -501,26 +548,148 @@ function App({ pageId }: { pageId?: string }) {
       : 'offline'
     : collaborationStatus
 
-  const publishPresence = (
-    cursor: PresenceState['cursor'] = latestCursorRef.current
-  ) => {
-    const presence = createPresenceState(
-      collaborationProfile,
-      {
-        cursor,
-        selectedAreaId,
-      },
-      Date.now()
+  const getCanvasCenterAnchor = useCallback(() => {
+    const canvas = canvasRef.current
+
+    if (!canvas) {
+      return {
+        clientX: window.innerWidth / 2,
+        clientY: window.innerHeight / 2,
+      }
+    }
+
+    const rect = canvas.getBoundingClientRect()
+
+    return {
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+    }
+  }, [])
+
+  const setCanvasZoomFromAnchor = useCallback(
+    (
+      nextZoomValue: number,
+      anchor = getCanvasCenterAnchor()
+    ) => {
+      const canvas = canvasRef.current
+      const nextZoom = clampCanvasZoom(nextZoomValue)
+
+      if (!canvas) {
+        setCanvasZoom(nextZoom)
+        return
+      }
+
+      const rect = canvas.getBoundingClientRect()
+      const scroll = getAnchorPreservingScroll({
+        anchor,
+        metrics: {
+          rectLeft: rect.left,
+          rectTop: rect.top,
+          scrollLeft: canvas.scrollLeft,
+          scrollTop: canvas.scrollTop,
+          zoom: canvasZoom,
+        },
+        nextZoom,
+      })
+
+      setCanvasZoom(nextZoom)
+
+      requestAnimationFrame(() => {
+        canvas.scrollLeft = Math.max(0, scroll.scrollLeft)
+        canvas.scrollTop = Math.max(0, scroll.scrollTop)
+      })
+    },
+    [canvasZoom, getCanvasCenterAnchor]
+  )
+
+  const zoomCanvasByDirection = useCallback(
+    (direction: -1 | 1, anchor = getCanvasCenterAnchor()) => {
+      setCanvasZoomFromAnchor(
+        getNextCanvasZoom(canvasZoom, direction),
+        anchor
+      )
+    },
+    [canvasZoom, getCanvasCenterAnchor, setCanvasZoomFromAnchor]
+  )
+
+  const resetCanvasZoom = useCallback(() => {
+    setCanvasZoomFromAnchor(1)
+  }, [setCanvasZoomFromAnchor])
+
+  const zoomCanvasToItems = useCallback(
+    (items: Array<{ x: number; y: number; width: number; height: number }>) => {
+      const canvas = canvasRef.current
+
+      if (!canvas) {
+        setCanvasZoom(1)
+        return
+      }
+
+      const result = getZoomToFit(items, {
+        height: canvas.clientHeight,
+        width: canvas.clientWidth,
+      })
+
+      setCanvasZoom(result.zoom)
+
+      requestAnimationFrame(() => {
+        canvas.scrollLeft = result.scrollLeft
+        canvas.scrollTop = result.scrollTop
+      })
+    },
+    []
+  )
+
+  const zoomCanvasToFit = useCallback(() => {
+    zoomCanvasToItems(
+      areas.map((area) => ({
+        ...getAreaAbsolutePosition(areas, area.id),
+        height: area.height,
+        width: area.width,
+      }))
     )
+  }, [areas, zoomCanvasToItems])
 
-    collaborativeSync.setPresence(presence)
+  const zoomCanvasToSelection = useCallback(() => {
+    const selectedArea = selectedAreaId
+      ? areas.find((area) => area.id === selectedAreaId)
+      : null
 
-    collaborationChannelRef.current?.postMessage({
-      type: 'presence',
-      senderId: collaborationProfile.clientId,
-      presence,
-    } satisfies CollaborationMessage)
-  }
+    if (!selectedArea) {
+      zoomCanvasToFit()
+      return
+    }
+
+    zoomCanvasToItems([
+      {
+        ...getAreaAbsolutePosition(areas, selectedArea.id),
+        height: selectedArea.height,
+        width: selectedArea.width,
+      },
+    ])
+  }, [areas, selectedAreaId, zoomCanvasToFit, zoomCanvasToItems])
+
+  const publishPresence = useCallback(
+    (cursor: PresenceState['cursor'] = latestCursorRef.current) => {
+      const presence = createPresenceState(
+        collaborationProfile,
+        {
+          cursor,
+          selectedAreaId,
+        },
+        Date.now()
+      )
+
+      collaborativeSync.setPresence(presence)
+
+      collaborationChannelRef.current?.postMessage({
+        type: 'presence',
+        senderId: collaborationProfile.clientId,
+        presence,
+      } satisfies CollaborationMessage)
+    },
+    [collaborationProfile, collaborativeSync, selectedAreaId]
+  )
 
   const updateCollaborationUserName = (userName: string) => {
     const nextProfile = {
@@ -705,7 +874,11 @@ function App({ pageId }: { pageId?: string }) {
     if (!canvas) return
 
     const handlePointerMove = (event: PointerEvent) => {
-      const cursor = getCanvasPoint(event.clientX, event.clientY)
+      const cursor = getCanvasPoint(
+        event.clientX,
+        event.clientY,
+        canvasZoom
+      )
 
       latestCursorRef.current = cursor
       publishPresence(cursor)
@@ -723,7 +896,31 @@ function App({ pageId }: { pageId?: string }) {
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('pointerleave', handlePointerLeave)
     }
-  })
+  }, [canvasZoom, publishPresence])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+
+    if (!canvas) return
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!event.metaKey && !event.ctrlKey) return
+
+      event.preventDefault()
+      zoomCanvasByDirection(event.deltaY < 0 ? 1 : -1, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      })
+    }
+
+    canvas.addEventListener('wheel', handleWheel, {
+      passive: false,
+    })
+
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel)
+    }
+  }, [zoomCanvasByDirection])
 
   useEffect(() => {
     collaborationChannelRef.current?.postMessage({
@@ -792,12 +989,12 @@ function App({ pageId }: { pageId?: string }) {
 
       const target = e.target as HTMLElement
 
-      if (target.id !== 'canvas') return
+      if (!target.classList.contains('canvas-world')) return
 
       e.preventDefault()
       setHasClickedCanvas(true)
 
-      const canvasRect = target.getBoundingClientRect()
+      const point = getCanvasPoint(e.clientX, e.clientY, canvasZoom)
       const id = createAreaId(nextAreaId.current)
       nextAreaId.current += 1
       const createdAt = new Date().toISOString()
@@ -807,8 +1004,8 @@ function App({ pageId }: { pageId?: string }) {
         {
           id,
           parentId: null,
-          x: e.clientX - canvasRect.left + target.scrollLeft,
-          y: e.clientY - canvasRect.top + target.scrollTop,
+          x: point.x,
+          y: point.y,
           height: DEFAULT_AREA_HEIGHT,
           width: DEFAULT_AREA_WIDTH,
           text: '',
@@ -826,17 +1023,58 @@ function App({ pageId }: { pageId?: string }) {
     return () => {
       document.removeEventListener('pointerdown', handleClick)
     }
-  }, [isViewOnly])
+  }, [canvasZoom, isViewOnly])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const isEditingTarget = isEditableTarget(e.target)
+      const isPaletteTarget = isCommandPaletteTarget(e.target)
+      const hasSystemModifier = e.metaKey || e.ctrlKey
+
+      if (
+        openDialogId === null &&
+        commandPaletteQuery === null &&
+        !isEditingTarget &&
+        !isPaletteTarget
+      ) {
+        if (hasSystemModifier && (e.key === '+' || e.key === '=')) {
+          e.preventDefault()
+          zoomCanvasByDirection(1)
+          return
+        }
+
+        if (hasSystemModifier && e.key === '-') {
+          e.preventDefault()
+          zoomCanvasByDirection(-1)
+          return
+        }
+
+        if (hasSystemModifier && e.key === '0') {
+          e.preventDefault()
+          resetCanvasZoom()
+          return
+        }
+
+        if (e.shiftKey && e.key === '1') {
+          e.preventDefault()
+          zoomCanvasToFit()
+          return
+        }
+
+        if (e.shiftKey && e.key === '2') {
+          e.preventDefault()
+          zoomCanvasToSelection()
+          return
+        }
+      }
+
       const keyboardAction = getAppKeyboardAction({
         key: e.key,
         hasSelectedArea: selectedAreaId !== null,
         isCommandPaletteOpen: commandPaletteQuery !== null,
         isDialogOpen: openDialogId !== null,
-        isEditableTarget: isEditableTarget(e.target),
-        isCommandPaletteTarget: isCommandPaletteTarget(e.target),
+        isEditableTarget: isEditingTarget,
+        isCommandPaletteTarget: isPaletteTarget,
         hasModifier: e.metaKey || e.ctrlKey || e.altKey,
       })
 
@@ -866,7 +1104,15 @@ function App({ pageId }: { pageId?: string }) {
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [commandPaletteQuery, openDialogId, selectedAreaId])
+  }, [
+    commandPaletteQuery,
+    openDialogId,
+    resetCanvasZoom,
+    selectedAreaId,
+    zoomCanvasByDirection,
+    zoomCanvasToFit,
+    zoomCanvasToSelection,
+  ])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1458,7 +1704,7 @@ function App({ pageId }: { pageId?: string }) {
                 ? sourceArea.y
                 : sourceArea.y + sourceArea.height + 16,
           }
-        : getViewportCenterPoint()
+        : getViewportCenterPoint(canvasZoom)
     const pendingInsert: PendingImageInsert = {
       kind: 'new',
       x: insertPoint.x,
@@ -1549,7 +1795,7 @@ function App({ pageId }: { pageId?: string }) {
     const pendingInsert =
       pendingImageInsert.current ?? {
         kind: 'new',
-        ...getViewportCenterPoint(),
+        ...getViewportCenterPoint(canvasZoom),
       }
 
     e.currentTarget.value = ''
@@ -1573,7 +1819,7 @@ function App({ pageId }: { pageId?: string }) {
       e.preventDefault()
       void insertImageFromFile(file, {
         kind: 'new',
-        ...getViewportCenterPoint(),
+        ...getViewportCenterPoint(canvasZoom),
       })
     }
 
@@ -1602,22 +1848,48 @@ function App({ pageId }: { pageId?: string }) {
     e.preventDefault()
     void insertImageFromFile(file, {
       kind: 'new',
-      ...getCanvasPoint(e.clientX, e.clientY),
+      ...getCanvasPoint(e.clientX, e.clientY, canvasZoom),
     })
   }
 
+  const canvasWorldSize = getCanvasWorldSize(areas, {
+    height:
+      typeof window === 'undefined' ? 900 : window.innerHeight,
+    width: typeof window === 'undefined' ? 1440 : window.innerWidth,
+  })
   const canvasStyle = {
     backgroundColor: page.settings.background,
+  } as CSSProperties
+  const canvasWorldStyle = {
+    '--canvas-ui-scale': `${1 / canvasZoom}`,
+    '--canvas-world-height': `${canvasWorldSize.height}px`,
+    '--canvas-world-width': `${canvasWorldSize.width}px`,
+    '--canvas-zoom': `${canvasZoom}`,
     '--snap-grid-size': `${clampSnapGridSize(
       page.settings.snapGrid.size
     )}px`,
-  } as CSSProperties & { '--snap-grid-size': string }
+  } as CSSProperties & {
+    '--canvas-ui-scale': string
+    '--canvas-world-height': string
+    '--canvas-world-width': string
+    '--canvas-zoom': string
+    '--snap-grid-size': string
+  }
   const showThemeColorSwatches =
     page.settings.theme.colors.length > 0 &&
     (openDialogId === 'page-styles' || selectedAreaId !== null)
   const commandPaletteOptions = isViewOnly
     ? COMMAND_PALETTE_OPTIONS.filter((option) =>
-        ['help', 'settings', 'share'].includes(option.id)
+        [
+          'help',
+          'settings',
+          'share',
+          'zoom-in',
+          'zoom-out',
+          'reset-zoom',
+          'zoom-to-fit',
+          'zoom-to-selection',
+        ].includes(option.id)
       )
     : COMMAND_PALETTE_OPTIONS
   const currentUrl =
@@ -1652,6 +1924,7 @@ function App({ pageId }: { pageId?: string }) {
         isNewest={area.id === autoFocusAreaId}
         isSelected={area.id === selectedAreaId}
         isReadOnly={isViewOnly}
+        canvasZoom={canvasZoom}
         onSelect={(areaId) => {
           if (!isViewOnly) setSelectedAreaId(areaId)
         }}
@@ -1675,11 +1948,7 @@ function App({ pageId }: { pageId?: string }) {
   return (
     <div
       id="canvas"
-      className={
-        page.settings.snapGrid.visible
-          ? 'canvas--grid-visible'
-          : undefined
-      }
+      ref={canvasRef}
       style={canvasStyle}
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
@@ -1807,60 +2076,81 @@ function App({ pageId }: { pageId?: string }) {
         </div>
       )}
 
-      {getRootAreas(areas).map(renderArea)}
+      <div className="canvas-scroll-size" style={canvasWorldStyle}>
+        <div
+          className={`canvas-world${
+            page.settings.snapGrid.visible
+              ? ' canvas--grid-visible'
+              : ''
+          }`}
+        >
+          {getRootAreas(areas).map(renderArea)}
 
-      <div className="remote-collaboration-layer" aria-hidden="true">
-        {displayedRemotePresences.map((presence) => {
-          if (!presence.selectedAreaId) return null
+          <div
+            className="remote-collaboration-layer"
+            aria-hidden="true"
+          >
+            {displayedRemotePresences.map((presence) => {
+              if (!presence.selectedAreaId) return null
 
-          const area = areas.find(
-            (currentArea) =>
-              currentArea.id === presence.selectedAreaId
-          )
+              const area = areas.find(
+                (currentArea) =>
+                  currentArea.id === presence.selectedAreaId
+              )
 
-          if (!area) return null
+              if (!area) return null
 
-          const position = getAreaAbsolutePosition(
-            areas,
-            area.id
-          )
+              const position = getAreaAbsolutePosition(
+                areas,
+                area.id
+              )
 
-          return (
-            <div
-              className="remote-selection-ring"
-              key={`${presence.clientId}-selection`}
-              style={
-                {
-                  '--presence-color': presence.color,
-                  height: area.height,
-                  left: position.x,
-                  top: position.y,
-                  width: area.width,
-                } as PresenceCssProperties
-              }
-            >
-              <span>{presence.userName}</span>
-            </div>
-          )
-        })}
-        {displayedRemotePresences.map((presence) =>
-          presence.cursor ? (
-            <div
-              className="remote-cursor"
-              key={`${presence.clientId}-cursor`}
-              style={
-                {
-                  '--presence-color': presence.color,
-                  left: presence.cursor.x,
-                  top: presence.cursor.y,
-                } as PresenceCssProperties
-              }
-            >
-              <span>{presence.userName}</span>
-            </div>
-          ) : null
-        )}
+              return (
+                <div
+                  className="remote-selection-ring"
+                  key={`${presence.clientId}-selection`}
+                  style={
+                    {
+                      '--presence-color': presence.color,
+                      height: area.height,
+                      left: position.x,
+                      top: position.y,
+                      width: area.width,
+                    } as PresenceCssProperties
+                  }
+                >
+                  <span>{presence.userName}</span>
+                </div>
+              )
+            })}
+            {displayedRemotePresences.map((presence) =>
+              presence.cursor ? (
+                <div
+                  className="remote-cursor"
+                  key={`${presence.clientId}-cursor`}
+                  style={
+                    {
+                      '--presence-color': presence.color,
+                      left: presence.cursor.x,
+                      top: presence.cursor.y,
+                    } as PresenceCssProperties
+                  }
+                >
+                  <span>{presence.userName}</span>
+                </div>
+              ) : null
+            )}
+          </div>
+        </div>
       </div>
+
+      <CanvasZoomControls
+        zoom={canvasZoom}
+        onFit={zoomCanvasToFit}
+        onReset={resetCanvasZoom}
+        onZoomIn={() => zoomCanvasByDirection(1)}
+        onZoomOut={() => zoomCanvasByDirection(-1)}
+      />
 
       {deletedAreaSnapshot && (
         <div
@@ -1900,9 +2190,29 @@ function App({ pageId }: { pageId?: string }) {
             if (option.id === 'insert-image') {
               pendingImageInsert.current = {
                 kind: 'new',
-                ...getViewportCenterPoint(),
+                ...getViewportCenterPoint(canvasZoom),
               }
               imageInputRef.current?.click()
+              return
+            }
+            if (option.id === 'zoom-in') {
+              zoomCanvasByDirection(1)
+              return
+            }
+            if (option.id === 'zoom-out') {
+              zoomCanvasByDirection(-1)
+              return
+            }
+            if (option.id === 'reset-zoom') {
+              resetCanvasZoom()
+              return
+            }
+            if (option.id === 'zoom-to-fit') {
+              zoomCanvasToFit()
+              return
+            }
+            if (option.id === 'zoom-to-selection') {
+              zoomCanvasToSelection()
               return
             }
             setOpenDialogId(option.id)
@@ -2210,6 +2520,59 @@ const ShareLinkRow = ({
           : 'Regenerate view link'}
       </button>
     </div>
+  </div>
+)
+
+const CanvasZoomControls = ({
+  zoom,
+  onFit,
+  onReset,
+  onZoomIn,
+  onZoomOut,
+}: {
+  zoom: number
+  onFit: () => void
+  onReset: () => void
+  onZoomIn: () => void
+  onZoomOut: () => void
+}) => (
+  <div className="canvas-zoom-controls" aria-label="Canvas zoom">
+    <button
+      aria-label="Zoom out"
+      className="canvas-zoom-button"
+      title="Zoom out"
+      type="button"
+      onClick={onZoomOut}
+    >
+      -
+    </button>
+    <button
+      aria-label={`Reset zoom from ${formatCanvasZoom(zoom)} to 100%`}
+      className="canvas-zoom-value"
+      title="Reset zoom to 100%"
+      type="button"
+      onClick={onReset}
+    >
+      {formatCanvasZoom(zoom)}
+    </button>
+    <button
+      aria-label="Zoom in"
+      className="canvas-zoom-button"
+      title="Zoom in"
+      type="button"
+      onClick={onZoomIn}
+    >
+      +
+    </button>
+    <button
+      aria-label="Zoom to fit"
+      className="canvas-zoom-button"
+      title="Zoom to fit"
+      type="button"
+      onClick={onFit}
+    >
+      Fit
+    </button>
   </div>
 )
 

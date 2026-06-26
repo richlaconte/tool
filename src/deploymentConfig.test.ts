@@ -49,6 +49,12 @@ test('GitHub Actions verifies and deploys pushes to main', async () => {
 
   assert.match(workflow, /branches:\n\s+- main/)
   assert.match(workflow, /workflow_dispatch:/)
+  assert.ok(
+    workflow.indexOf('pnpm/action-setup@v4') <
+      workflow.indexOf('actions/setup-node@v4')
+  )
+  assert.match(workflow, /version: 9\.15\.0/)
+  assert.match(workflow, /run_install: false/)
   assert.match(workflow, /node-version-file: \.nvmrc/)
   assert.match(workflow, /pnpm install --frozen-lockfile/)
   assert.match(workflow, /pnpm test/)

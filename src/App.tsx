@@ -1684,15 +1684,20 @@ function App({ pageId }: { pageId?: string }) {
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
     >
-      <div className="site-brand" aria-label="Tool">
+      <button
+        className="site-brand"
+        type="button"
+        aria-label="Open command palette"
+        onClick={() => setCommandPaletteQuery('')}
+      >
         <img
           alt=""
           className="site-brand-mark"
           draggable="false"
           src="/logo.svg"
         />
-        <span>Tool</span>
-      </div>
+        <span>cascadery</span>
+      </button>
 
       <div className="page-persistence">
         {isViewOnly && (

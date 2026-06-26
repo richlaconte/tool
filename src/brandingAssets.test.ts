@@ -18,7 +18,10 @@ test('editor renders a lightweight site brand mark from the logo asset', async (
   const appSource = await readProjectFile('src/App.tsx')
   const appStyles = await readProjectFile('src/App.css')
 
-  assert.match(appSource, /className="site-brand"/)
+  assert.match(appSource, /<button\s+className="site-brand"/)
+  assert.match(appSource, /aria-label="Open command palette"/)
+  assert.match(appSource, /onClick=\{\(\) => setCommandPaletteQuery\(''\)\}/)
+  assert.match(appSource, /<span>cascadery<\/span>/)
   assert.match(appSource, /src="\/logo\.svg"/)
   assert.match(appStyles, /\.site-brand/)
 })

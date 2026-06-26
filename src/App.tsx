@@ -47,6 +47,14 @@ import {
   getZoomToFit,
   screenToCanvasPoint,
 } from './canvasViewport'
+import {
+  applyAgentPatch,
+  suggestDecisionLog,
+  type AgentActionRecord,
+  type AgentClient,
+  type AgentPatch,
+  type AgentPatchOperation,
+} from './agentInterface'
 import type { CssSlashCommand } from './cssSlashCommand'
 import { removeCssSlashCommand } from './cssSlashCommand'
 import type { ImageSlashCommand } from './imageSupport'
@@ -174,6 +182,11 @@ const COMMAND_PALETTE_OPTIONS: CommandPaletteOption[] = [
     description: 'Manage page-wide appearance',
   },
   {
+    id: 'agent-suggestions',
+    title: 'Agent suggestions',
+    description: 'Review a suggested decision-log patch',
+  },
+  {
     id: 'share',
     title: 'Share',
     description: 'Create edit and view-only links',
@@ -234,10 +247,20 @@ const COMMAND_DIALOGS: Record<
     title: 'Page styles',
     body: 'Page-wide style controls will live here, separate from per-Area /style commands.',
   },
+  'agent-suggestions': {
+    title: 'Agent proposal',
+    body: 'Review suggested agent changes before applying them to the canvas.',
+  },
   share: {
     title: 'Share',
     body: 'Create links for people who can edit this page or only view it.',
   },
+}
+
+const LOCAL_AGENT_CLIENT: AgentClient = {
+  id: 'local-agent',
+  displayName: 'Cascadery Agent',
+  scopes: ['page:read', 'page:search', 'page:suggest', 'page:write'],
 }
 
 const isEditableTarget = (target: EventTarget | null) =>
@@ -424,6 +447,29 @@ const getInitialImageAreaSize = (width: number, height: number) => {
 const getFileAltText = (fileName: string) =>
   fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim()
 
+const supportsAgentCssDeclaration = (property: string, value: string) =>
+  typeof CSS === 'undefined' ? true : CSS.supports(property, value)
+
+const getAgentOperationSummary = (operation: AgentPatchOperation) => {
+  if (operation.op === 'createArea') {
+    return operation.area.text.split('\n').find(Boolean) ?? 'Create Area'
+  }
+
+  if (operation.op === 'updateArea') {
+    return `Update ${operation.areaId}`
+  }
+
+  if (operation.op === 'updateAreaStyles') {
+    return `Style ${operation.areaId}`
+  }
+
+  if (operation.op === 'moveArea') {
+    return `Move ${operation.areaId}`
+  }
+
+  return `Delete ${operation.areaId}`
+}
+
 const getUrlAltText = (url: string) => {
   try {
     const parsedUrl = new URL(url)
@@ -482,6 +528,11 @@ function App({ pageId }: { pageId?: string }) {
   const [importError, setImportError] = useState<string | null>(
     null
   )
+  const [agentProposal, setAgentProposal] =
+    useState<AgentPatch | null>(null)
+  const [agentAuditRecords, setAgentAuditRecords] = useState<
+    AgentActionRecord[]
+  >([])
   const [hasClickedCanvas, setHasClickedCanvas] = useState(false)
   const [themeColorName, setThemeColorName] = useState('')
   const [themeColorToken, setThemeColorToken] = useState('')
@@ -1252,6 +1303,60 @@ function App({ pageId }: { pageId?: string }) {
         },
       }
     })
+  }
+
+  const createAgentSuggestion = () => {
+    if (isViewOnly) return
+
+    const proposal = suggestDecisionLog(
+      {
+        areas,
+        assets,
+        page,
+      },
+      LOCAL_AGENT_CLIENT
+    )
+
+    setAgentProposal(proposal)
+    setOpenDialogId('agent-suggestions')
+  }
+
+  const applyAgentProposal = () => {
+    if (isViewOnly || !agentProposal) return
+
+    const result = applyAgentPatch(
+      {
+        areas,
+        assets,
+        page,
+      },
+      agentProposal,
+      LOCAL_AGENT_CLIENT,
+      {
+        cssSupports: supportsAgentCssDeclaration,
+      }
+    )
+
+    if (!result.ok) {
+      setImportError(result.errors.join(' '))
+      return
+    }
+
+    setAreas(result.state.areas)
+    setAssets(result.state.assets)
+    setPage(result.state.page)
+    setAgentAuditRecords((currentRecords) => [
+      result.auditRecord,
+      ...currentRecords.slice(0, 9),
+    ])
+    setAgentProposal(null)
+    setOpenDialogId(null)
+    setImportError(null)
+  }
+
+  const rejectAgentProposal = () => {
+    setAgentProposal(null)
+    setOpenDialogId(null)
   }
 
   const regenerateShareUrl = (accessMode: ShareAccessMode) => {
@@ -2215,6 +2320,10 @@ function App({ pageId }: { pageId?: string }) {
               zoomCanvasToSelection()
               return
             }
+            if (option.id === 'agent-suggestions') {
+              createAgentSuggestion()
+              return
+            }
             setOpenDialogId(option.id)
           }}
           onClose={() => setCommandPaletteQuery(null)}
@@ -2265,6 +2374,61 @@ function App({ pageId }: { pageId?: string }) {
                   <p>
                     Share links are available to the editor who creates
                     them.
+                  </p>
+                )}
+              </div>
+            ) : openDialogId === 'agent-suggestions' ? (
+              <div className="agent-proposal">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {agentProposal ? (
+                  <>
+                    <div className="agent-proposal-summary">
+                      <strong>Agent proposal</strong>
+                      <span>
+                        {agentProposal.operations.length} operation
+                        {agentProposal.operations.length === 1
+                          ? ''
+                          : 's'}
+                      </span>
+                    </div>
+                    <div className="agent-proposal-operations">
+                      {agentProposal.operations.map(
+                        (operation, operationIndex) => (
+                          <div
+                            className="agent-proposal-operation"
+                            key={`${operation.op}-${operationIndex}`}
+                          >
+                            <code>{operation.op}</code>
+                            <span>
+                              {getAgentOperationSummary(operation)}
+                            </span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                    <div className="agent-proposal-actions">
+                      <button
+                        className="agent-proposal-button"
+                        type="button"
+                        onClick={applyAgentProposal}
+                      >
+                        Apply proposal
+                      </button>
+                      <button
+                        className="agent-proposal-button agent-proposal-button--secondary"
+                        type="button"
+                        onClick={rejectAgentProposal}
+                      >
+                        Reject proposal
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p>No agent proposal is waiting for review.</p>
+                )}
+                {agentAuditRecords.length > 0 && (
+                  <p className="agent-proposal-audit">
+                    Last applied patch: {agentAuditRecords[0].patchId}
                   </p>
                 )}
               </div>

@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import test from 'node:test'
+
+test('app exposes a reviewable agent suggestion flow', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const css = await readFile(
+    new URL('./App.css', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /id: 'agent-suggestions'/)
+  assert.match(source, /suggestDecisionLog/)
+  assert.match(source, /applyAgentPatch/)
+  assert.match(source, /agentProposal/)
+  assert.match(source, /Agent proposal/)
+  assert.match(source, /Apply proposal/)
+  assert.match(source, /Reject proposal/)
+  assert.match(css, /\.agent-proposal/)
+})

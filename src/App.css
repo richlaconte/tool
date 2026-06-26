@@ -554,6 +554,110 @@
   white-space: nowrap;
 }
 
+.agent-proposal {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.agent-proposal p {
+  margin: 0;
+}
+
+.agent-proposal-summary,
+.agent-proposal-operation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-proposal-summary {
+  border: 1px solid rgb(37 99 235 / 18%);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.agent-proposal-summary strong {
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.agent-proposal-summary span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.agent-proposal-operations {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-proposal-operation {
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  padding: 9px 10px;
+}
+
+.agent-proposal-operation code {
+  flex: 0 0 auto;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #1e40af;
+  font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  padding: 4px 6px;
+}
+
+.agent-proposal-operation span {
+  min-width: 0;
+  overflow: hidden;
+  color: #475569;
+  font-size: 13px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-proposal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.agent-proposal-button {
+  border: 1px solid rgb(37 99 235 / 30%);
+  border-radius: 7px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.agent-proposal-button--secondary {
+  border-color: rgb(148 163 184 / 40%);
+  background: white;
+  color: #334155;
+}
+
+.agent-proposal-button:hover,
+.agent-proposal-button:focus-visible {
+  outline: 2px solid rgb(37 99 235 / 22%);
+  outline-offset: 2px;
+}
+
+.agent-proposal-audit {
+  color: #64748b;
+  font-size: 12px;
+}
+
 .share-link-controls {
   display: grid;
   gap: 12px;

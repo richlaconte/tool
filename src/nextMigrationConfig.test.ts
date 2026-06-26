@@ -50,5 +50,8 @@ test('project pins the package manager used by Docker and CI', async () => {
   const pkg = await readPackageJson()
 
   assert.equal(pkg.packageManager, 'pnpm@9.15.0')
-  assert.equal(pkg.scripts?.test, 'node --test src/*.test.ts')
+  assert.equal(
+    pkg.scripts?.test,
+    'node --test src/*.test.ts src/server/*.test.ts'
+  )
 })

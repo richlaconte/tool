@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "preview": "next start",
     "start": "NODE_ENV=production node dist/server.js",
-    "test": "node --test src/*.test.ts"
+    "test": "node --test src/*.test.ts src/server/*.test.ts"
   },
   "dependencies": {
     "@hocuspocus/extension-sqlite": "^4.3.0",

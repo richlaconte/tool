@@ -4,6 +4,8 @@
 
 Created on 2026-06-26 as follow-up work for the Cascadery product direction.
 
+Implementation note, 2026-06-26: the first endpoint may skip OAuth if it is explicitly enabled, rate-limited, and limited to read/search/suggest tools. Write tools, remote multi-user production access, and per-user permissions still require a stronger authorization model before broad exposure.
+
 ## Goal
 
 Add a quiet AI integration layer that lets agents read, summarize, organize, and propose changes to Cascadery pages through MCP without making chat the primary interface.
@@ -161,7 +163,8 @@ Patch requirements:
 
 ## Security Requirements
 
-- Use OAuth 2.1 or an equivalent secure local authorization flow for protected remote MCP access.
+- Use OAuth 2.1 or an equivalent secure local authorization flow for protected remote MCP access once MCP can mutate pages, access private/team data, or needs per-user permissions.
+- For the first no-auth endpoint, require explicit environment enablement, rate limiting, and read/search/suggest-only tools.
 - Use short-lived access tokens where possible.
 - Do not pass user tokens through prompts or model-visible content.
 - Enforce server-side access checks for every resource and tool call.

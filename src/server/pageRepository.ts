@@ -101,6 +101,32 @@ export const validateShareToken = (
     : null
 }
 
+export const listPages = (database: ToolDatabase): PageRecord[] =>
+  database
+    .prepare(
+      `select id, title, created_at as createdAt, updated_at as updatedAt,
+              deleted_at as deletedAt
+       from pages
+       where deleted_at is null
+       order by updated_at desc`
+    )
+    .all() as PageRecord[]
+
+export const getPageRecord = (
+  database: ToolDatabase,
+  pageId: string
+): PageRecord | null =>
+  (database
+    .prepare(
+      `select id, title, created_at as createdAt, updated_at as updatedAt,
+              deleted_at as deletedAt
+       from pages
+       where id = ?
+         and deleted_at is null
+       limit 1`
+    )
+    .get(pageId) as PageRecord | undefined) ?? null
+
 export const regenerateShareToken = (
   database: ToolDatabase,
   pageId: string,

@@ -31,6 +31,11 @@ const areas = [
   },
 ]
 
+test('default text areas fit the onboarding placeholder comfortably', () => {
+  assert.equal(DEFAULT_AREA_WIDTH, 280)
+  assert.equal(DEFAULT_AREA_HEIGHT, 44)
+})
+
 test('resizes only the target area width', () => {
   const nextAreas = resizeAreaWidth(areas, 'area-1', 260)
 

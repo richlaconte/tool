@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <title>Tool logo</title>
+  <rect width="192" height="192" rx="42" fill="#f8fafc"/>
+  <rect x="35" y="33" width="122" height="122" rx="24" fill="#ffffff" stroke="#1f2937" stroke-width="10"/>
+  <path d="M58 73h76M58 96h58M58 119h34" stroke="#94a3b8" stroke-width="9" stroke-linecap="round"/>
+  <g id="slash-cursor">
+    <path d="M128 51 80 146" stroke="#0f766e" stroke-width="18" stroke-linecap="round"/>
+    <path d="M140 46 92 141" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  <circle cx="36" cy="33" r="8" fill="#38bdf8"/>
+  <circle cx="157" cy="154" r="8" fill="#f59e0b"/>
+</svg>

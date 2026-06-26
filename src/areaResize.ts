@@ -1,7 +1,7 @@
 import type { AreaState } from './App'
 
-export const DEFAULT_AREA_WIDTH = 200
-export const DEFAULT_AREA_HEIGHT = 32
+export const DEFAULT_AREA_WIDTH = 280
+export const DEFAULT_AREA_HEIGHT = 44
 export const MIN_AREA_WIDTH = 80
 export const MIN_AREA_HEIGHT = 28
 

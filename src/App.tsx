@@ -1684,6 +1684,16 @@ function App({ pageId }: { pageId?: string }) {
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
     >
+      <div className="site-brand" aria-label="Tool">
+        <img
+          alt=""
+          className="site-brand-mark"
+          draggable="false"
+          src="/logo.svg"
+        />
+        <span>Tool</span>
+      </div>
+
       <div className="page-persistence">
         {isViewOnly && (
           <span className="access-mode-badge access-mode-badge--view-only">

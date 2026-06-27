@@ -43,6 +43,18 @@ export type McpJsonRpcResponse = {
   }
 }
 
+export type McpAgentActionRecord = {
+  id: string
+  pageId: string | null
+  toolName: string
+  clientId: string
+  clientDisplayName: string
+  operationCount: number
+  createdAt: string
+  result: 'success' | 'error'
+  errorCode?: number
+}
+
 type McpResourceDefinition = {
   uri: string
   name: string
@@ -55,8 +67,12 @@ export type McpGatewayContext = {
     state: PageAppState,
     client: AgentClient
   ) => Promise<AgentPatch>
+  createActionId?: () => string
   getPage: (pageId: string) => Promise<PageAppState | null>
+  listAgentActions?: (pageId: string) => Promise<McpAgentActionRecord[]>
   listPages: () => Promise<PageAppState[]>
+  now?: () => string
+  recordAgentAction?: (record: McpAgentActionRecord) => Promise<void>
 }
 
 const MCP_AGENT_CLIENT: AgentClient = {
@@ -448,7 +464,10 @@ export const handleMcpJsonRpcRequest = async (
   }
 
   if (request.method === 'tools/call') {
-    return callTool(id, request.params, context)
+    const response = await callTool(id, request.params, context)
+    await recordMcpToolAction(request.params, response, context)
+
+    return response
   }
 
   return errorResponse(id, -32601, 'Method not found.')
@@ -720,6 +739,65 @@ const callTool = async (
   return errorResponse(id, -32601, 'Tool not found.')
 }
 
+const recordMcpToolAction = async (
+  params: unknown,
+  response: McpJsonRpcResponse,
+  context: McpGatewayContext
+) => {
+  if (
+    !context.recordAgentAction ||
+    !isRecord(params) ||
+    typeof params.name !== 'string'
+  ) {
+    return
+  }
+
+  const args = isRecord(params.arguments) ? params.arguments : {}
+  const pageId = typeof args.pageId === 'string' ? args.pageId : null
+
+  await context.recordAgentAction({
+    id: context.createActionId?.() ?? createDefaultMcpActionId(),
+    pageId,
+    toolName: params.name,
+    clientId: MCP_AGENT_CLIENT.id,
+    clientDisplayName: MCP_AGENT_CLIENT.displayName,
+    operationCount: getMcpToolOperationCount(response.result),
+    createdAt: context.now?.() ?? new Date().toISOString(),
+    result: response.error ? 'error' : 'success',
+    ...(response.error ? { errorCode: response.error.code } : {}),
+  })
+}
+
+const getMcpToolOperationCount = (result: unknown) => {
+  if (
+    isRecord(result) &&
+    Array.isArray(result.operations)
+  ) {
+    return result.operations.length
+  }
+
+  if (
+    isRecord(result) &&
+    isRecord(result.patch) &&
+    Array.isArray(result.patch.operations)
+  ) {
+    return result.patch.operations.length
+  }
+
+  return 0
+}
+
+const createDefaultMcpActionId = () => {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return `mcp_action_${crypto.randomUUID()}`
+  }
+
+  return `mcp_action_${Date.now()}`
+}
+
 const readResource = async (
   id: string | number | null,
   params: unknown,
@@ -783,7 +861,9 @@ const readResource = async (
       id: state.page.id,
       title: state.page.title,
     },
-    actions: [],
+    actions: context.listAgentActions
+      ? await context.listAgentActions(state.page.id)
+      : [],
     permissionMode: pageResource.permissionMode,
   })
 }

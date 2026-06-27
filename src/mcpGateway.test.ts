@@ -5,6 +5,7 @@ import { createDefaultPageState, type PageAppState } from './pagePersistence.ts'
 import {
   handleMcpJsonRpcRequest,
   MCP_JSON_RPC_VERSION,
+  type McpAgentActionRecord,
   type McpGatewayContext,
 } from './mcpGateway.ts'
 
@@ -168,6 +169,61 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   ])
   assert.doesNotMatch(serializedPageResource, /secret-binary/)
   assert.doesNotMatch(serializedAssets, /secret-binary/)
+})
+
+test('MCP tool calls are recorded as sanitized agent action resources', async () => {
+  const records: McpAgentActionRecord[] = []
+  const actionContext: McpGatewayContext = {
+    ...context,
+    createActionId: () => 'mcp-action-1',
+    listAgentActions: async (pageId) =>
+      records.filter((record) => record.pageId === pageId),
+    now: () => now,
+    recordAgentAction: async (record) => {
+      records.unshift(record)
+    },
+  }
+
+  await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'suggest-record',
+      method: 'tools/call',
+      params: {
+        name: 'suggest_decision_log',
+        arguments: {
+          pageId: 'page-1',
+          query: 'secret search text',
+        },
+      },
+    },
+    actionContext
+  )
+
+  const actions = await readJsonResourceWithContext(
+    'cascadery://pages/page-1/agent-actions',
+    actionContext
+  )
+  const serializedActions = JSON.stringify(actions)
+
+  assert.deepEqual(actions.actions, [
+    {
+      id: 'mcp-action-1',
+      pageId: 'page-1',
+      toolName: 'suggest_decision_log',
+      clientId: 'no-auth-mcp',
+      clientDisplayName: 'No-auth MCP client',
+      operationCount: 1,
+      createdAt: now,
+      result: 'success',
+    },
+  ])
+  assert.doesNotMatch(serializedActions, /secret search text/)
+  assert.deepEqual(actions.permissionMode.scopes, [
+    'page:read',
+    'page:search',
+    'page:suggest',
+  ])
 })
 
 test('MCP tools can read, search, and propose patches without applying them', async () => {
@@ -569,6 +625,13 @@ test('MCP gateway returns structured errors for missing pages and unconfigured A
 })
 
 const readJsonResource = async (uri: string) => {
+  return readJsonResourceWithContext(uri, context)
+}
+
+const readJsonResourceWithContext = async (
+  uri: string,
+  resourceContext: McpGatewayContext
+) => {
   const response = await handleMcpJsonRpcRequest(
     {
       jsonrpc: MCP_JSON_RPC_VERSION,
@@ -578,7 +641,7 @@ const readJsonResource = async (uri: string) => {
         uri,
       },
     },
-    context
+    resourceContext
   )
 
   assert.equal(response.error, undefined)

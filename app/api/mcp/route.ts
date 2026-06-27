@@ -2,6 +2,7 @@ import type { AgentClient, AgentPatch } from '../../../src/agentInterface'
 import {
   handleMcpJsonRpcRequest,
   MCP_JSON_RPC_VERSION,
+  type McpAgentActionRecord,
   type McpJsonRpcRequest,
 } from '../../../src/mcpGateway'
 import { createDatabase } from '../../../src/server/database'
@@ -27,6 +28,8 @@ export const runtime = 'nodejs'
 const rateLimiter = createFixedWindowRateLimiter(
   getRateLimitConfigFromEnv()
 )
+const MAX_MCP_AGENT_ACTION_RECORDS = 100
+const mcpAgentActionRecords: McpAgentActionRecord[] = []
 
 export const GET = () =>
   Response.json({
@@ -83,7 +86,10 @@ export const POST = async (request: Request) => {
       ? (state, client) =>
           createGlmDecisionLogPatch(state, client, glmConfig)
       : undefined,
+    createActionId: () => `mcp_action_${crypto.randomUUID()}`,
     getPage: async (pageId) => getPageState(database, pageId),
+    listAgentActions: async (pageId) =>
+      mcpAgentActionRecords.filter((record) => record.pageId === pageId),
     listPages: async () =>
       listPages(database).map((pageRecord) =>
         getStoredCollaborativePageState(database, pageRecord.id)
@@ -93,6 +99,14 @@ export const POST = async (request: Request) => {
             ) as PageAppState)
           : createEmptyPageState(pageRecord)
       ),
+    recordAgentAction: async (record) => {
+      mcpAgentActionRecords.unshift(record)
+      mcpAgentActionRecords.splice(MAX_MCP_AGENT_ACTION_RECORDS)
+      console.info(
+        'cascadery.mcp.agent_action',
+        JSON.stringify(record)
+      )
+    },
   })
 
   return Response.json(response, {

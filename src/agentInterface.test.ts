@@ -118,6 +118,17 @@ const cssSupports = (property: string, value: string) =>
       ? value === '#f8fafc'
       : false
 
+const withoutAreaTimestamps = (areas: PageAppState['areas']) =>
+  areas.map(({ createdAt, updatedAt, ...area }) => {
+    void createdAt
+    void updatedAt
+
+    return {
+      ...area,
+      type: area.type ?? 'text',
+    }
+  })
+
 test('agent read tools list and retrieve pages without leaking secrets', () => {
   const pages = listAgentPages([state], readClient)
   const pageResource = getAgentPage(state, readClient)
@@ -569,9 +580,140 @@ test('applying an agent patch requires write scope and creates an audit record',
         imageAreaCount: 0,
         textAreaCount: 3,
       },
+      undoPatch: {
+        schemaVersion: 1,
+        id: 'patch-1_undo',
+        pageId: 'page-1',
+        source: {
+          kind: 'mcp-agent',
+          clientId: 'client_write',
+          displayName: 'Write Agent undo',
+        },
+        operations: [
+          {
+            op: 'deleteArea',
+            areaId: 'patch-1_area_1',
+          },
+        ],
+        createdAt: now,
+      },
       createdAt: now,
       result: 'applied',
     }
+  )
+})
+
+test('applied agent patches include a practical undo patch', () => {
+  const patch = {
+    schemaVersion: 1,
+    id: 'patch-reversible',
+    pageId: 'page-1',
+    source: {
+      kind: 'mcp-agent',
+      clientId: writeClient.id,
+      displayName: writeClient.displayName,
+    },
+    operations: [
+      {
+        op: 'updateArea',
+        areaId: 'area-1',
+        patch: {
+          text: 'Decision: undo patches should restore text.',
+          width: 320,
+        },
+      },
+      {
+        op: 'updateAreaStyles',
+        areaId: 'area-1',
+        styles: {
+          border: '1px solid #2563eb',
+          background: '#f8fafc',
+        },
+      },
+      {
+        op: 'moveArea',
+        areaId: 'area-1',
+        x: 180,
+        y: 260,
+      },
+      {
+        op: 'nestArea',
+        areaId: 'area-2',
+        parentId: 'area-1',
+      },
+      {
+        op: 'deleteArea',
+        areaId: 'area-2',
+      },
+    ],
+    createdAt: now,
+  } satisfies AgentPatch
+  const applied = applyAgentPatch(state, patch, writeClient, {
+    createActionId: () => 'action-reversible',
+    cssSupports,
+    now,
+  })
+
+  assert.equal(applied.ok, true)
+  assert.deepEqual(
+    applied.ok ? applied.auditRecord.undoPatch.operations : [],
+    [
+      {
+        op: 'createArea',
+        area: {
+          id: 'area-2',
+          type: 'text',
+          text: 'Open question: should remote MCP wait for auth?',
+          x: 400,
+          y: 120,
+          width: 260,
+          height: 80,
+          parentId: null,
+          styles: {},
+        },
+      },
+      {
+        op: 'moveArea',
+        areaId: 'area-1',
+        x: 100,
+        y: 120,
+      },
+      {
+        op: 'updateAreaStyles',
+        areaId: 'area-1',
+        styles: {
+          background: null,
+          border: '1px solid #2563eb',
+        },
+      },
+      {
+        op: 'updateArea',
+        areaId: 'area-1',
+        patch: {
+          text: 'Decision: use patches for AI writes.',
+          width: 240,
+        },
+      },
+    ]
+  )
+
+  if (!applied.ok) return
+
+  const undone = applyAgentPatch(
+    applied.state,
+    applied.auditRecord.undoPatch,
+    writeClient,
+    {
+      createActionId: () => 'action-undo',
+      cssSupports,
+      now,
+    }
+  )
+
+  assert.equal(undone.ok, true)
+  assert.deepEqual(
+    undone.ok ? withoutAreaTimestamps(undone.state.areas) : [],
+    withoutAreaTimestamps(state.areas)
   )
 })
 

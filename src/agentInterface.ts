@@ -59,6 +59,8 @@ export type AgentPatchSource = {
   displayName: string
 }
 
+export type AgentStylePatch = Record<string, string | null>
+
 export type AgentPatchOperation =
   | {
       op: 'createArea'
@@ -85,7 +87,7 @@ export type AgentPatchOperation =
   | {
       op: 'updateAreaStyles'
       areaId: string
-      styles: Record<string, string>
+      styles: AgentStylePatch
     }
   | {
       op: 'moveArea'
@@ -137,6 +139,7 @@ export type AgentActionRecord = {
   operationCount: number
   beforeSummary: AgentPageAuditSummary
   afterSummary: AgentPageAuditSummary
+  undoPatch: AgentPatch
   createdAt: string
   result: 'applied'
 }
@@ -566,7 +569,7 @@ export const updateAgentAreaStylesPatch = (
   state: PageAppState,
   client: AgentClient,
   areaId: string,
-  styles: Record<string, string>,
+  styles: AgentStylePatch,
   options: AgentSuggestionOptions = {}
 ): AgentPatch =>
   createAgentPatch(
@@ -834,6 +837,7 @@ export const applyAgentPatch = (
   )
   const beforeSummary = createAgentPageAuditSummary(state)
   const afterSummary = createAgentPageAuditSummary(nextState)
+  const undoPatch = createAgentUndoPatch(state, patch, client, now)
 
   return {
     ok: true,
@@ -847,6 +851,7 @@ export const applyAgentPatch = (
       operationCount: patch.operations.length,
       beforeSummary,
       afterSummary,
+      undoPatch,
       createdAt: now,
       result: 'applied',
     },
@@ -863,6 +868,225 @@ const createAgentPageAuditSummary = (
   textAreaCount: state.areas.filter((area) => area.type !== 'image')
     .length,
 })
+
+const createAgentUndoPatch = (
+  state: PageAppState,
+  patch: AgentPatch,
+  client: AgentClient,
+  now: string
+): AgentPatch => {
+  let currentState = clonePageAppState(state)
+  const createdAreaIds = new Set(
+    patch.operations.flatMap((operation, index) =>
+      operation.op === 'createArea'
+        ? [getCreatedAgentAreaId(operation, index)]
+        : []
+    )
+  )
+  const deletedAreaIds = patch.operations.flatMap((operation) =>
+    operation.op === 'deleteArea' ? [operation.areaId] : []
+  )
+  const deletedAreaIdSet = new Set(deletedAreaIds)
+  const undoOperations: AgentPatchOperation[] = []
+
+  patch.operations.forEach((operation, index) => {
+    const undoOperation = createAgentUndoOperation(
+      currentState,
+      operation,
+      index,
+      deletedAreaIdSet
+    )
+
+    if (undoOperation) {
+      undoOperations.push(undoOperation)
+    }
+
+    currentState = applyAgentOperation(currentState, operation, index)
+  })
+
+  return {
+    schemaVersion: 1,
+    id: `${patch.id}_undo`,
+    pageId: patch.pageId,
+    source: {
+      kind: 'mcp-agent',
+      clientId: client.id,
+      displayName: `${client.displayName} undo`,
+    },
+    operations: [
+      ...deletedAreaIds.flatMap((areaId) =>
+        createdAreaIds.has(areaId)
+          ? []
+          : createAgentRestoreTextAreaOperation(state, areaId)
+      ),
+      ...undoOperations.reverse(),
+    ],
+    createdAt: now,
+  }
+}
+
+const createAgentUndoOperation = (
+  state: PageAppState,
+  operation: AgentPatchOperation,
+  index: number,
+  deletedAreaIds: Set<string>
+): AgentPatchOperation | null => {
+  if (operation.op === 'createArea') {
+    const areaId = getCreatedAgentAreaId(operation, index)
+
+    if (deletedAreaIds.has(areaId)) return null
+
+    return {
+      op: 'deleteArea',
+      areaId,
+    }
+  }
+
+  if ('areaId' in operation && deletedAreaIds.has(operation.areaId)) {
+    return null
+  }
+
+  if (operation.op === 'updateArea') {
+    const area = state.areas.find(
+      (candidate): candidate is TextAreaState =>
+        candidate.id === operation.areaId && candidate.type !== 'image'
+    )
+
+    if (!area) return null
+
+    const patch: Extract<
+      AgentPatchOperation,
+      { op: 'updateArea' }
+    >['patch'] = {}
+
+    if (operation.patch.text !== undefined) patch.text = area.text
+    if (operation.patch.x !== undefined) patch.x = area.x
+    if (operation.patch.y !== undefined) patch.y = area.y
+    if (operation.patch.width !== undefined) patch.width = area.width
+    if (operation.patch.height !== undefined) patch.height = area.height
+
+    if (Object.keys(patch).length === 0) return null
+
+    return {
+      op: 'updateArea',
+      areaId: operation.areaId,
+      patch,
+    }
+  }
+
+  if (operation.op === 'updateAreaStyles') {
+    const area = state.areas.find(
+      (candidate) => candidate.id === operation.areaId
+    )
+
+    if (!area) return null
+
+    const styles: AgentStylePatch = {}
+
+    for (const property of Object.keys(operation.styles)) {
+      styles[property] = Object.hasOwn(area.styles, property)
+        ? area.styles[property]
+        : null
+    }
+
+    if (Object.keys(styles).length === 0) return null
+
+    return {
+      op: 'updateAreaStyles',
+      areaId: operation.areaId,
+      styles,
+    }
+  }
+
+  if (operation.op === 'moveArea') {
+    const area = state.areas.find(
+      (candidate) => candidate.id === operation.areaId
+    )
+
+    if (!area) return null
+
+    return {
+      op: 'moveArea',
+      areaId: operation.areaId,
+      x: area.x,
+      y: area.y,
+    }
+  }
+
+  if (operation.op === 'nestArea') {
+    const area = state.areas.find(
+      (candidate) => candidate.id === operation.areaId
+    )
+
+    if (!area) return null
+
+    return {
+      op: 'nestArea',
+      areaId: operation.areaId,
+      parentId: area.parentId,
+    }
+  }
+
+  const area = state.areas.find(
+    (candidate): candidate is TextAreaState =>
+      candidate.id === operation.areaId && candidate.type !== 'image'
+  )
+
+  if (!area) return null
+
+  return {
+    op: 'createArea',
+    area: {
+      id: area.id,
+      type: 'text',
+      text: area.text,
+      x: area.x,
+      y: area.y,
+      width: area.width,
+      height: area.height,
+      parentId: area.parentId,
+      styles: {
+        ...area.styles,
+      },
+    },
+  }
+}
+
+const getCreatedAgentAreaId = (
+  operation: Extract<AgentPatchOperation, { op: 'createArea' }>,
+  index: number
+) => operation.area.id ?? operation.tempId ?? `agent_area_${index + 1}`
+
+const createAgentRestoreTextAreaOperation = (
+  state: PageAppState,
+  areaId: string
+): AgentPatchOperation[] => {
+  const area = state.areas.find(
+    (candidate): candidate is TextAreaState =>
+      candidate.id === areaId && candidate.type !== 'image'
+  )
+
+  if (!area) return []
+
+  return [
+    {
+      op: 'createArea',
+      area: {
+        id: area.id,
+        type: 'text',
+        text: area.text,
+        x: area.x,
+        y: area.y,
+        width: area.width,
+        height: area.height,
+        parentId: area.parentId,
+        styles: {
+          ...area.styles,
+        },
+      },
+    },
+  ]
+}
 
 const validateAgentOperation = (
   state: PageAppState,
@@ -966,15 +1190,23 @@ const validateCreateAreaOperation = (
     operation.area.styles ?? {},
     index,
     cssSupports,
-    errors
+    errors,
+    {
+      allowRemoval: false,
+    }
   )
 }
 
 const validateStyles = (
-  styles: Record<string, string>,
+  styles: AgentStylePatch,
   index: number,
   cssSupports: CssSupportChecker,
-  errors: string[]
+  errors: string[],
+  {
+    allowRemoval = true,
+  }: {
+    allowRemoval?: boolean
+  } = {}
 ) => {
   if (!isRecord(styles)) {
     errors.push(`Operation ${index + 1} styles must be an object.`)
@@ -988,6 +1220,8 @@ const validateStyles = (
   }
 
   for (const [property, value] of entries) {
+    if (value === null && allowRemoval) continue
+
     if (
       typeof value !== 'string' ||
       value.length > MAX_AGENT_STYLE_VALUE_LENGTH ||
@@ -1087,17 +1321,28 @@ const applyAgentOperation = (
   if (operation.op === 'updateAreaStyles') {
     return {
       ...state,
-      areas: state.areas.map((area) =>
-        area.id === operation.areaId
-          ? {
-              ...area,
-              styles: {
-                ...area.styles,
-                ...operation.styles,
-              },
-            }
-          : area
-      ),
+      areas: state.areas.map((area) => {
+        if (area.id !== operation.areaId) return area
+
+        const styles = {
+          ...area.styles,
+        }
+
+        for (const [property, value] of Object.entries(
+          operation.styles
+        )) {
+          if (value === null) {
+            delete styles[property]
+          } else {
+            styles[property] = value
+          }
+        }
+
+        return {
+          ...area,
+          styles,
+        }
+      }),
     }
   }
 

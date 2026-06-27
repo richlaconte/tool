@@ -1,7 +1,11 @@
 import {
+  extractAgentDecisions,
+  extractAgentOpenQuestions,
+  getAgentArea,
   getAgentPage,
   listAgentPages,
   searchAgentAreas,
+  summarizeAgentPage,
   suggestDecisionLog,
   type AgentClient,
   type AgentPatch,
@@ -66,6 +70,22 @@ const toolDefinitions = [
     },
   },
   {
+    name: 'get_area',
+    description: 'Get one Cascadery Area by stable id.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
     name: 'search_areas',
     description: 'Search Area ids and text within one Cascadery page.',
     inputSchema: {
@@ -76,6 +96,46 @@ const toolDefinitions = [
           type: 'string',
         },
         query: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'summarize_page',
+    description: 'Summarize page structure and extracted decision markers.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'extract_decisions',
+    description: 'Extract lines prefixed with Decision: from text Areas.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'extract_open_questions',
+    description:
+      'Extract lines prefixed with Open question: or Question: from text Areas.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
           type: 'string',
         },
       },
@@ -172,6 +232,21 @@ const callTool = async (
     return resultResponse(id, getAgentPage(state, MCP_AGENT_CLIENT))
   }
 
+  if (params.name === 'get_area') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    const result = getAgentArea(
+      state,
+      typeof args.areaId === 'string' ? args.areaId : '',
+      MCP_AGENT_CLIENT
+    )
+
+    if (!result.area) return areaNotFoundResponse(id)
+
+    return resultResponse(id, result)
+  }
+
   if (params.name === 'search_areas') {
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
@@ -183,6 +258,30 @@ const callTool = async (
         typeof args.query === 'string' ? args.query : '',
         MCP_AGENT_CLIENT
       )
+    )
+  }
+
+  if (params.name === 'summarize_page') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(id, summarizeAgentPage(state, MCP_AGENT_CLIENT))
+  }
+
+  if (params.name === 'extract_decisions') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(id, extractAgentDecisions(state, MCP_AGENT_CLIENT))
+  }
+
+  if (params.name === 'extract_open_questions') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      extractAgentOpenQuestions(state, MCP_AGENT_CLIENT)
     )
   }
 
@@ -249,6 +348,9 @@ const errorResponse = (
 
 const pageNotFoundResponse = (id: string | number | null) =>
   errorResponse(id, -32004, 'Page not found.')
+
+const areaNotFoundResponse = (id: string | number | null) =>
+  errorResponse(id, -32005, 'Area not found.')
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)

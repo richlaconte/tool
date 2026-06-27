@@ -65,7 +65,11 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
     [
       'list_pages',
       'get_page',
+      'get_area',
       'search_areas',
+      'summarize_page',
+      'extract_decisions',
+      'extract_open_questions',
       'suggest_decision_log',
       'ai_suggest_decision_log',
     ]
@@ -119,6 +123,63 @@ test('MCP tools can read, search, and propose patches without applying them', as
   assert.equal(searched.result.areas[0].id, 'area-1')
   assert.equal(suggested.result.operations[0].op, 'createArea')
   assert.equal(state.areas.length, 1)
+})
+
+test('MCP read-only tools retrieve one area and extract page facts', async () => {
+  const area = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'area',
+      method: 'tools/call',
+      params: {
+        name: 'get_area',
+        arguments: {
+          pageId: 'page-1',
+          areaId: 'area-1',
+        },
+      },
+    },
+    context
+  )
+  const summary = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'summary',
+      method: 'tools/call',
+      params: {
+        name: 'summarize_page',
+        arguments: {
+          pageId: 'page-1',
+        },
+      },
+    },
+    context
+  )
+  const decisions = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'decisions',
+      method: 'tools/call',
+      params: {
+        name: 'extract_decisions',
+        arguments: {
+          pageId: 'page-1',
+        },
+      },
+    },
+    context
+  )
+
+  assert.equal(area.result.area.id, 'area-1')
+  assert.equal(summary.result.summary.decisionCount, 1)
+  assert.deepEqual(decisions.result.items, [
+    {
+      areaId: 'area-1',
+      kind: 'decision',
+      lineNumber: 1,
+      text: 'expose read-only MCP before write tools.',
+    },
+  ])
 })
 
 test('MCP AI suggestion delegates to the configured model callback', async () => {

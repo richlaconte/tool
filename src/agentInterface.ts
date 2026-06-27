@@ -45,6 +45,13 @@ export type AgentPageResource = {
   }
 }
 
+export type AgentExtractedItem = {
+  areaId: string
+  kind: 'decision' | 'open-question' | 'risk'
+  lineNumber: number
+  text: string
+}
+
 export type AgentPatchSource = {
   kind: 'mcp-agent'
   clientId: string
@@ -224,6 +231,72 @@ export const searchAgentAreas = (
         : [],
   }
 }
+
+export const getAgentArea = (
+  state: PageAppState,
+  areaId: string,
+  client: AgentClient
+) => ({
+  schemaVersion: 1 as const,
+  area: hasScope(client, 'page:read')
+    ? state.areas
+        .map(toAgentAreaResource)
+        .find((area) => area.id === areaId) ?? null
+    : null,
+})
+
+export const summarizeAgentPage = (
+  state: PageAppState,
+  client: AgentClient
+) => {
+  const areas = hasScope(client, 'page:read') ? state.areas : []
+  const extractedItems = extractStructuredTextItems(areas)
+
+  return {
+    schemaVersion: 1 as const,
+    page: {
+      id: state.page.id,
+      title: state.page.title,
+    },
+    summary: {
+      areaCount: areas.length,
+      decisionCount: extractedItems.filter(
+        (item) => item.kind === 'decision'
+      ).length,
+      imageAreaCount: areas.filter((area) => area.type === 'image').length,
+      openQuestionCount: extractedItems.filter(
+        (item) => item.kind === 'open-question'
+      ).length,
+      riskCount: extractedItems.filter((item) => item.kind === 'risk')
+        .length,
+      textAreaCount: areas.filter((area) => area.type !== 'image').length,
+    },
+  }
+}
+
+export const extractAgentDecisions = (
+  state: PageAppState,
+  client: AgentClient
+) => ({
+  schemaVersion: 1 as const,
+  items: hasScope(client, 'page:read')
+    ? extractStructuredTextItems(state.areas).filter(
+        (item) => item.kind === 'decision'
+      )
+    : [],
+})
+
+export const extractAgentOpenQuestions = (
+  state: PageAppState,
+  client: AgentClient
+) => ({
+  schemaVersion: 1 as const,
+  items: hasScope(client, 'page:read')
+    ? extractStructuredTextItems(state.areas).filter(
+        (item) => item.kind === 'open-question'
+      )
+    : [],
+})
 
 export const suggestDecisionLog = (
   state: PageAppState,
@@ -658,6 +731,46 @@ const getAreaSearchText = (area: AreaState) => {
   }
 
   return `${area.id} ${area.text}`.toLowerCase()
+}
+
+const extractStructuredTextItems = (areas: AreaState[]) =>
+  areas.flatMap((area) => {
+    if (area.type === 'image') return []
+
+    return area.text
+      .split('\n')
+      .map((line, lineIndex) =>
+        getStructuredTextItem(area.id, line, lineIndex + 1)
+      )
+      .filter((item): item is AgentExtractedItem => item !== null)
+  })
+
+const getStructuredTextItem = (
+  areaId: string,
+  line: string,
+  lineNumber: number
+): AgentExtractedItem | null => {
+  const trimmedLine = line.trim()
+  const match = /^(decision|open question|question|risk)\s*:\s*(.+)$/i.exec(
+    trimmedLine
+  )
+
+  if (!match) return null
+
+  const rawKind = match[1].toLowerCase()
+  const kind =
+    rawKind === 'decision'
+      ? 'decision'
+      : rawKind === 'risk'
+        ? 'risk'
+        : 'open-question'
+
+  return {
+    areaId,
+    kind,
+    lineNumber,
+    text: match[2].trim(),
+  }
 }
 
 const hasScope = (client: AgentClient, scope: AgentScope) =>

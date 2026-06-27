@@ -6,9 +6,13 @@ import { createDefaultPageState } from './pagePersistence.ts'
 import {
   applyAgentPatch,
   createAgentPatchId,
+  extractAgentDecisions,
+  extractAgentOpenQuestions,
+  getAgentArea,
   getAgentPage,
   listAgentPages,
   searchAgentAreas,
+  summarizeAgentPage,
   suggestDecisionLog,
   validateAgentPatch,
   type AgentClient,
@@ -131,6 +135,47 @@ test('agent search returns matching areas as structured JSON', () => {
   assert.equal(result.areas.length, 1)
   assert.equal(result.areas[0].id, 'area-2')
   assert.equal(result.areas[0].text, state.areas[1].text)
+})
+
+test('agent read tools can retrieve one area by id', () => {
+  const result = getAgentArea(state, 'area-1', readClient)
+  const missing = getAgentArea(state, 'missing', readClient)
+
+  assert.equal(result.area?.id, 'area-1')
+  assert.equal(result.area?.type, 'text')
+  assert.equal(result.area?.text, state.areas[0].text)
+  assert.equal(missing.area, null)
+})
+
+test('agent read tools summarize page content and extract decisions', () => {
+  const summary = summarizeAgentPage(state, readClient)
+  const decisions = extractAgentDecisions(state, readClient)
+  const openQuestions = extractAgentOpenQuestions(state, readClient)
+
+  assert.deepEqual(summary.summary, {
+    areaCount: 2,
+    decisionCount: 1,
+    imageAreaCount: 0,
+    openQuestionCount: 1,
+    riskCount: 0,
+    textAreaCount: 2,
+  })
+  assert.deepEqual(decisions.items, [
+    {
+      areaId: 'area-1',
+      kind: 'decision',
+      lineNumber: 1,
+      text: 'use patches for AI writes.',
+    },
+  ])
+  assert.deepEqual(openQuestions.items, [
+    {
+      areaId: 'area-2',
+      kind: 'open-question',
+      lineNumber: 1,
+      text: 'should remote MCP wait for auth?',
+    },
+  ])
 })
 
 test('agent suggest tools return valid patches without applying them', () => {

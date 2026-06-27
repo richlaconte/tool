@@ -121,6 +121,13 @@ export type AgentPatchValidationResult =
       errors: string[]
     }
 
+export type AgentPageAuditSummary = {
+  areaCount: number
+  assetCount: number
+  imageAreaCount: number
+  textAreaCount: number
+}
+
 export type AgentActionRecord = {
   id: string
   pageId: string
@@ -128,6 +135,8 @@ export type AgentActionRecord = {
   clientId: string
   clientDisplayName: string
   operationCount: number
+  beforeSummary: AgentPageAuditSummary
+  afterSummary: AgentPageAuditSummary
   createdAt: string
   result: 'applied'
 }
@@ -823,6 +832,8 @@ export const applyAgentPatch = (
     applyAgentOperation,
     clonePageAppState(state)
   )
+  const beforeSummary = createAgentPageAuditSummary(state)
+  const afterSummary = createAgentPageAuditSummary(nextState)
 
   return {
     ok: true,
@@ -834,11 +845,24 @@ export const applyAgentPatch = (
       clientId: client.id,
       clientDisplayName: client.displayName,
       operationCount: patch.operations.length,
+      beforeSummary,
+      afterSummary,
       createdAt: now,
       result: 'applied',
     },
   }
 }
+
+const createAgentPageAuditSummary = (
+  state: PageAppState
+): AgentPageAuditSummary => ({
+  areaCount: state.areas.length,
+  assetCount: state.assets.length,
+  imageAreaCount: state.areas.filter((area) => area.type === 'image')
+    .length,
+  textAreaCount: state.areas.filter((area) => area.type !== 'image')
+    .length,
+})
 
 const validateAgentOperation = (
   state: PageAppState,

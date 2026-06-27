@@ -557,6 +557,18 @@ test('applying an agent patch requires write scope and creates an audit record',
       clientId: 'client_write',
       clientDisplayName: 'Write Agent',
       operationCount: 1,
+      beforeSummary: {
+        areaCount: 2,
+        assetCount: 1,
+        imageAreaCount: 0,
+        textAreaCount: 2,
+      },
+      afterSummary: {
+        areaCount: 3,
+        assetCount: 1,
+        imageAreaCount: 0,
+        textAreaCount: 3,
+      },
       createdAt: now,
       result: 'applied',
     }

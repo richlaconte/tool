@@ -15,7 +15,17 @@ const state: PageAppState = {
     id: 'page-1',
     now,
   }),
-  assets: [],
+  assets: [
+    {
+      id: 'asset-1',
+      kind: 'image',
+      mimeType: 'image/png',
+      width: 640,
+      height: 320,
+      storageKey: 'data:image/png;base64,secret-binary',
+      createdAt: now,
+    },
+  ],
   areas: [
     {
       id: 'area-1',
@@ -85,6 +95,7 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
   assert.equal(initialized.id, 1)
   assert.equal(initialized.result.serverInfo.name, 'cascadery')
   assert.equal(initialized.result.auth, 'none')
+  assert.deepEqual(initialized.result.capabilities.resources, {})
   assert.deepEqual(
     tools.result.tools.map((tool: { name: string }) => tool.name),
     [
@@ -110,6 +121,53 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'apply_patch',
     ]
   )
+})
+
+test('MCP resources list and read page context without leaking raw assets', async () => {
+  const listed = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'resources-list',
+      method: 'resources/list',
+    },
+    context
+  )
+  const resourceUris = listed.result.resources.map(
+    (resource: { uri: string }) => resource.uri
+  )
+
+  assert.deepEqual(resourceUris, [
+    'cascadery://pages',
+    'cascadery://pages/page-1',
+    'cascadery://pages/page-1/areas',
+    'cascadery://pages/page-1/assets',
+    'cascadery://pages/page-1/agent-actions',
+  ])
+
+  const pages = await readJsonResource('cascadery://pages')
+  const pageResource = await readJsonResource('cascadery://pages/page-1')
+  const areas = await readJsonResource('cascadery://pages/page-1/areas')
+  const assets = await readJsonResource('cascadery://pages/page-1/assets')
+  const actions = await readJsonResource(
+    'cascadery://pages/page-1/agent-actions'
+  )
+  const serializedPageResource = JSON.stringify(pageResource)
+  const serializedAssets = JSON.stringify(assets)
+
+  assert.equal(pages.pages[0].id, 'page-1')
+  assert.equal(pageResource.page.id, 'page-1')
+  assert.equal(pageResource.areas[0].id, 'area-1')
+  assert.equal(areas.areas[0].text, state.areas[0].text)
+  assert.equal(assets.assets[0].id, 'asset-1')
+  assert.equal(assets.assets[0].storageKey, undefined)
+  assert.deepEqual(actions.actions, [])
+  assert.deepEqual(actions.permissionMode.scopes, [
+    'page:read',
+    'page:search',
+    'page:suggest',
+  ])
+  assert.doesNotMatch(serializedPageResource, /secret-binary/)
+  assert.doesNotMatch(serializedAssets, /secret-binary/)
 })
 
 test('MCP tools can read, search, and propose patches without applying them', async () => {
@@ -481,7 +539,49 @@ test('MCP gateway returns structured errors for missing pages and unconfigured A
     },
     context
   )
+  const missingResourcePage = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'missing-resource-page',
+      method: 'resources/read',
+      params: {
+        uri: 'cascadery://pages/missing',
+      },
+    },
+    context
+  )
+  const unknownResource = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'unknown-resource',
+      method: 'resources/read',
+      params: {
+        uri: 'cascadery://unknown',
+      },
+    },
+    context
+  )
 
   assert.equal(missingPage.error.code, -32004)
   assert.equal(missingAi.error.code, -32010)
+  assert.equal(missingResourcePage.error.code, -32004)
+  assert.equal(unknownResource.error.code, -32006)
 })
+
+const readJsonResource = async (uri: string) => {
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: uri,
+      method: 'resources/read',
+      params: {
+        uri,
+      },
+    },
+    context
+  )
+
+  assert.equal(response.error, undefined)
+
+  return JSON.parse(response.result.contents[0].text)
+}

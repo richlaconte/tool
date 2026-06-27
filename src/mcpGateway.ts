@@ -43,6 +43,13 @@ export type McpJsonRpcResponse = {
   }
 }
 
+type McpResourceDefinition = {
+  uri: string
+  name: string
+  description: string
+  mimeType: string
+}
+
 export type McpGatewayContext = {
   createAiDecisionLogPatch?: (
     state: PageAppState,
@@ -57,6 +64,9 @@ const MCP_AGENT_CLIENT: AgentClient = {
   displayName: 'No-auth MCP client',
   scopes: ['page:read', 'page:search', 'page:suggest'],
 }
+
+const CASCADERY_RESOURCE_PREFIX = 'cascadery://pages'
+const JSON_MIME_TYPE = 'application/json'
 
 const toolDefinitions = [
   {
@@ -410,6 +420,7 @@ export const handleMcpJsonRpcRequest = async (
       protocolVersion: '2025-06-18',
       capabilities: {
         tools: {},
+        resources: {},
       },
       serverInfo: {
         name: 'cascadery',
@@ -424,6 +435,16 @@ export const handleMcpJsonRpcRequest = async (
     return resultResponse(id, {
       tools: toolDefinitions,
     })
+  }
+
+  if (request.method === 'resources/list') {
+    return resultResponse(id, {
+      resources: createResourceDefinitions(await context.listPages()),
+    })
+  }
+
+  if (request.method === 'resources/read') {
+    return readResource(id, request.params, context)
   }
 
   if (request.method === 'tools/call') {
@@ -699,6 +720,156 @@ const callTool = async (
   return errorResponse(id, -32601, 'Tool not found.')
 }
 
+const readResource = async (
+  id: string | number | null,
+  params: unknown,
+  context: McpGatewayContext
+) => {
+  if (!isRecord(params) || typeof params.uri !== 'string') {
+    return errorResponse(id, -32602, 'Resource read params are invalid.')
+  }
+
+  if (params.uri === CASCADERY_RESOURCE_PREFIX) {
+    return resourceResponse(
+      id,
+      params.uri,
+      listAgentPages(await context.listPages(), MCP_AGENT_CLIENT)
+    )
+  }
+
+  const parsedResource = parsePageResourceUri(params.uri)
+
+  if (!parsedResource) {
+    return resourceNotFoundResponse(id)
+  }
+
+  const state = await context.getPage(parsedResource.pageId)
+
+  if (!state) return pageNotFoundResponse(id)
+
+  const pageResource = getAgentPage(state, MCP_AGENT_CLIENT)
+
+  if (parsedResource.kind === 'page') {
+    return resourceResponse(id, params.uri, pageResource)
+  }
+
+  if (parsedResource.kind === 'areas') {
+    return resourceResponse(id, params.uri, {
+      schemaVersion: 1,
+      page: {
+        id: state.page.id,
+        title: state.page.title,
+      },
+      areas: pageResource.areas,
+      permissionMode: pageResource.permissionMode,
+    })
+  }
+
+  if (parsedResource.kind === 'assets') {
+    return resourceResponse(id, params.uri, {
+      schemaVersion: 1,
+      page: {
+        id: state.page.id,
+        title: state.page.title,
+      },
+      assets: pageResource.assets,
+      permissionMode: pageResource.permissionMode,
+    })
+  }
+
+  return resourceResponse(id, params.uri, {
+    schemaVersion: 1,
+    page: {
+      id: state.page.id,
+      title: state.page.title,
+    },
+    actions: [],
+    permissionMode: pageResource.permissionMode,
+  })
+}
+
+const createResourceDefinitions = (
+  states: PageAppState[]
+): McpResourceDefinition[] => [
+  {
+    uri: CASCADERY_RESOURCE_PREFIX,
+    name: 'Cascadery pages',
+    description: 'List Cascadery pages visible to this MCP client.',
+    mimeType: JSON_MIME_TYPE,
+  },
+  ...states.flatMap((state) => [
+    {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}`,
+      name: `${state.page.title} page`,
+      description: 'Full Cascadery page context.',
+      mimeType: JSON_MIME_TYPE,
+    },
+    {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/areas`,
+      name: `${state.page.title} Areas`,
+      description: 'Text and image Areas on this Cascadery page.',
+      mimeType: JSON_MIME_TYPE,
+    },
+    {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/assets`,
+      name: `${state.page.title} assets`,
+      description: 'Asset metadata for this Cascadery page.',
+      mimeType: JSON_MIME_TYPE,
+    },
+    {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/agent-actions`,
+      name: `${state.page.title} agent actions`,
+      description: 'Agent action records for this Cascadery page.',
+      mimeType: JSON_MIME_TYPE,
+    },
+  ]),
+]
+
+const parsePageResourceUri = (uri: string):
+  | {
+      pageId: string
+      kind: 'page' | 'areas' | 'assets' | 'agent-actions'
+    }
+  | null => {
+  const match = /^cascadery:\/\/pages\/([^/]+)(?:\/([^/]+))?$/.exec(uri)
+
+  if (!match) return null
+
+  const pageId = match[1]
+  const suffix = match[2]
+
+  if (!suffix) {
+    return {
+      pageId,
+      kind: 'page',
+    }
+  }
+
+  if (suffix !== 'areas' && suffix !== 'assets' && suffix !== 'agent-actions') {
+    return null
+  }
+
+  return {
+    pageId,
+    kind: suffix,
+  }
+}
+
+const resourceResponse = (
+  id: string | number | null,
+  uri: string,
+  payload: unknown
+) =>
+  resultResponse(id, {
+    contents: [
+      {
+        uri,
+        mimeType: JSON_MIME_TYPE,
+        text: JSON.stringify(payload),
+      },
+    ],
+  })
+
 const createDryRunPatchResult = (
   state: PageAppState,
   patch: AgentPatch
@@ -779,6 +950,9 @@ const pageNotFoundResponse = (id: string | number | null) =>
 
 const areaNotFoundResponse = (id: string | number | null) =>
   errorResponse(id, -32005, 'Area not found.')
+
+const resourceNotFoundResponse = (id: string | number | null) =>
+  errorResponse(id, -32006, 'Resource not found.')
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)

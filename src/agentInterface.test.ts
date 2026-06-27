@@ -13,7 +13,11 @@ import {
   listAgentPages,
   searchAgentAreas,
   summarizeAgentPage,
+  suggestAreaUpdates,
+  suggestAreas,
+  suggestBoardOrganization,
   suggestDecisionLog,
+  suggestImplementationMap,
   validateAgentPatch,
   type AgentClient,
   type AgentPatch,
@@ -196,6 +200,127 @@ test('agent suggest tools return valid patches without applying them', () => {
   assert.equal(state.areas.length, 2)
   assert.equal(
     validateAgentPatch(state, patch, suggestClient, {
+      cssSupports,
+      mode: 'suggest',
+    }).ok,
+    true
+  )
+})
+
+test('agent suggest tools cover area creation, style cleanup, organization, and implementation maps', () => {
+  const initialAreas = structuredClone(state.areas)
+  const patches = [
+    suggestAreas(state, suggestClient, {
+      createPatchId: () => 'patch-areas',
+      now,
+    }),
+    suggestAreaUpdates(state, suggestClient, {
+      createPatchId: () => 'patch-updates',
+      now,
+    }),
+    suggestBoardOrganization(state, suggestClient, {
+      createPatchId: () => 'patch-organization',
+      now,
+    }),
+    suggestImplementationMap(state, suggestClient, {
+      createPatchId: () => 'patch-map',
+      now,
+    }),
+  ]
+
+  assert.deepEqual(
+    patches.map((patch) => patch.id),
+    ['patch-areas', 'patch-updates', 'patch-organization', 'patch-map']
+  )
+  assert.deepEqual(
+    patches.map((patch) => patch.operations[0].op),
+    ['createArea', 'updateAreaStyles', 'moveArea', 'createArea']
+  )
+  assert.match(
+    patches[0].operations[0].op === 'createArea'
+      ? patches[0].operations[0].area.text
+      : '',
+    /Suggested areas/
+  )
+  assert.deepEqual(
+    patches[1].operations,
+    [
+      {
+        op: 'updateAreaStyles',
+        areaId: 'area-1',
+        styles: {
+          background: '#f8fafc',
+        },
+      },
+      {
+        op: 'updateAreaStyles',
+        areaId: 'area-2',
+        styles: {
+          background: '#f8fafc',
+        },
+      },
+    ]
+  )
+  assert.deepEqual(patches[2].operations.slice(0, 2), [
+    {
+      op: 'moveArea',
+      areaId: 'area-1',
+      x: 120,
+      y: 120,
+    },
+    {
+      op: 'moveArea',
+      areaId: 'area-2',
+      x: 120,
+      y: 240,
+    },
+  ])
+  assert.match(
+    patches[3].operations[0].op === 'createArea'
+      ? patches[3].operations[0].area.text
+      : '',
+    /Implementation map/
+  )
+
+  for (const patch of patches) {
+    assert.equal(patch.schemaVersion, 1)
+    assert.equal(patch.pageId, 'page-1')
+    assert.equal(
+      validateAgentPatch(state, patch, suggestClient, {
+        cssSupports,
+        mode: 'suggest',
+      }).ok,
+      true
+    )
+  }
+
+  assert.deepEqual(state.areas, initialAreas)
+})
+
+test('agent area update suggestions stay within patch operation limits', () => {
+  const crowdedState: PageAppState = {
+    ...state,
+    areas: Array.from({ length: 30 }, (_, index) => ({
+      id: `area-${index + 1}`,
+      parentId: null,
+      x: 100,
+      y: 120 + index * 80,
+      width: 240,
+      height: 80,
+      text: `Decision: item ${index + 1}.`,
+      styles: {},
+      createdAt: now,
+      updatedAt: now,
+    })),
+  }
+  const patch = suggestAreaUpdates(crowdedState, suggestClient, {
+    createPatchId: () => 'patch-limited-updates',
+    now,
+  })
+
+  assert.equal(patch.operations.length, 25)
+  assert.equal(
+    validateAgentPatch(crowdedState, patch, suggestClient, {
       cssSupports,
       mode: 'suggest',
     }).ok,

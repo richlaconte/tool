@@ -143,6 +143,13 @@ const MAX_AGENT_OPERATIONS = 25
 const MAX_AGENT_TEXT_LENGTH = 5000
 const MAX_AGENT_STYLES = 24
 const MAX_AGENT_STYLE_VALUE_LENGTH = 500
+const AGENT_PROPOSAL_BORDER = '1px solid #2563eb'
+const AGENT_PROPOSAL_BACKGROUND = '#f8fafc'
+
+type AgentSuggestionOptions = {
+  createPatchId?: () => string
+  now?: string
+}
 
 const defaultCssSupports: CssSupportChecker = (property, value) => {
   if (typeof CSS === 'undefined') return false
@@ -301,13 +308,7 @@ export const extractAgentOpenQuestions = (
 export const suggestDecisionLog = (
   state: PageAppState,
   client: AgentClient,
-  {
-    createPatchId: createPatchIdOverride = createAgentPatchId,
-    now = new Date().toISOString(),
-  }: {
-    createPatchId?: () => string
-    now?: string
-  } = {}
+  options: AgentSuggestionOptions = {}
 ): AgentPatch => {
   const decisionLines = state.areas
     .filter((area): area is TextAreaState => area.type !== 'image')
@@ -325,10 +326,174 @@ export const suggestDecisionLog = (
           '\n'
         )
       : 'Agent proposal: decision log\n\nNo explicit decisions or open questions found yet.'
-  const maxY = state.areas.reduce(
-    (currentMax, area) => Math.max(currentMax, area.y + area.height),
-    80
+  return createSuggestionPatch(state, client, [
+    {
+      op: 'createArea',
+      area: createSuggestionArea(state, {
+        text,
+        width: 420,
+        height: 180,
+      }),
+    },
+  ], options)
+}
+
+export const suggestAreas = (
+  state: PageAppState,
+  client: AgentClient,
+  options: AgentSuggestionOptions = {}
+): AgentPatch => {
+  const extractedItems = extractStructuredTextItems(state.areas)
+  const counts = {
+    decisions: extractedItems.filter((item) => item.kind === 'decision')
+      .length,
+    openQuestions: extractedItems.filter(
+      (item) => item.kind === 'open-question'
+    ).length,
+    risks: extractedItems.filter((item) => item.kind === 'risk').length,
+  }
+  const text = [
+    'Agent proposal: Suggested areas',
+    '',
+    `- Decision log (${counts.decisions})`,
+    `- Open questions review (${counts.openQuestions})`,
+    `- Risk register (${counts.risks})`,
+    '- Implementation map',
+  ].join('\n')
+
+  return createSuggestionPatch(state, client, [
+    {
+      op: 'createArea',
+      area: createSuggestionArea(state, {
+        text,
+        width: 420,
+        height: 180,
+      }),
+    },
+  ], options)
+}
+
+export const suggestAreaUpdates = (
+  state: PageAppState,
+  client: AgentClient,
+  options: AgentSuggestionOptions = {}
+): AgentPatch => {
+  const textAreas = state.areas.filter(
+    (area): area is TextAreaState => area.type !== 'image'
   )
+  const structuredAreaIds = new Set(
+    extractStructuredTextItems(state.areas).map((item) => item.areaId)
+  )
+  const operations: AgentPatchOperation[] = textAreas
+    .filter((area) => structuredAreaIds.has(area.id))
+    .slice(0, MAX_AGENT_OPERATIONS)
+    .map((area) => ({
+      op: 'updateAreaStyles',
+      areaId: area.id,
+      styles: {
+        background: AGENT_PROPOSAL_BACKGROUND,
+      },
+    }))
+
+  if (operations.length === 0 && textAreas[0]) {
+    operations.push({
+      op: 'updateAreaStyles',
+      areaId: textAreas[0].id,
+      styles: {
+        background: AGENT_PROPOSAL_BACKGROUND,
+      },
+    })
+  }
+
+  if (operations.length === 0) {
+    operations.push({
+      op: 'createArea',
+      area: createSuggestionArea(state, {
+        text: 'Agent proposal: area updates\n\nNo existing text Areas found yet.',
+        width: 420,
+        height: 140,
+      }),
+    })
+  }
+
+  return createSuggestionPatch(state, client, operations, options)
+}
+
+export const suggestBoardOrganization = (
+  state: PageAppState,
+  client: AgentClient,
+  options: AgentSuggestionOptions = {}
+): AgentPatch => {
+  const organizedAreas = [...state.areas]
+    .sort((first, second) => first.y - second.y || first.x - second.x)
+    .slice(0, MAX_AGENT_OPERATIONS)
+  const operations: AgentPatchOperation[] = organizedAreas.map(
+    (area, index) => ({
+      op: 'moveArea',
+      areaId: area.id,
+      x: 120,
+      y: 120 + index * 120,
+    })
+  )
+
+  if (operations.length === 0) {
+    operations.push({
+      op: 'createArea',
+      area: createSuggestionArea(state, {
+        text: 'Agent proposal: board organization\n\nNo Areas exist yet.',
+        width: 420,
+        height: 120,
+      }),
+    })
+  }
+
+  return createSuggestionPatch(state, client, operations, options)
+}
+
+export const suggestImplementationMap = (
+  state: PageAppState,
+  client: AgentClient,
+  options: AgentSuggestionOptions = {}
+): AgentPatch => {
+  const extractedItems = extractStructuredTextItems(state.areas)
+  const text = [
+    'Agent proposal: Implementation map',
+    '',
+    'Decisions',
+    ...formatExtractedItems(extractedItems, 'decision'),
+    '',
+    'Open questions',
+    ...formatExtractedItems(extractedItems, 'open-question'),
+    '',
+    'Risks',
+    ...formatExtractedItems(extractedItems, 'risk'),
+    '',
+    'Next steps',
+    '- Confirm unresolved questions before implementation.',
+    '- Convert accepted decisions into scoped tasks.',
+  ].join('\n')
+
+  return createSuggestionPatch(state, client, [
+    {
+      op: 'createArea',
+      area: createSuggestionArea(state, {
+        text,
+        width: 480,
+        height: 260,
+      }),
+    },
+  ], options)
+}
+
+const createSuggestionPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  operations: AgentPatchOperation[],
+  {
+    createPatchId: createPatchIdOverride = createAgentPatchId,
+    now = new Date().toISOString(),
+  }: AgentSuggestionOptions = {}
+): AgentPatch => {
   const patchId = createPatchIdOverride()
 
   return {
@@ -340,26 +505,57 @@ export const suggestDecisionLog = (
       clientId: client.id,
       displayName: client.displayName,
     },
-    operations: [
-      {
-        op: 'createArea',
-        tempId: `${patchId}_decision_log`,
-        area: {
-          type: 'text',
-          text,
-          x: 120,
-          y: maxY + 80,
-          width: 420,
-          height: 180,
-          styles: {
-            border: '1px solid #2563eb',
-          },
-        },
-      },
-    ],
+    operations: operations.map((operation, index) =>
+      operation.op === 'createArea' && !operation.tempId
+        ? {
+            ...operation,
+            tempId: `${patchId}_area_${index + 1}`,
+          }
+        : operation
+    ),
     createdAt: now,
   }
 }
+
+const createSuggestionArea = (
+  state: PageAppState,
+  {
+    text,
+    width,
+    height,
+  }: {
+    text: string
+    width: number
+    height: number
+  }
+): Extract<AgentPatchOperation, { op: 'createArea' }>['area'] => ({
+  type: 'text',
+  text,
+  x: 120,
+  y: getCanvasBottomY(state) + 80,
+  width,
+  height,
+  styles: {
+    border: AGENT_PROPOSAL_BORDER,
+  },
+})
+
+const formatExtractedItems = (
+  items: AgentExtractedItem[],
+  kind: AgentExtractedItem['kind']
+) => {
+  const matchingItems = items.filter((item) => item.kind === kind)
+
+  return matchingItems.length > 0
+    ? matchingItems.map((item) => `- ${item.text}`)
+    : ['- None found yet.']
+}
+
+const getCanvasBottomY = (state: PageAppState) =>
+  state.areas.reduce(
+    (currentMax, area) => Math.max(currentMax, area.y + area.height),
+    80
+  )
 
 export const validateAgentPatch = (
   state: PageAppState,

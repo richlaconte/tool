@@ -70,7 +70,11 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'summarize_page',
       'extract_decisions',
       'extract_open_questions',
+      'suggest_areas',
+      'suggest_area_updates',
+      'suggest_board_organization',
       'suggest_decision_log',
+      'suggest_implementation_map',
       'ai_suggest_decision_log',
     ]
   )
@@ -122,6 +126,42 @@ test('MCP tools can read, search, and propose patches without applying them', as
   assert.equal(listed.result.pages[0].id, 'page-1')
   assert.equal(searched.result.areas[0].id, 'area-1')
   assert.equal(suggested.result.operations[0].op, 'createArea')
+  assert.equal(state.areas.length, 1)
+})
+
+test('MCP suggest-only tools expose patch variants without applying them', async () => {
+  const toolNames = [
+    'suggest_areas',
+    'suggest_area_updates',
+    'suggest_board_organization',
+    'suggest_implementation_map',
+  ]
+
+  const results = await Promise.all(
+    toolNames.map((name, index) =>
+      handleMcpJsonRpcRequest(
+        {
+          jsonrpc: MCP_JSON_RPC_VERSION,
+          id: `suggest-${index}`,
+          method: 'tools/call',
+          params: {
+            name,
+            arguments: {
+              pageId: 'page-1',
+            },
+          },
+        },
+        context
+      )
+    )
+  )
+
+  assert.deepEqual(
+    results.map((result) => result.result.operations[0].op),
+    ['createArea', 'updateAreaStyles', 'moveArea', 'createArea']
+  )
+  assert.equal(results[0].result.pageId, 'page-1')
+  assert.match(results[3].result.operations[0].area.text, /Implementation map/)
   assert.equal(state.areas.length, 1)
 })
 

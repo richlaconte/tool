@@ -6,7 +6,11 @@ import {
   listAgentPages,
   searchAgentAreas,
   summarizeAgentPage,
+  suggestAreaUpdates,
+  suggestAreas,
+  suggestBoardOrganization,
   suggestDecisionLog,
+  suggestImplementationMap,
   type AgentClient,
   type AgentPatch,
 } from './agentInterface.ts'
@@ -142,8 +146,62 @@ const toolDefinitions = [
     },
   },
   {
+    name: 'suggest_areas',
+    description: 'Return a patch proposing useful new Areas without applying it.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'suggest_area_updates',
+    description: 'Return a patch proposing Area style updates without applying it.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'suggest_board_organization',
+    description:
+      'Return a patch proposing a readable board arrangement without applying it.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
     name: 'suggest_decision_log',
     description: 'Return a deterministic decision-log patch without applying it.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'suggest_implementation_map',
+    description:
+      'Return a patch proposing an implementation map without applying it.',
     inputSchema: {
       type: 'object',
       required: ['pageId'],
@@ -285,6 +343,30 @@ const callTool = async (
     )
   }
 
+  if (params.name === 'suggest_areas') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(id, suggestAreas(state, MCP_AGENT_CLIENT))
+  }
+
+  if (params.name === 'suggest_area_updates') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(id, suggestAreaUpdates(state, MCP_AGENT_CLIENT))
+  }
+
+  if (params.name === 'suggest_board_organization') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      suggestBoardOrganization(state, MCP_AGENT_CLIENT)
+    )
+  }
+
   if (params.name === 'suggest_decision_log') {
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
@@ -292,6 +374,16 @@ const callTool = async (
     return resultResponse(
       id,
       suggestDecisionLog(state, MCP_AGENT_CLIENT)
+    )
+  }
+
+  if (params.name === 'suggest_implementation_map') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      suggestImplementationMap(state, MCP_AGENT_CLIENT)
     )
   }
 

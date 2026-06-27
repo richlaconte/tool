@@ -5,12 +5,17 @@ import type { PageAppState } from './pagePersistence.ts'
 import { createDefaultPageState } from './pagePersistence.ts'
 import {
   applyAgentPatch,
+  createAgentAreaPatch,
   createAgentPatchId,
+  deleteAgentAreaPatch,
+  dryRunAgentPatch,
   extractAgentDecisions,
   extractAgentOpenQuestions,
   getAgentArea,
   getAgentPage,
   listAgentPages,
+  moveAgentAreaPatch,
+  nestAgentAreaPatch,
   searchAgentAreas,
   summarizeAgentPage,
   suggestAreaUpdates,
@@ -18,6 +23,8 @@ import {
   suggestBoardOrganization,
   suggestDecisionLog,
   suggestImplementationMap,
+  updateAgentAreaPatch,
+  updateAgentAreaStylesPatch,
   validateAgentPatch,
   type AgentClient,
   type AgentPatch,
@@ -325,6 +332,115 @@ test('agent area update suggestions stay within patch operation limits', () => {
       mode: 'suggest',
     }).ok,
     true
+  )
+})
+
+test('agent write patch tools draft valid dry-run patches without applying them', () => {
+  const initialAreas = structuredClone(state.areas)
+  const patches = [
+    createAgentAreaPatch(
+      state,
+      writeClient,
+      {
+        text: 'Implementation note: ship patch previews first.',
+        x: 120,
+        y: 360,
+        width: 320,
+        height: 140,
+        styles: {
+          border: '1px solid #2563eb',
+        },
+      },
+      {
+        createPatchId: () => 'patch-create',
+        now,
+      }
+    ),
+    updateAgentAreaPatch(
+      state,
+      writeClient,
+      'area-1',
+      {
+        text: 'Decision: dry-run write tools before direct writes.',
+        width: 300,
+      },
+      {
+        createPatchId: () => 'patch-update',
+        now,
+      }
+    ),
+    updateAgentAreaStylesPatch(
+      state,
+      writeClient,
+      'area-1',
+      {
+        background: '#f8fafc',
+      },
+      {
+        createPatchId: () => 'patch-style',
+        now,
+      }
+    ),
+    moveAgentAreaPatch(state, writeClient, 'area-1', 160, 220, {
+      createPatchId: () => 'patch-move',
+      now,
+    }),
+    nestAgentAreaPatch(state, writeClient, 'area-2', 'area-1', {
+      createPatchId: () => 'patch-nest',
+      now,
+    }),
+    deleteAgentAreaPatch(state, writeClient, 'area-2', {
+      createPatchId: () => 'patch-delete',
+      now,
+    }),
+  ]
+
+  assert.deepEqual(
+    patches.map((patch) => patch.operations[0].op),
+    [
+      'createArea',
+      'updateArea',
+      'updateAreaStyles',
+      'moveArea',
+      'nestArea',
+      'deleteArea',
+    ]
+  )
+
+  for (const patch of patches) {
+    const dryRun = dryRunAgentPatch(state, patch, writeClient, {
+      cssSupports,
+      mode: 'apply',
+    })
+
+    assert.equal(dryRun.schemaVersion, 1)
+    assert.equal(dryRun.dryRun, true)
+    assert.equal(dryRun.applied, false)
+    assert.equal(dryRun.applyAllowed, true)
+    assert.equal(dryRun.validation.ok, true)
+  }
+
+  assert.deepEqual(state.areas, initialAreas)
+})
+
+test('agent nest area patches apply through the shared nesting rules', () => {
+  const patch = nestAgentAreaPatch(state, writeClient, 'area-2', 'area-1', {
+    createPatchId: () => 'patch-nest',
+    now,
+  })
+  const applied = applyAgentPatch(state, patch, writeClient, {
+    createActionId: () => 'action-nest',
+    cssSupports,
+    now,
+  })
+
+  assert.equal(applied.ok, true)
+  assert.equal(
+    applied.ok
+      ? applied.state.areas.find((area) => area.id === 'area-2')
+          ?.parentId
+      : null,
+    'area-1'
   )
 })
 

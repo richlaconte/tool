@@ -467,6 +467,12 @@ const getAgentOperationSummary = (operation: AgentPatchOperation) => {
     return `Move ${operation.areaId}`
   }
 
+  if (operation.op === 'nestArea') {
+    return operation.parentId
+      ? `Nest ${operation.areaId}`
+      : `Unnest ${operation.areaId}`
+  }
+
   return `Delete ${operation.areaId}`
 }
 

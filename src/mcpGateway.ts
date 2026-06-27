@@ -1,9 +1,14 @@
 import {
+  createAgentAreaPatch,
+  deleteAgentAreaPatch,
+  dryRunAgentPatch,
   extractAgentDecisions,
   extractAgentOpenQuestions,
   getAgentArea,
   getAgentPage,
   listAgentPages,
+  moveAgentAreaPatch,
+  nestAgentAreaPatch,
   searchAgentAreas,
   summarizeAgentPage,
   suggestAreaUpdates,
@@ -11,6 +16,8 @@ import {
   suggestBoardOrganization,
   suggestDecisionLog,
   suggestImplementationMap,
+  updateAgentAreaPatch,
+  updateAgentAreaStylesPatch,
   type AgentClient,
   type AgentPatch,
 } from './agentInterface.ts'
@@ -225,6 +232,167 @@ const toolDefinitions = [
       },
     },
   },
+  {
+    name: 'create_area',
+    description: 'Return a dry-run patch for creating a text Area.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'text', 'x', 'y', 'width', 'height'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        text: {
+          type: 'string',
+        },
+        x: {
+          type: 'number',
+        },
+        y: {
+          type: 'number',
+        },
+        width: {
+          type: 'number',
+        },
+        height: {
+          type: 'number',
+        },
+        parentId: {
+          type: ['string', 'null'],
+        },
+        styles: {
+          type: 'object',
+        },
+      },
+    },
+  },
+  {
+    name: 'update_area',
+    description: 'Return a dry-run patch for updating Area text or geometry.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+        text: {
+          type: 'string',
+        },
+        x: {
+          type: 'number',
+        },
+        y: {
+          type: 'number',
+        },
+        width: {
+          type: 'number',
+        },
+        height: {
+          type: 'number',
+        },
+      },
+    },
+  },
+  {
+    name: 'update_area_styles',
+    description: 'Return a dry-run patch for updating Area CSS styles.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId', 'styles'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+        styles: {
+          type: 'object',
+        },
+      },
+    },
+  },
+  {
+    name: 'move_area',
+    description: 'Return a dry-run patch for moving an Area.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId', 'x', 'y'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+        x: {
+          type: 'number',
+        },
+        y: {
+          type: 'number',
+        },
+      },
+    },
+  },
+  {
+    name: 'nest_area',
+    description: 'Return a dry-run patch for nesting or unnesting an Area.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId', 'parentId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+        parentId: {
+          type: ['string', 'null'],
+        },
+      },
+    },
+  },
+  {
+    name: 'delete_area',
+    description: 'Return a dry-run patch for deleting an Area.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'apply_patch',
+    description:
+      'Dry-run validate an agent patch. Direct apply is not enabled on the no-auth endpoint.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'patch'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        patch: {
+          type: 'object',
+        },
+        dryRun: {
+          type: 'boolean',
+        },
+      },
+    },
+  },
 ]
 
 export const handleMcpJsonRpcRequest = async (
@@ -400,8 +568,144 @@ const callTool = async (
     )
   }
 
+  if (params.name === 'create_area') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      createDryRunPatchResult(
+        state,
+        createAgentAreaPatch(state, MCP_AGENT_CLIENT, {
+          text: typeof args.text === 'string' ? args.text : '',
+          x: readNumber(args.x),
+          y: readNumber(args.y),
+          width: readNumber(args.width),
+          height: readNumber(args.height),
+          parentId: readNullableString(args.parentId),
+          styles: readStyles(args.styles),
+        })
+      )
+    )
+  }
+
+  if (params.name === 'update_area') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      createDryRunPatchResult(
+        state,
+        updateAgentAreaPatch(
+          state,
+          MCP_AGENT_CLIENT,
+          typeof args.areaId === 'string' ? args.areaId : '',
+          readAreaPatch(args)
+        )
+      )
+    )
+  }
+
+  if (params.name === 'update_area_styles') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      createDryRunPatchResult(
+        state,
+        updateAgentAreaStylesPatch(
+          state,
+          MCP_AGENT_CLIENT,
+          typeof args.areaId === 'string' ? args.areaId : '',
+          readStyles(args.styles)
+        )
+      )
+    )
+  }
+
+  if (params.name === 'move_area') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      createDryRunPatchResult(
+        state,
+        moveAgentAreaPatch(
+          state,
+          MCP_AGENT_CLIENT,
+          typeof args.areaId === 'string' ? args.areaId : '',
+          readNumber(args.x),
+          readNumber(args.y)
+        )
+      )
+    )
+  }
+
+  if (params.name === 'nest_area') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      createDryRunPatchResult(
+        state,
+        nestAgentAreaPatch(
+          state,
+          MCP_AGENT_CLIENT,
+          typeof args.areaId === 'string' ? args.areaId : '',
+          readNullableString(args.parentId)
+        )
+      )
+    )
+  }
+
+  if (params.name === 'delete_area') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(
+      id,
+      createDryRunPatchResult(
+        state,
+        deleteAgentAreaPatch(
+          state,
+          MCP_AGENT_CLIENT,
+          typeof args.areaId === 'string' ? args.areaId : ''
+        )
+      )
+    )
+  }
+
+  if (params.name === 'apply_patch') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+    if (args.dryRun === false) {
+      return errorResponse(
+        id,
+        -32011,
+        'Patch application is not enabled for the no-auth MCP endpoint.'
+      )
+    }
+
+    return resultResponse(
+      id,
+      createDryRunPatchResult(state, args.patch as AgentPatch)
+    )
+  }
+
   return errorResponse(id, -32601, 'Tool not found.')
 }
+
+const createDryRunPatchResult = (
+  state: PageAppState,
+  patch: AgentPatch
+) =>
+  dryRunAgentPatch(state, patch, MCP_AGENT_CLIENT, {
+    mode: 'suggest',
+  })
 
 const getPageFromArgs = async (
   args: Record<string, unknown>,
@@ -413,6 +717,38 @@ const getPageFromArgs = async (
 
   return context.getPage(args.pageId)
 }
+
+const readAreaPatch = (args: Record<string, unknown>) => {
+  const patch: Record<string, string | number> = {}
+
+  if (typeof args.text === 'string') {
+    patch.text = args.text
+  }
+
+  for (const property of ['x', 'y', 'width', 'height']) {
+    if (Number.isFinite(args[property])) {
+      patch[property] = args[property] as number
+    }
+  }
+
+  return patch
+}
+
+const readStyles = (value: unknown) => {
+  if (!isRecord(value)) return {}
+
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string'
+    )
+  )
+}
+
+const readNumber = (value: unknown) =>
+  typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN
+
+const readNullableString = (value: unknown) =>
+  typeof value === 'string' ? value : null
 
 const resultResponse = (
   id: string | number | null,

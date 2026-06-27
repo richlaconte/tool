@@ -1,4 +1,5 @@
 import type { AreaState, AssetState, TextAreaState } from './App'
+import { reparentArea } from './nestedAreas.ts'
 import type { PageAppState, PageState } from './pagePersistence'
 
 export type AgentScope =
@@ -96,6 +97,11 @@ export type AgentPatchOperation =
       op: 'deleteArea'
       areaId: string
     }
+  | {
+      op: 'nestArea'
+      areaId: string
+      parentId: string | null
+    }
 
 export type AgentPatch = {
   schemaVersion: 1
@@ -137,6 +143,15 @@ export type ApplyAgentPatchResult =
       errors: string[]
     }
 
+export type DryRunAgentPatchResult = {
+  schemaVersion: 1
+  dryRun: true
+  applied: false
+  applyAllowed: boolean
+  patch: AgentPatch
+  validation: AgentPatchValidationResult
+}
+
 type CssSupportChecker = (property: string, value: string) => boolean
 
 const MAX_AGENT_OPERATIONS = 25
@@ -152,7 +167,7 @@ type AgentSuggestionOptions = {
 }
 
 const defaultCssSupports: CssSupportChecker = (property, value) => {
-  if (typeof CSS === 'undefined') return false
+  if (typeof CSS === 'undefined') return true
 
   return CSS.supports(property, value)
 }
@@ -326,16 +341,21 @@ export const suggestDecisionLog = (
           '\n'
         )
       : 'Agent proposal: decision log\n\nNo explicit decisions or open questions found yet.'
-  return createSuggestionPatch(state, client, [
-    {
-      op: 'createArea',
-      area: createSuggestionArea(state, {
-        text,
-        width: 420,
-        height: 180,
-      }),
-    },
-  ], options)
+  return createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'createArea',
+        area: createSuggestionArea(state, {
+          text,
+          width: 420,
+          height: 180,
+        }),
+      },
+    ],
+    options
+  )
 }
 
 export const suggestAreas = (
@@ -361,16 +381,21 @@ export const suggestAreas = (
     '- Implementation map',
   ].join('\n')
 
-  return createSuggestionPatch(state, client, [
-    {
-      op: 'createArea',
-      area: createSuggestionArea(state, {
-        text,
-        width: 420,
-        height: 180,
-      }),
-    },
-  ], options)
+  return createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'createArea',
+        area: createSuggestionArea(state, {
+          text,
+          width: 420,
+          height: 180,
+        }),
+      },
+    ],
+    options
+  )
 }
 
 export const suggestAreaUpdates = (
@@ -416,7 +441,7 @@ export const suggestAreaUpdates = (
     })
   }
 
-  return createSuggestionPatch(state, client, operations, options)
+  return createAgentPatch(state, client, operations, options)
 }
 
 export const suggestBoardOrganization = (
@@ -447,7 +472,7 @@ export const suggestBoardOrganization = (
     })
   }
 
-  return createSuggestionPatch(state, client, operations, options)
+  return createAgentPatch(state, client, operations, options)
 }
 
 export const suggestImplementationMap = (
@@ -473,19 +498,165 @@ export const suggestImplementationMap = (
     '- Convert accepted decisions into scoped tasks.',
   ].join('\n')
 
-  return createSuggestionPatch(state, client, [
-    {
-      op: 'createArea',
-      area: createSuggestionArea(state, {
-        text,
-        width: 480,
-        height: 260,
-      }),
-    },
-  ], options)
+  return createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'createArea',
+        area: createSuggestionArea(state, {
+          text,
+          width: 480,
+          height: 260,
+        }),
+      },
+    ],
+    options
+  )
 }
 
-const createSuggestionPatch = (
+export const createAgentAreaPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  area: Extract<AgentPatchOperation, { op: 'createArea' }>['area'],
+  options: AgentSuggestionOptions = {}
+): AgentPatch =>
+  createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'createArea',
+        area,
+      },
+    ],
+    options
+  )
+
+export const updateAgentAreaPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  areaId: string,
+  patch: Extract<AgentPatchOperation, { op: 'updateArea' }>['patch'],
+  options: AgentSuggestionOptions = {}
+): AgentPatch =>
+  createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'updateArea',
+        areaId,
+        patch,
+      },
+    ],
+    options
+  )
+
+export const updateAgentAreaStylesPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  areaId: string,
+  styles: Record<string, string>,
+  options: AgentSuggestionOptions = {}
+): AgentPatch =>
+  createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'updateAreaStyles',
+        areaId,
+        styles,
+      },
+    ],
+    options
+  )
+
+export const moveAgentAreaPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  areaId: string,
+  x: number,
+  y: number,
+  options: AgentSuggestionOptions = {}
+): AgentPatch =>
+  createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'moveArea',
+        areaId,
+        x,
+        y,
+      },
+    ],
+    options
+  )
+
+export const nestAgentAreaPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  areaId: string,
+  parentId: string | null,
+  options: AgentSuggestionOptions = {}
+): AgentPatch =>
+  createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'nestArea',
+        areaId,
+        parentId,
+      },
+    ],
+    options
+  )
+
+export const deleteAgentAreaPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  areaId: string,
+  options: AgentSuggestionOptions = {}
+): AgentPatch =>
+  createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'deleteArea',
+        areaId,
+      },
+    ],
+    options
+  )
+
+export const dryRunAgentPatch = (
+  state: PageAppState,
+  patch: AgentPatch,
+  client: AgentClient,
+  {
+    cssSupports = defaultCssSupports,
+    mode = 'suggest',
+  }: {
+    cssSupports?: CssSupportChecker
+    mode?: 'suggest' | 'apply'
+  } = {}
+): DryRunAgentPatchResult => ({
+  schemaVersion: 1,
+  dryRun: true,
+  applied: false,
+  applyAllowed: mode === 'apply' && hasScope(client, 'page:write'),
+  patch,
+  validation: validateAgentPatch(state, patch, client, {
+    cssSupports,
+    mode,
+  }),
+})
+
+const createAgentPatch = (
   state: PageAppState,
   client: AgentClient,
   operations: AgentPatchOperation[],
@@ -730,6 +901,11 @@ const validateAgentOperation = (
     return
   }
 
+  if (operation.op === 'nestArea') {
+    validateNestAreaOperation(state, operation, index, errors)
+    return
+  }
+
   errors.push(`Operation ${index + 1} has an unsupported op.`)
 }
 
@@ -797,6 +973,44 @@ const validateStyles = (
         `Operation ${index + 1} has invalid CSS for ${property}.`
       )
     }
+  }
+}
+
+const validateNestAreaOperation = (
+  state: PageAppState,
+  operation: Extract<AgentPatchOperation, { op: 'nestArea' }>,
+  index: number,
+  errors: string[]
+) => {
+  if (!hasArea(state, operation.areaId)) {
+    errors.push(`Operation ${index + 1} references an unknown Area.`)
+    return
+  }
+
+  if (
+    operation.parentId !== null &&
+    typeof operation.parentId !== 'string'
+  ) {
+    errors.push(`Operation ${index + 1} has an invalid parent Area.`)
+    return
+  }
+
+  if (operation.parentId === operation.areaId) {
+    errors.push(`Operation ${index + 1} cannot nest an Area inside itself.`)
+    return
+  }
+
+  if (operation.parentId && !hasArea(state, operation.parentId)) {
+    errors.push(`Operation ${index + 1} references an unknown parent Area.`)
+    return
+  }
+
+  if (
+    operation.parentId &&
+    reparentArea(state.areas, operation.areaId, operation.parentId) ===
+      state.areas
+  ) {
+    errors.push(`Operation ${index + 1} violates Area nesting rules.`)
   }
 }
 
@@ -875,6 +1089,13 @@ const applyAgentOperation = (
             }
           : area
       ),
+    }
+  }
+
+  if (operation.op === 'nestArea') {
+    return {
+      ...state,
+      areas: reparentArea(state.areas, operation.areaId, operation.parentId),
     }
   }
 

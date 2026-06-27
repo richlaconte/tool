@@ -37,6 +37,31 @@ const context: McpGatewayContext = {
   listPages: async () => [state],
 }
 
+const writeToolState: PageAppState = {
+  ...state,
+  areas: [
+    ...state.areas,
+    {
+      id: 'area-2',
+      parentId: null,
+      x: 420,
+      y: 120,
+      width: 240,
+      height: 120,
+      text: 'Open question: how should write tools be reviewed?',
+      styles: {},
+      createdAt: now,
+      updatedAt: now,
+    },
+  ],
+}
+
+const writeToolContext: McpGatewayContext = {
+  getPage: async (pageId) =>
+    pageId === writeToolState.page.id ? writeToolState : null,
+  listPages: async () => [writeToolState],
+}
+
 test('MCP gateway initializes without auth and lists low-risk tools', async () => {
   const initialized = await handleMcpJsonRpcRequest(
     {
@@ -76,6 +101,13 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'suggest_decision_log',
       'suggest_implementation_map',
       'ai_suggest_decision_log',
+      'create_area',
+      'update_area',
+      'update_area_styles',
+      'move_area',
+      'nest_area',
+      'delete_area',
+      'apply_patch',
     ]
   )
 })
@@ -163,6 +195,152 @@ test('MCP suggest-only tools expose patch variants without applying them', async
   assert.equal(results[0].result.pageId, 'page-1')
   assert.match(results[3].result.operations[0].area.text, /Implementation map/)
   assert.equal(state.areas.length, 1)
+})
+
+test('MCP write tools return dry-run patches without mutating the page', async () => {
+  const toolCalls = [
+    {
+      name: 'create_area',
+      arguments: {
+        pageId: 'page-1',
+        text: 'Implementation note: keep no-auth writes review-only.',
+        x: 120,
+        y: 360,
+        width: 320,
+        height: 140,
+        styles: {
+          border: '1px solid #2563eb',
+        },
+      },
+    },
+    {
+      name: 'update_area',
+      arguments: {
+        pageId: 'page-1',
+        areaId: 'area-1',
+        text: 'Decision: expose write tools as dry-run patches.',
+        width: 320,
+      },
+    },
+    {
+      name: 'update_area_styles',
+      arguments: {
+        pageId: 'page-1',
+        areaId: 'area-1',
+        styles: {
+          background: '#f8fafc',
+        },
+      },
+    },
+    {
+      name: 'move_area',
+      arguments: {
+        pageId: 'page-1',
+        areaId: 'area-1',
+        x: 140,
+        y: 240,
+      },
+    },
+    {
+      name: 'nest_area',
+      arguments: {
+        pageId: 'page-1',
+        areaId: 'area-2',
+        parentId: 'area-1',
+      },
+    },
+    {
+      name: 'delete_area',
+      arguments: {
+        pageId: 'page-1',
+        areaId: 'area-2',
+      },
+    },
+  ]
+
+  const results = await Promise.all(
+    toolCalls.map(({ name, arguments: toolArguments }, index) =>
+      handleMcpJsonRpcRequest(
+        {
+          jsonrpc: MCP_JSON_RPC_VERSION,
+          id: `write-${index}`,
+          method: 'tools/call',
+          params: {
+            name,
+            arguments: toolArguments,
+          },
+        },
+        writeToolContext
+      )
+    )
+  )
+
+  assert.deepEqual(
+    results.map((result) => result.result.patch.operations[0].op),
+    [
+      'createArea',
+      'updateArea',
+      'updateAreaStyles',
+      'moveArea',
+      'nestArea',
+      'deleteArea',
+    ]
+  )
+  assert.deepEqual(
+    results.map((result) => result.result.validation.ok),
+    [true, true, true, true, true, true]
+  )
+  assert.deepEqual(
+    results.map((result) => result.result.dryRun),
+    [true, true, true, true, true, true]
+  )
+  assert.deepEqual(
+    results.map((result) => result.result.applied),
+    [false, false, false, false, false, false]
+  )
+  assert.deepEqual(
+    results.map((result) => result.result.applyAllowed),
+    [false, false, false, false, false, false]
+  )
+  assert.equal(writeToolState.areas.length, 2)
+
+  const dryRunApply = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'dry-run-apply',
+      method: 'tools/call',
+      params: {
+        name: 'apply_patch',
+        arguments: {
+          pageId: 'page-1',
+          patch: results[0].result.patch,
+          dryRun: true,
+        },
+      },
+    },
+    writeToolContext
+  )
+  const blockedApply = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'blocked-apply',
+      method: 'tools/call',
+      params: {
+        name: 'apply_patch',
+        arguments: {
+          pageId: 'page-1',
+          patch: results[0].result.patch,
+          dryRun: false,
+        },
+      },
+    },
+    writeToolContext
+  )
+
+  assert.equal(dryRunApply.result.validation.ok, true)
+  assert.equal(dryRunApply.result.applied, false)
+  assert.equal(blockedApply.error.code, -32011)
+  assert.equal(writeToolState.areas.length, 2)
 })
 
 test('MCP read-only tools retrieve one area and extract page facts', async () => {

@@ -2110,13 +2110,25 @@ function App({ pageId }: { pageId?: string }) {
           </span>
         )}
         {page.settings.mcp.enabled && (
-          <span
-            aria-label={`MCP exposed to ${MCP_STATUS_LABEL}`}
-            className="mcp-status-badge"
-            title={MCP_STATUS_LABEL}
-          >
-            MCP exposed
-          </span>
+          isViewOnly ? (
+            <span
+              aria-label={`MCP exposed to ${MCP_STATUS_LABEL}`}
+              className="mcp-status-badge"
+              title={MCP_STATUS_LABEL}
+            >
+              MCP exposed
+            </span>
+          ) : (
+            <button
+              aria-label={`Disable MCP access for ${MCP_STATUS_LABEL}`}
+              className="mcp-status-badge"
+              title={`${MCP_STATUS_LABEL}. Click to disable MCP access for this page.`}
+              type="button"
+              onClick={() => updateMcpAccess(false)}
+            >
+              MCP exposed
+            </button>
+          )
         )}
         <span
           aria-live="polite"

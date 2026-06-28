@@ -37,6 +37,8 @@ test('page chrome exposes enabled MCP status with client scopes', async () => {
   assert.match(source, /page\.settings\.mcp\.enabled/)
   assert.match(source, /className="mcp-status-badge"/)
   assert.match(source, /MCP exposed/)
+  assert.match(source, /Disable MCP access for/)
+  assert.match(source, /updateMcpAccess\(false\)/)
   assert.match(source, /No-auth MCP client/)
   assert.match(source, /page:read/)
   assert.match(source, /page:search/)

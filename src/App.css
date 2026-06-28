@@ -181,7 +181,20 @@
   background: rgb(240 253 250 / 92%);
   box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
   color: #0f766e;
+  cursor: default;
+  font: inherit;
   padding: 5px 9px;
+}
+
+button.mcp-status-badge {
+  cursor: pointer;
+}
+
+button.mcp-status-badge:hover,
+button.mcp-status-badge:focus-visible {
+  background: rgb(204 251 241 / 92%);
+  outline: 2px solid rgb(20 184 166 / 20%);
+  outline-offset: 2px;
 }
 
 .save-status--saving {

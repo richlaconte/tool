@@ -49,6 +49,8 @@ import {
 } from './canvasViewport'
 import {
   applyAgentPatch,
+  createAgentPatchForOperation,
+  removeAgentPatchOperation,
   suggestDecisionLog,
   type AgentActionRecord,
   type AgentClient,
@@ -1488,9 +1490,66 @@ function App({ pageId }: { pageId?: string }) {
     setImportError(null)
   }
 
+  const applyAgentProposalOperation = (operationIndex: number) => {
+    if (isViewOnly || !agentProposal) return
+
+    const operationPatch = createAgentPatchForOperation(
+      agentProposal,
+      operationIndex
+    )
+
+    if (!operationPatch) return
+
+    const result = applyAgentPatch(
+      {
+        areas,
+        assets,
+        page,
+      },
+      operationPatch,
+      LOCAL_AGENT_CLIENT,
+      {
+        cssSupports: supportsAgentCssDeclaration,
+      }
+    )
+
+    if (!result.ok) {
+      setImportError(result.errors.join(' '))
+      return
+    }
+
+    const nextProposal = removeAgentPatchOperation(
+      agentProposal,
+      operationIndex
+    )
+
+    setAreas(result.state.areas)
+    setAssets(result.state.assets)
+    setPage(result.state.page)
+    setAgentAuditRecords((currentRecords) => [
+      result.auditRecord,
+      ...currentRecords.slice(0, 9),
+    ])
+    setAgentProposal(nextProposal)
+    setOpenDialogId(nextProposal ? 'agent-suggestions' : null)
+    setImportError(null)
+  }
+
   const rejectAgentProposal = () => {
     setAgentProposal(null)
     setOpenDialogId(null)
+  }
+
+  const rejectAgentProposalOperation = (operationIndex: number) => {
+    if (!agentProposal) return
+
+    const nextProposal = removeAgentPatchOperation(
+      agentProposal,
+      operationIndex
+    )
+
+    setAgentProposal(nextProposal)
+    setOpenDialogId(nextProposal ? 'agent-suggestions' : null)
   }
 
   const regenerateShareUrl = (accessMode: ShareAccessMode) => {
@@ -2562,10 +2621,36 @@ function App({ pageId }: { pageId?: string }) {
                             className="agent-proposal-operation"
                             key={`${operation.op}-${operationIndex}`}
                           >
-                            <code>{operation.op}</code>
-                            <span>
-                              {getAgentOperationSummary(operation)}
-                            </span>
+                            <div className="agent-proposal-operation-copy">
+                              <code>{operation.op}</code>
+                              <span>
+                                {getAgentOperationSummary(operation)}
+                              </span>
+                            </div>
+                            <div className="agent-proposal-operation-actions">
+                              <button
+                                className="agent-proposal-mini-button"
+                                type="button"
+                                onClick={() =>
+                                  applyAgentProposalOperation(
+                                    operationIndex
+                                  )
+                                }
+                              >
+                                Apply operation
+                              </button>
+                              <button
+                                className="agent-proposal-mini-button agent-proposal-mini-button--secondary"
+                                type="button"
+                                onClick={() =>
+                                  rejectAgentProposalOperation(
+                                    operationIndex
+                                  )
+                                }
+                              >
+                                Reject operation
+                              </button>
+                            </div>
                           </div>
                         )
                       )}

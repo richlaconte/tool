@@ -7,6 +7,7 @@ import {
   applyAgentPatch,
   createAgentAreaPatch,
   createAgentPatchId,
+  createAgentPatchForOperation,
   deleteAgentAreaPatch,
   dryRunAgentPatch,
   extractAgentDecisions,
@@ -23,6 +24,7 @@ import {
   suggestBoardOrganization,
   suggestDecisionLog,
   suggestImplementationMap,
+  removeAgentPatchOperation,
   updateAgentAreaPatch,
   updateAgentAreaStylesPatch,
   validateAgentPatch,
@@ -313,6 +315,58 @@ test('agent suggest tools cover area creation, style cleanup, organization, and 
   }
 
   assert.deepEqual(state.areas, initialAreas)
+})
+
+test('agent proposal patches can be split into individual review operations', () => {
+  const patch: AgentPatch = {
+    schemaVersion: 1,
+    id: 'patch-review',
+    pageId: 'page-1',
+    source: {
+      kind: 'mcp-agent',
+      clientId: 'client_suggest',
+      displayName: 'Suggest Agent',
+    },
+    operations: [
+      {
+        op: 'updateArea',
+        areaId: 'area-1',
+        patch: {
+          text: 'Decision: accept individual agent operations.',
+        },
+      },
+      {
+        op: 'updateAreaStyles',
+        areaId: 'area-1',
+        styles: {
+          background: '#f8fafc',
+        },
+      },
+    ],
+    createdAt: now,
+  }
+
+  assert.deepEqual(createAgentPatchForOperation(patch, 1), {
+    ...patch,
+    id: 'patch-review_operation_2',
+    operations: [patch.operations[1]],
+  })
+  assert.deepEqual(removeAgentPatchOperation(patch, 0), {
+    ...patch,
+    operations: [patch.operations[1]],
+  })
+  assert.equal(createAgentPatchForOperation(patch, 2), null)
+  assert.equal(removeAgentPatchOperation(patch, 2), patch)
+  assert.equal(
+    removeAgentPatchOperation(
+      {
+        ...patch,
+        operations: [patch.operations[0]],
+      },
+      0
+    ),
+    null
+  )
 })
 
 test('agent area update suggestions stay within patch operation limits', () => {

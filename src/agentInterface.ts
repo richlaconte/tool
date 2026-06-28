@@ -703,6 +703,39 @@ const createAgentPatch = (
   }
 }
 
+export const createAgentPatchForOperation = (
+  patch: AgentPatch,
+  operationIndex: number
+): AgentPatch | null => {
+  const operation = patch.operations[operationIndex]
+
+  if (!operation) return null
+
+  return {
+    ...patch,
+    id: `${patch.id}_operation_${operationIndex + 1}`,
+    operations: [operation],
+  }
+}
+
+export const removeAgentPatchOperation = (
+  patch: AgentPatch,
+  operationIndex: number
+): AgentPatch | null => {
+  if (!patch.operations[operationIndex]) return patch
+
+  const operations = patch.operations.filter(
+    (_operation, index) => index !== operationIndex
+  )
+
+  if (operations.length === 0) return null
+
+  return {
+    ...patch,
+    operations,
+  }
+}
+
 const createSuggestionArea = (
   state: PageAppState,
   {

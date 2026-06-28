@@ -599,6 +599,16 @@ button.mcp-status-badge:focus-visible {
   margin: 0;
 }
 
+.agent-proposal-error {
+  border: 1px solid rgb(248 113 113 / 35%);
+  border-radius: 8px;
+  background: rgb(254 242 242 / 96%);
+  color: #b91c1c;
+  font-size: 13px;
+  line-height: 1.35;
+  padding: 8px 10px;
+}
+
 .agent-proposal-summary,
 .agent-proposal-operation-copy {
   display: flex;

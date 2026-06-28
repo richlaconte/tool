@@ -608,6 +608,9 @@ function App({ pageId }: { pageId?: string }) {
   )
   const [agentProposal, setAgentProposal] =
     useState<AgentPatch | null>(null)
+  const [agentProposalError, setAgentProposalError] = useState<
+    string | null
+  >(null)
   const [agentAuditRecords, setAgentAuditRecords] = useState<
     AgentActionRecord[]
   >([])
@@ -1454,6 +1457,7 @@ function App({ pageId }: { pageId?: string }) {
     )
 
     setAgentProposal(proposal)
+    setAgentProposalError(null)
     setOpenDialogId('agent-suggestions')
   }
 
@@ -1474,7 +1478,7 @@ function App({ pageId }: { pageId?: string }) {
     )
 
     if (!result.ok) {
-      setImportError(result.errors.join(' '))
+      setAgentProposalError(result.errors.join(' '))
       return
     }
 
@@ -1486,6 +1490,7 @@ function App({ pageId }: { pageId?: string }) {
       ...currentRecords.slice(0, 9),
     ])
     setAgentProposal(null)
+    setAgentProposalError(null)
     setOpenDialogId(null)
     setImportError(null)
   }
@@ -1514,7 +1519,7 @@ function App({ pageId }: { pageId?: string }) {
     )
 
     if (!result.ok) {
-      setImportError(result.errors.join(' '))
+      setAgentProposalError(result.errors.join(' '))
       return
     }
 
@@ -1531,12 +1536,14 @@ function App({ pageId }: { pageId?: string }) {
       ...currentRecords.slice(0, 9),
     ])
     setAgentProposal(nextProposal)
+    setAgentProposalError(null)
     setOpenDialogId(nextProposal ? 'agent-suggestions' : null)
     setImportError(null)
   }
 
   const rejectAgentProposal = () => {
     setAgentProposal(null)
+    setAgentProposalError(null)
     setOpenDialogId(null)
   }
 
@@ -1549,6 +1556,7 @@ function App({ pageId }: { pageId?: string }) {
     )
 
     setAgentProposal(nextProposal)
+    setAgentProposalError(null)
     setOpenDialogId(nextProposal ? 'agent-suggestions' : null)
   }
 
@@ -2603,6 +2611,11 @@ function App({ pageId }: { pageId?: string }) {
             ) : openDialogId === 'agent-suggestions' ? (
               <div className="agent-proposal">
                 <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {agentProposalError && (
+                  <p className="agent-proposal-error" role="alert">
+                    {agentProposalError}
+                  </p>
+                )}
                 {agentProposal ? (
                   <>
                     <div className="agent-proposal-summary">

@@ -263,6 +263,15 @@ const LOCAL_AGENT_CLIENT: AgentClient = {
   scopes: ['page:read', 'page:search', 'page:suggest', 'page:write'],
 }
 
+const MCP_STATUS_CLIENT: AgentClient = {
+  id: 'no-auth-mcp',
+  displayName: 'No-auth MCP client',
+  scopes: ['page:read', 'page:search', 'page:suggest'],
+}
+
+const MCP_STATUS_SCOPE_LABEL = MCP_STATUS_CLIENT.scopes.join(', ')
+const MCP_STATUS_LABEL = `${MCP_STATUS_CLIENT.displayName}: ${MCP_STATUS_SCOPE_LABEL}`
+
 const isEditableTarget = (target: EventTarget | null) =>
   target instanceof HTMLInputElement ||
   target instanceof HTMLTextAreaElement ||
@@ -2098,6 +2107,15 @@ function App({ pageId }: { pageId?: string }) {
         {isViewOnly && (
           <span className="access-mode-badge access-mode-badge--view-only">
             View only
+          </span>
+        )}
+        {page.settings.mcp.enabled && (
+          <span
+            aria-label={`MCP exposed to ${MCP_STATUS_LABEL}`}
+            className="mcp-status-badge"
+            title={MCP_STATUS_LABEL}
+          >
+            MCP exposed
           </span>
         )}
         <span

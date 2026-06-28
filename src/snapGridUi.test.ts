@@ -46,6 +46,24 @@ test('page chrome exposes enabled MCP status with client scopes', async () => {
   assert.match(css, /\.mcp-status-badge/)
 })
 
+test('page chrome shows recent MCP activity in a low-noise status', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const css = await readFile(
+    new URL('./App.css', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /getMcpAgentActivityLabel/)
+  assert.match(source, /cascadery:\/\/pages\/\$\{pageId\}\/agent-actions/)
+  assert.match(source, /mcpAgentActivityLabel/)
+  assert.match(source, /className="mcp-activity-status"/)
+  assert.match(source, /aria-live="polite"/)
+  assert.match(css, /\.mcp-activity-status/)
+})
+
 test('canvas has a visible grid state', async () => {
   const css = await readFile(
     new URL('./App.css', import.meta.url),

@@ -95,6 +95,10 @@ import {
   type ThemeColorToken,
 } from './themeColors'
 import { useCollaborativePageSync } from './useCollaborativePage'
+import {
+  getLatestMcpAgentActivity,
+  getMcpAgentActivityLabel,
+} from './mcpAgentActivity'
 
 export type BaseAreaState = {
   id: string
@@ -271,6 +275,63 @@ const MCP_STATUS_CLIENT: AgentClient = {
 
 const MCP_STATUS_SCOPE_LABEL = MCP_STATUS_CLIENT.scopes.join(', ')
 const MCP_STATUS_LABEL = `${MCP_STATUS_CLIENT.displayName}: ${MCP_STATUS_SCOPE_LABEL}`
+const MCP_AGENT_ACTIVITY_POLL_INTERVAL_MS = 10_000
+
+const fetchMcpAgentActivityLabel = async (pageId: string) => {
+  const response = await fetch('/api/mcp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 'mcp-agent-actions',
+      method: 'resources/read',
+      params: {
+        uri: `cascadery://pages/${pageId}/agent-actions`,
+      },
+    }),
+  })
+
+  if (!response.ok) return null
+
+  const payload = await response.json()
+  const contentText = readJsonRpcTextContent(payload)
+
+  if (!contentText) return null
+
+  try {
+    const content = JSON.parse(contentText)
+    const contentRecord = readUnknownRecord(content)
+    const latestActivity = getLatestMcpAgentActivity(
+      contentRecord?.actions
+    )
+
+    return latestActivity
+      ? getMcpAgentActivityLabel(latestActivity)
+      : null
+  } catch {
+    return null
+  }
+}
+
+const readJsonRpcTextContent = (value: unknown) => {
+  const responseRecord = readUnknownRecord(value)
+  const resultRecord = readUnknownRecord(responseRecord?.result)
+  const contents = Array.isArray(resultRecord?.contents)
+    ? resultRecord.contents
+    : []
+  const firstContent = readUnknownRecord(contents[0])
+
+  return typeof firstContent?.text === 'string'
+    ? firstContent.text
+    : null
+}
+
+const readUnknownRecord = (value: unknown) =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
 
 const isEditableTarget = (target: EventTarget | null) =>
   target instanceof HTMLInputElement ||
@@ -548,6 +609,10 @@ function App({ pageId }: { pageId?: string }) {
   const [agentAuditRecords, setAgentAuditRecords] = useState<
     AgentActionRecord[]
   >([])
+  const [mcpAgentActivity, setMcpAgentActivity] = useState<{
+    label: string | null
+    pageId: string
+  } | null>(null)
   const [hasClickedCanvas, setHasClickedCanvas] = useState(false)
   const [themeColorName, setThemeColorName] = useState('')
   const [themeColorToken, setThemeColorToken] = useState('')
@@ -613,6 +678,10 @@ function App({ pageId }: { pageId?: string }) {
       ? 'connected'
       : 'offline'
     : collaborationStatus
+  const mcpAgentActivityLabel =
+    page.settings.mcp.enabled && mcpAgentActivity?.pageId === page.id
+      ? mcpAgentActivity.label
+      : null
 
   const getCanvasCenterAnchor = useCallback(() => {
     const canvas = canvasRef.current
@@ -786,6 +855,41 @@ function App({ pageId }: { pageId?: string }) {
   useEffect(() => {
     selectedAreaIdRef.current = selectedAreaId
   }, [selectedAreaId])
+
+  useEffect(() => {
+    if (
+      !page.settings.mcp.enabled ||
+      !pageId ||
+      typeof fetch === 'undefined'
+    ) {
+      return
+    }
+
+    let isCancelled = false
+
+    const loadMcpAgentActivity = async () => {
+      const activityLabel = await fetchMcpAgentActivityLabel(page.id)
+
+      if (!isCancelled) {
+        setMcpAgentActivity({
+          label: activityLabel,
+          pageId: page.id,
+        })
+      }
+    }
+
+    void loadMcpAgentActivity()
+
+    const activityTimer = window.setInterval(
+      loadMcpAgentActivity,
+      MCP_AGENT_ACTIVITY_POLL_INTERVAL_MS
+    )
+
+    return () => {
+      isCancelled = true
+      window.clearInterval(activityTimer)
+    }
+  }, [page.id, page.settings.mcp.enabled, pageId])
 
   useEffect(() => {
     if (isServerCollaborationEnabled) {
@@ -2129,6 +2233,15 @@ function App({ pageId }: { pageId?: string }) {
               MCP exposed
             </button>
           )
+        )}
+        {mcpAgentActivityLabel && (
+          <span
+            aria-live="polite"
+            className="mcp-activity-status"
+            title={mcpAgentActivityLabel}
+          >
+            {mcpAgentActivityLabel}
+          </span>
         )}
         <span
           aria-live="polite"

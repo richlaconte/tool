@@ -1221,6 +1221,21 @@ function App({ pageId }: { pageId?: string }) {
     })
   }
 
+  const updateMcpAccess = (enabled: boolean) => {
+    if (isViewOnly) return
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      settings: {
+        ...currentPage.settings,
+        mcp: {
+          ...currentPage.settings.mcp,
+          enabled,
+        },
+      },
+    }))
+  }
+
   const updateThemeColors = (
     updater: (colors: ThemeColorToken[]) => ThemeColorToken[]
   ) => {
@@ -2522,6 +2537,20 @@ function App({ pageId }: { pageId?: string }) {
                         })
                       }
                     />
+                  </label>
+                </section>
+                <section className="page-style-section">
+                  <h3>MCP access</h3>
+                  <label className="page-style-control page-style-control--inline">
+                    <input
+                      aria-label="Allow MCP access"
+                      checked={page.settings.mcp.enabled}
+                      type="checkbox"
+                      onChange={(e) =>
+                        updateMcpAccess(e.currentTarget.checked)
+                      }
+                    />
+                    <span>Allow MCP access</span>
                   </label>
                 </section>
                 <section className="page-style-section theme-color-editor">

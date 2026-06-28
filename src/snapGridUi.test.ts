@@ -14,6 +14,16 @@ test('page styles exposes snap grid controls', async () => {
   assert.match(source, /aria-label="Grid size"/)
 })
 
+test('page styles exposes MCP access controls', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /MCP access/)
+  assert.match(source, /aria-label="Allow MCP access"/)
+})
+
 test('canvas has a visible grid state', async () => {
   const css = await readFile(
     new URL('./App.css', import.meta.url),

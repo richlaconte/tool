@@ -188,8 +188,42 @@ const readPageMap = (pageMap: Y.Map<unknown>): PageState => ({
   title: String(pageMap.get('title') ?? 'Untitled page'),
   createdAt: String(pageMap.get('createdAt') ?? ''),
   updatedAt: String(pageMap.get('updatedAt') ?? ''),
-  settings: cloneJsonValue(pageMap.get('settings')) as PageState['settings'],
+  settings: readPageSettings(pageMap.get('settings')),
 })
+
+const readPageSettings = (value: unknown): PageState['settings'] => {
+  const settings = readRecord(cloneJsonValue(value))
+  const snapGrid = readRecord(settings.snapGrid)
+  const theme = readRecord(settings.theme)
+  const mcp = readRecord(settings.mcp)
+
+  return {
+    background:
+      typeof settings.background === 'string'
+        ? settings.background
+        : '#ffffff',
+    snapGrid: {
+      enabled:
+        typeof snapGrid.enabled === 'boolean'
+          ? snapGrid.enabled
+          : false,
+      size: typeof snapGrid.size === 'number' ? snapGrid.size : 16,
+      visible:
+        typeof snapGrid.visible === 'boolean'
+          ? snapGrid.visible
+          : false,
+    },
+    theme: {
+      colors: Array.isArray(theme.colors)
+        ? (theme.colors as PageState['settings']['theme']['colors'])
+        : [],
+    },
+    mcp: {
+      enabled: typeof mcp.enabled === 'boolean' ? mcp.enabled : false,
+    },
+    shareLinks: null,
+  }
+}
 
 const createCollaborativeAreaMap = (area: AreaState) => {
   const areaMap = new Y.Map<unknown>()
@@ -565,6 +599,11 @@ const readNullableString = (value: unknown) =>
 
 const readOptionalString = (value: unknown) =>
   typeof value === 'string' ? value : undefined
+
+const readRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {}
 
 const cloneJsonValue = (value: unknown) =>
   value === undefined ? value : JSON.parse(JSON.stringify(value))

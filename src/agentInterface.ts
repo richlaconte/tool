@@ -228,6 +228,9 @@ export const getAgentPage = (
           ...color,
         })),
       },
+      mcp: {
+        enabled: state.page.settings.mcp.enabled,
+      },
       shareLinks: null,
     },
   },
@@ -1477,6 +1480,9 @@ const clonePageAppState = (state: PageAppState): PageAppState => ({
         colors: state.page.settings.theme.colors.map((color) => ({
           ...color,
         })),
+      },
+      mcp: {
+        enabled: state.page.settings.mcp.enabled,
       },
       shareLinks: state.page.settings.shareLinks
         ? {

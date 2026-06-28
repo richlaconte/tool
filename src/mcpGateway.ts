@@ -455,7 +455,9 @@ export const handleMcpJsonRpcRequest = async (
 
   if (request.method === 'resources/list') {
     return resultResponse(id, {
-      resources: createResourceDefinitions(await context.listPages()),
+      resources: createResourceDefinitions(
+        (await context.listPages()).filter(isPageMcpEnabled)
+      ),
     })
   }
 
@@ -487,7 +489,10 @@ const callTool = async (
   if (params.name === 'list_pages') {
     return resultResponse(
       id,
-      listAgentPages(await context.listPages(), MCP_AGENT_CLIENT)
+      listAgentPages(
+        (await context.listPages()).filter(isPageMcpEnabled),
+        MCP_AGENT_CLIENT
+      )
     )
   }
 
@@ -811,7 +816,10 @@ const readResource = async (
     return resourceResponse(
       id,
       params.uri,
-      listAgentPages(await context.listPages(), MCP_AGENT_CLIENT)
+      listAgentPages(
+        (await context.listPages()).filter(isPageMcpEnabled),
+        MCP_AGENT_CLIENT
+      )
     )
   }
 
@@ -823,7 +831,7 @@ const readResource = async (
 
   const state = await context.getPage(parsedResource.pageId)
 
-  if (!state) return pageNotFoundResponse(id)
+  if (!state || !isPageMcpEnabled(state)) return pageNotFoundResponse(id)
 
   const pageResource = getAgentPage(state, MCP_AGENT_CLIENT)
 
@@ -966,8 +974,13 @@ const getPageFromArgs = async (
     return null
   }
 
-  return context.getPage(args.pageId)
+  const state = await context.getPage(args.pageId)
+
+  return state && isPageMcpEnabled(state) ? state : null
 }
+
+const isPageMcpEnabled = (state: PageAppState) =>
+  state.page.settings.mcp.enabled
 
 const readAreaPatch = (args: Record<string, unknown>) => {
   const patch: Record<string, string | number> = {}

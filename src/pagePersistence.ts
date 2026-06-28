@@ -12,8 +12,13 @@ export type SnapGridSettings = {
   visible: boolean
 }
 
+export type McpSettings = {
+  enabled: boolean
+}
+
 export type PageSettings = {
   background: string
+  mcp: McpSettings
   snapGrid: SnapGridSettings
   theme: PageThemeSettings
   shareLinks: ShareLinks | null
@@ -117,6 +122,9 @@ export const createDefaultPageState = ({
     theme: {
       colors: [],
     },
+    mcp: {
+      enabled: false,
+    },
     shareLinks: null,
   },
 })
@@ -139,6 +147,9 @@ export const serializePageState = (
         colors: state.page.settings.theme.colors.map((color) => ({
           ...color,
         })),
+      },
+      mcp: {
+        enabled: state.page.settings.mcp.enabled,
       },
       shareLinks: state.page.settings.shareLinks
         ? {
@@ -274,6 +285,7 @@ const parsePageSettings = (
 
   const snapGrid = value.snapGrid
   const theme = parsePageThemeSettings(value.theme)
+  const mcp = parseMcpSettings(value.mcp)
   const shareLinks = parseShareLinks(value.shareLinks)
 
   if (
@@ -283,6 +295,7 @@ const parsePageSettings = (
     typeof snapGrid.size !== 'number' ||
     typeof snapGrid.visible !== 'boolean' ||
     !theme ||
+    !mcp ||
     shareLinks === undefined
   ) {
     return null
@@ -296,7 +309,26 @@ const parsePageSettings = (
       visible: snapGrid.visible,
     },
     theme,
+    mcp,
     shareLinks,
+  }
+}
+
+const parseMcpSettings = (
+  value: unknown
+): McpSettings | null => {
+  if (value === undefined) {
+    return {
+      enabled: false,
+    }
+  }
+
+  if (!isRecord(value) || typeof value.enabled !== 'boolean') {
+    return null
+  }
+
+  return {
+    enabled: value.enabled,
   }
 }
 

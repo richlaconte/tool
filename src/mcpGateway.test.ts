@@ -12,10 +12,18 @@ import {
 const now = '2026-06-26T12:00:00.000Z'
 
 const state: PageAppState = {
-  page: createDefaultPageState({
-    id: 'page-1',
-    now,
-  }),
+  page: {
+    ...createDefaultPageState({
+      id: 'page-1',
+      now,
+    }),
+    settings: {
+      ...createDefaultPageState({ id: 'page-1', now }).settings,
+      mcp: {
+        enabled: true,
+      },
+    },
+  },
   assets: [
     {
       id: 'asset-1',
@@ -169,6 +177,82 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   ])
   assert.doesNotMatch(serializedPageResource, /secret-binary/)
   assert.doesNotMatch(serializedAssets, /secret-binary/)
+})
+
+test('MCP page setting hides disabled pages and blocks page tools', async () => {
+  const disabledState: PageAppState = {
+    ...state,
+    page: {
+      ...state.page,
+      id: 'page-disabled',
+      settings: {
+        ...state.page.settings,
+        mcp: {
+          enabled: false,
+        },
+      },
+    },
+  }
+  const disabledContext: McpGatewayContext = {
+    getPage: async (pageId) =>
+      pageId === disabledState.page.id ? disabledState : null,
+    listPages: async () => [disabledState],
+  }
+  const listedPages = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'list-disabled',
+      method: 'tools/call',
+      params: {
+        name: 'list_pages',
+        arguments: {},
+      },
+    },
+    disabledContext
+  )
+  const listedResources = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'resources-disabled',
+      method: 'resources/list',
+    },
+    disabledContext
+  )
+  const directRead = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'read-disabled',
+      method: 'resources/read',
+      params: {
+        uri: 'cascadery://pages/page-disabled',
+      },
+    },
+    disabledContext
+  )
+  const directTool = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'tool-disabled',
+      method: 'tools/call',
+      params: {
+        name: 'get_page',
+        arguments: {
+          pageId: 'page-disabled',
+        },
+      },
+    },
+    disabledContext
+  )
+
+  assert.deepEqual(listedPages.result.pages, [])
+  assert.deepEqual(
+    listedResources.result.resources.map(
+      (resource: { uri: string }) => resource.uri
+    ),
+    ['cascadery://pages']
+  )
+  assert.equal(directRead.error.code, -32004)
+  assert.equal(directTool.error.code, -32004)
 })
 
 test('MCP tool calls are recorded as sanitized agent action resources', async () => {

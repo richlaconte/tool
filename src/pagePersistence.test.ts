@@ -95,6 +95,9 @@ test('serializes page state into schema version 1 JSON', () => {
         theme: {
           colors: [],
         },
+        mcp: {
+          enabled: false,
+        },
         shareLinks: null,
       },
     },
@@ -226,6 +229,37 @@ test('serializes and parses share links', () => {
   )
 })
 
+test('serializes and parses MCP page access settings', () => {
+  const page = {
+    ...createDefaultPageState({
+      id: 'page-1',
+      now,
+    }),
+    settings: {
+      ...createDefaultPageState({ id: 'page-1', now }).settings,
+      mcp: {
+        enabled: true,
+      },
+    },
+  }
+  const snapshot = serializePageState(
+    {
+      areas,
+      assets: [],
+      page,
+    },
+    now
+  )
+  const result = parsePageJson(JSON.stringify(snapshot))
+
+  assert.deepEqual(snapshot.page.settings.mcp, {
+    enabled: true,
+  })
+  assert.deepEqual(result.ok ? result.state.page.settings.mcp : null, {
+    enabled: true,
+  })
+})
+
 test('serializes and parses nested area parent ids', () => {
   const page = createDefaultPageState({
     id: 'page-1',
@@ -326,6 +360,9 @@ test('ignores unknown future fields while restoring known state', () => {
         },
         theme: {
           colors: [],
+        },
+        mcp: {
+          enabled: false,
         },
         shareLinks: null,
       },

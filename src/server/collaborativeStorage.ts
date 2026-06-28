@@ -17,6 +17,9 @@ export type StoredPageState = {
       theme: {
         colors: Array<Record<string, unknown>>
       }
+      mcp: {
+        enabled: boolean
+      }
       shareLinks: null
     }
   }
@@ -133,6 +136,9 @@ const readPageMap = (
               Record<string, unknown>
             >)
           : [],
+      },
+      mcp: {
+        enabled: readBoolean(readRecord(settings.mcp).enabled, false),
       },
       shareLinks: null,
     },

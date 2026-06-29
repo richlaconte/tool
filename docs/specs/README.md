@@ -9,11 +9,13 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-There are no active foundational specs right now. Future work called out inside
-completed specs can be promoted into new active specs when it becomes the next
-product priority.
+- [View-Only Presentation Mode](2026-06-29-view-only-presentation-mode.md)
+- [Smooth Trackpad Zoom](2026-06-29-smooth-trackpad-zoom.md)
 
-Recommended implementation order: none.
+Recommended implementation order:
+
+1. View-Only Presentation Mode.
+2. Smooth Trackpad Zoom.
 
 ## Completed MVP Specs
 

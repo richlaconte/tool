@@ -15,17 +15,15 @@ These specs still have meaningful product or implementation work remaining.
 2. [AI and MCP Agent Interface](2026-06-26-cascadery-ai-mcp-interface.md)
 3. [Image Support](2026-06-26-image-support.md)
 4. [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
-5. [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
-6. [Interoperability and Export](2026-06-29-interoperability-and-export.md)
+5. [Interoperability and Export](2026-06-29-interoperability-and-export.md)
 
 Recommended implementation order:
 
-1. Version history and undo foundations.
-2. Area metadata/types/links.
-3. Interoperability exports.
-4. Image storage/security hardening.
-5. Collaboration rate limits, security logs, and production security docs.
-6. Protected MCP access and deeper agent workflows.
+1. Area metadata/types/links.
+2. Interoperability exports.
+3. Image storage/security hardening.
+4. Collaboration rate limits, security logs, and production security docs.
+5. Protected MCP access and deeper agent workflows.
 
 ## Completed MVP Specs
 
@@ -42,6 +40,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Share Links](completed/2026-06-26-share-links.md)
 - [Snap Grid](completed/2026-06-26-snap-grid.md)
 - [Theme Color Shortcuts](completed/2026-06-26-theme-color-shortcuts.md)
+- [Version History and Change Review](completed/2026-06-29-version-history-and-change-review.md)
 
 ## Completion Rule
 

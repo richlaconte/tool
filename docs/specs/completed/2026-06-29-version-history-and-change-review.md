@@ -2,7 +2,7 @@
 
 ## Status
 
-Created on 2026-06-29 as a foundational trust and recovery spec.
+Completed on 2026-06-29 as a foundational trust and recovery MVP.
 
 ## Goal
 
@@ -108,13 +108,27 @@ Agent proposal review should eventually show:
 
 ## Acceptance Criteria
 
-- Page changes can create structured change events.
+- Page changes can create structured change events. Implemented for JSON imports and applied agent proposals.
 - Applied agent patches create change events with audit identity.
 - Applied agent patches can be undone when an undo patch is available.
-- JSON imports create a restore point before replacing state.
+- JSON imports create a restore point before replacing state, including imports that change the page id.
 - History dialog shows recent changes in human-readable language.
 - Change events do not store hidden share tokens or full raw page content by default.
 - Tests cover event creation, undo patch application, import restore points, and agent audit linkage.
+
+## Implementation Notes
+
+- `pageHistory.ts` stores event metadata separately from undo patches so the visible event list does not carry raw page content or share tokens.
+- Import restore snapshots redact `shareLinks` before storage.
+- The command palette includes `History`; the dialog lists recent changes and exposes `Restore previous page` or `Undo patch` where possible.
+- History state is stored separately from page JSON at `tool.pageHistory.v1`.
+
+## Future Work
+
+- Server-backed history for shared pages so the same timeline is visible to all editors.
+- Grouped local operation events for text edits, moves, resizes, deletes, and style changes.
+- Named snapshots and visual comparison.
+- Multi-user undo semantics that target only the current user's operation unless a full snapshot restore is chosen.
 
 ## Non-Goals
 

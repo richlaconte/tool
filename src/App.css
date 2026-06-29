@@ -741,6 +741,77 @@ button.mcp-status-badge:focus-visible {
   font-size: 12px;
 }
 
+.history-dialog {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.history-dialog p {
+  margin: 0;
+}
+
+.history-events {
+  display: grid;
+  gap: 8px;
+  max-height: min(52vh, 440px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.history-event {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid rgb(148 163 184 / 24%);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.history-event-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.history-event-copy strong {
+  overflow: hidden;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-event-copy span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-event-button {
+  border: 1px solid rgb(37 99 235 / 28%);
+  border-radius: 7px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+  font: 600 12px/1 ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 8px 9px;
+}
+
+.history-event-button:hover,
+.history-event-button:focus-visible {
+  background: #dbeafe;
+  outline: 2px solid rgb(37 99 235 / 18%);
+  outline-offset: 2px;
+}
+
 .share-link-controls {
   display: grid;
   gap: 12px;

@@ -78,6 +78,20 @@ import {
   type PageAppState,
 } from './pagePersistence'
 import {
+  addPageHistoryEntry,
+  applyRestorePageStatePatch,
+  createAgentHistoryEntry,
+  createEmptyPageHistoryState,
+  createImportHistoryEntry,
+  getPageHistoryPatch,
+  getRecentPageHistoryEvents,
+  PAGE_HISTORY_STORAGE_KEY,
+  parsePageHistoryJson,
+  serializePageHistoryState,
+  type ChangeActor,
+  type PageChangeEvent,
+} from './pageHistory'
+import {
   clampSnapGridSize,
   getActiveSnapGridSize,
   moveAreaWithSnapGrid,
@@ -198,6 +212,10 @@ const COMMAND_DIALOGS: Record<
     title: 'Share',
     body: 'Create links for people who can edit this page or only view it.',
   },
+  history: {
+    title: 'History',
+    body: 'Recent recoverable page changes live here.',
+  },
 }
 
 const LOCAL_AGENT_CLIENT: AgentClient = {
@@ -215,6 +233,11 @@ const MCP_STATUS_CLIENT: AgentClient = {
 const MCP_STATUS_SCOPE_LABEL = MCP_STATUS_CLIENT.scopes.join(', ')
 const MCP_STATUS_LABEL = `${MCP_STATUS_CLIENT.displayName}: ${MCP_STATUS_SCOPE_LABEL}`
 const MCP_AGENT_ACTIVITY_POLL_INTERVAL_MS = 10_000
+const LOCAL_HISTORY_ACTOR: ChangeActor = {
+  kind: 'local-user',
+  id: 'local-user',
+  displayName: 'Local user',
+}
 
 const fetchMcpAgentActivityLabel = async (pageId: string) => {
   const response = await fetch('/api/mcp', {
@@ -340,6 +363,18 @@ const getInitialPageState = (pageId?: string): PageAppState => {
   return result.state
 }
 
+const getInitialPageHistoryState = () => {
+  if (typeof localStorage === 'undefined') {
+    return createEmptyPageHistoryState()
+  }
+
+  const savedJson = localStorage.getItem(PAGE_HISTORY_STORAGE_KEY)
+
+  return savedJson
+    ? parsePageHistoryJson(savedJson)
+    : createEmptyPageHistoryState()
+}
+
 const getInitialCollaborationProfile = () => {
   if (typeof document !== 'undefined') {
     const savedProfile = getCollaborationProfileFromCookie(
@@ -356,6 +391,25 @@ const getInitialCollaborationProfile = () => {
   }
 
   return profile
+}
+
+const getHistoryActionLabel = (event: PageChangeEvent) => {
+  if (event.actionType === 'agent-proposal') return 'Agent proposal'
+  if (event.actionType === 'import') return 'Import'
+  if (event.actionType === 'restore') return 'Restore'
+
+  return 'Page change'
+}
+
+const getHistoryEventTimeLabel = (createdAt: string) => {
+  const date = new Date(createdAt)
+
+  if (Number.isNaN(date.getTime())) return createdAt
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
 }
 
 const getSaveStatusLabel = (saveStatus: SaveStatus) => {
@@ -517,6 +571,9 @@ function App({
     initialPageState.assets
   )
   const [page, setPage] = useState(initialPageState.page)
+  const [pageHistory, setPageHistory] = useState(
+    getInitialPageHistoryState
+  )
   const [collaborationProfile, setCollaborationProfile] =
     useState<CollaborationProfile>(getInitialCollaborationProfile)
   const [remotePresences, setRemotePresences] = useState<
@@ -632,6 +689,10 @@ function App({
     page.settings.mcp.enabled && mcpAgentActivity?.pageId === page.id
       ? mcpAgentActivity.label
       : null
+  const recentHistoryEvents = useMemo(
+    () => getRecentPageHistoryEvents(pageHistory, page.id),
+    [page.id, pageHistory]
+  )
 
   const getCanvasCenterAnchor = useCallback(() => {
     const canvas = canvasRef.current
@@ -1104,6 +1165,19 @@ function App({
   }, [areas, assets, page])
 
   useEffect(() => {
+    if (typeof localStorage === 'undefined') return
+
+    try {
+      localStorage.setItem(
+        PAGE_HISTORY_STORAGE_KEY,
+        serializePageHistoryState(pageHistory)
+      )
+    } catch {
+      // History persistence is best-effort; page save status is tracked separately.
+    }
+  }, [pageHistory])
+
+  useEffect(() => {
     const handleClick = (e: PointerEvent) => {
       if (isViewOnly) return
 
@@ -1545,6 +1619,12 @@ function App({
       result.auditRecord,
       ...currentRecords.slice(0, 9),
     ])
+    setPageHistory((currentHistory) =>
+      addPageHistoryEntry(
+        currentHistory,
+        createAgentHistoryEntry(result.auditRecord)
+      )
+    )
     setAgentProposal(null)
     setAgentProposalError(null)
     setOpenDialogId(null)
@@ -1591,6 +1671,12 @@ function App({
       result.auditRecord,
       ...currentRecords.slice(0, 9),
     ])
+    setPageHistory((currentHistory) =>
+      addPageHistoryEntry(
+        currentHistory,
+        createAgentHistoryEntry(result.auditRecord)
+      )
+    )
     setAgentProposal(nextProposal)
     setAgentProposalError(null)
     setOpenDialogId(nextProposal ? 'agent-suggestions' : null)
@@ -2155,10 +2241,80 @@ function App({
       return
     }
 
+    setPageHistory((currentHistory) =>
+      addPageHistoryEntry(
+        currentHistory,
+        createImportHistoryEntry({
+          actor: LOCAL_HISTORY_ACTOR,
+          beforeState: {
+            areas,
+            assets,
+            page,
+          },
+          importedAreaCount: result.state.areas.length,
+          pageId: result.state.page.id,
+        })
+      )
+    )
     setPage(result.state.page)
     setAreas(result.state.areas)
     setAssets(result.state.assets)
     setSelectedAreaId(null)
+    setImportError(null)
+  }
+
+  const undoHistoryEvent = (event: PageChangeEvent) => {
+    if (isViewOnly || !event.undoPatchId) return
+
+    const patch = getPageHistoryPatch(pageHistory, event.undoPatchId)
+
+    if (!patch) return
+
+    if (patch.kind === 'restore-page-state') {
+      const restoredState = applyRestorePageStatePatch(
+        {
+          areas,
+          assets,
+          page,
+        },
+        patch
+      )
+
+      setPage(restoredState.page)
+      setAreas(restoredState.areas)
+      setAssets(restoredState.assets)
+      setSelectedAreaId(null)
+      setOpenDialogId(null)
+      setImportError(null)
+      return
+    }
+
+    const result = applyAgentPatch(
+      {
+        areas,
+        assets,
+        page,
+      },
+      patch.patch,
+      LOCAL_AGENT_CLIENT,
+      {
+        cssSupports: supportsAgentCssDeclaration,
+      }
+    )
+
+    if (!result.ok) {
+      setImportError(result.errors.join(' '))
+      return
+    }
+
+    setPage(result.state.page)
+    setAreas(result.state.areas)
+    setAssets(result.state.assets)
+    setAgentAuditRecords((currentRecords) => [
+      result.auditRecord,
+      ...currentRecords.slice(0, 9),
+    ])
+    setOpenDialogId(null)
     setImportError(null)
   }
 
@@ -2760,6 +2916,39 @@ function App({
                   <p className="agent-proposal-audit">
                     Last applied patch: {agentAuditRecords[0].patchId}
                   </p>
+                )}
+              </div>
+            ) : openDialogId === 'history' ? (
+              <div className="history-dialog">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {recentHistoryEvents.length > 0 ? (
+                  <div className="history-events">
+                    {recentHistoryEvents.map((event) => (
+                      <div className="history-event" key={event.id}>
+                        <div className="history-event-copy">
+                          <strong>{event.summary}</strong>
+                          <span>
+                            {getHistoryActionLabel(event)} by{' '}
+                            {event.actor.displayName} at{' '}
+                            {getHistoryEventTimeLabel(event.createdAt)}
+                          </span>
+                        </div>
+                        {event.reversible && event.undoPatchId ? (
+                          <button
+                            className="history-event-button"
+                            type="button"
+                            onClick={() => undoHistoryEvent(event)}
+                          >
+                            {event.actionType === 'import'
+                              ? 'Restore previous page'
+                              : 'Undo patch'}
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>No recent changes yet.</p>
                 )}
               </div>
             ) : openDialogId === 'settings' ? (

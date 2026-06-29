@@ -45,6 +45,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'history',
+    title: 'History',
+    description: 'Review recent changes and undo reversible patches',
+    aliases: ['timeline', 'changes', 'versions', 'undo'],
+    scope: 'global',
+  },
+  {
     id: 'toggle-snap-grid',
     title: 'Toggle snap grid',
     description: 'Snap Area movement and resizing to page grid',

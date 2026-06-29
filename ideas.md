@@ -1,14 +1,11 @@
-- Macos spotlight command pallette
-- The whole page state should be saved in a carefully planned JSON format.
-- Nextjs/websockets multi-user support
-  - Should show cursors like figma of each user (Maybe fun randomized names? Users could change their own name with a page setting and it gets saved in a cookie for later sessions?)
-- Share options - should generate 2 unique links (uuids/unguessable):
-  - 1 link allows editing
-  - 1 link is view only
-- Snap-grid option - page setting that allows users to enable snap-grid, where items will be snapped to a grid that has a predefined value but can also be set directly by the user.
-- Image support
-- Toolbar additions: currently each area has a drag handle, we should add a delete option (maybe on the top right instead of next to the draggy?)
-- Area resize options (draggable corner?)
-- Page settings should allow for some theme colors to be defined (these could display on one of the corners of the screen) and allow for shortcut names when styling; ie: color: blue or color: ${businessName}-blue sets the theme color instead of the default "blue" css color
-- Support area toolbar action to duplicate areas (like move and delete)
-- Areas should support nesting - a parent Area can have multiple child areas that move around inside of and anchored to the parent they are under
+# Ideas
+
+The original idea backlog has been converted into specs.
+
+- Active specs and recommended order: [docs/specs/README.md](docs/specs/README.md)
+- Completed MVP specs: [docs/specs/completed](docs/specs/completed)
+- Product direction audit: [docs/specs/2026-06-29-cascadery-product-direction-audit.md](docs/specs/2026-06-29-cascadery-product-direction-audit.md)
+
+New raw ideas can go below this line before being turned into full specs.
+
+---

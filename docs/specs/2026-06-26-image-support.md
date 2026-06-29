@@ -4,6 +4,27 @@
 
 Allow users to add images to the page as movable, resizable canvas objects.
 
+## Status
+
+Audited on 2026-06-29. This remains active for storage/security and image-editing hardening, but the core MVP interaction paths are implemented.
+
+Implemented:
+
+- `/image` slash command.
+- `/image <url>` insertion.
+- Command palette image insertion.
+- Drag/drop and paste insertion.
+- Move, resize, delete, duplicate, replace image, and edit alt text.
+- Page JSON persistence for image Areas and asset references.
+
+Still outstanding:
+
+- Preserve image aspect ratio by default while resizing.
+- Decide first-class SVG support or exclusion.
+- Move from local/data URL asset references toward authorization-aware asset storage.
+- Verify image content beyond browser MIME hints when server storage exists.
+- Add clearer image-specific error surfaces if upload/storage fails.
+
 ## HCI/UX Research Basis
 
 - GOV.UK file-upload guidance emphasizes using the native file browser and helping users reuse selected files when appropriate.

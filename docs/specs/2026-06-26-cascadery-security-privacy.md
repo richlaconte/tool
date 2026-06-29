@@ -4,6 +4,23 @@
 
 Created on 2026-06-26 as follow-up work for the Cascadery product direction.
 
+Audited on 2026-06-29. This remains an active foundational spec and should be treated as the highest-priority active implementation track before broader hosted or agent access expands.
+
+Current implemented baseline:
+
+- Server-backed pages and Yjs persistence exist.
+- Collaboration origin checks and max payload configuration exist.
+- Share-token storage helpers exist.
+- No-auth MCP is environment-gated and rate-limited.
+
+Primary gaps:
+
+- Server-enforced edit/view access for HTTP and WebSocket routes.
+- Message-level collaboration authorization and rate limiting.
+- Structured security logs beyond current MCP action logs.
+- Asset serving/storage routes with authorization-aware cache and validation.
+- Production environment documentation for origin, database, asset, and MCP settings.
+
 ## Goal
 
 Define the security and privacy baseline for Cascadery before the product expands around sharing, real-time collaboration, assets, and AI/MCP access.

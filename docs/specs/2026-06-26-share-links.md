@@ -4,6 +4,26 @@
 
 Generate two unique, unguessable links for each page: one edit link and one view-only link.
 
+## Status
+
+Audited on 2026-06-29. This remains active.
+
+Implemented:
+
+- Client-side share dialog.
+- Edit and view URL generation.
+- Copy and regenerate controls.
+- Server-side token hashing helpers.
+- Signed page-session helper primitives.
+
+Still outstanding:
+
+- Validate share tokens in the `/p/[pageId]` route.
+- Set and read signed page sessions from HTTP routes.
+- Enforce edit/view access during WebSocket upgrade.
+- Reject collaboration updates from view-only sessions server-side.
+- Ensure regenerated links invalidate old sessions on reconnect.
+
 ## HCI/UX Research Basis
 
 - Box's shared-link model clearly separates edit and view-only capabilities, helping users understand what recipients can do.

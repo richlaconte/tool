@@ -4,6 +4,12 @@
 
 Created on 2026-06-26 after choosing the name Cascadery.
 
+Audited on 2026-06-29. Keep this as the product philosophy spec. The refined direction is:
+
+> Cascadery is a CSS-native context canvas for developers and coding agents.
+
+The shorter UI tagline remains "CSS-native canvas for developer thinking." Product and roadmap decisions should favor implementation context, safe agent readability, document trust, and data portability over broad whiteboard parity.
+
 ## Goal
 
 Define Cascadery as a developer-native spatial workspace: a CSS-stylable canvas for implementation thinking, architecture discussion, UI exploration, and agent-readable project context.
@@ -71,6 +77,11 @@ Required follow-up capabilities:
 - Lightweight metadata per Area without turning every Area into a form.
 - Export to Markdown or issue/task systems.
 
+Tracking specs:
+
+- [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
+- [Interoperability and Export](2026-06-29-interoperability-and-export.md)
+
 ### Visual RFC
 
 A team lays out architecture options, API contracts, UI states, and tradeoffs. Decisions are marked explicitly and remain searchable.
@@ -81,6 +92,11 @@ Required follow-up capabilities:
 - Comment threads attached to Areas.
 - Read-only and edit share links enforced server-side.
 - Version history or snapshots for major decisions.
+
+Tracking specs:
+
+- [Share Links](2026-06-26-share-links.md)
+- [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
 
 ### CSS-Native UI Scratchpad
 
@@ -93,6 +109,11 @@ Required follow-up capabilities:
 - Token-preserving styles so theme updates can propagate.
 - Area templates for common UI states.
 
+Tracking specs:
+
+- [Command Palette Completion](2026-06-26-command-palette-completion.md)
+- [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
+
 ### Agent Context Board
 
 A coding agent reads a page, summarizes the implementation map, proposes missing risks, creates Areas for a repo scan, and updates a decision summary after a code change.
@@ -103,6 +124,12 @@ Required follow-up capabilities:
 - Patch preview before agent writes are applied.
 - Audit trail for agent actions.
 - Permission scopes for read-only, suggest-only, and write modes.
+
+Tracking specs:
+
+- [AI and MCP Agent Interface](2026-06-26-cascadery-ai-mcp-interface.md)
+- [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
+- [Security and Privacy Baseline](2026-06-26-cascadery-security-privacy.md)
 
 ## Interaction Model
 

@@ -2,21 +2,26 @@
 
 Cascadery is a CSS-native canvas for developer thinking.
 
-It is a collaborative spatial workspace where notes, sketches, decisions, images, and implementation context live as movable Areas. Cascadery assumes its users are comfortable with the web platform: an Area can be styled directly with CSS slash commands, arranged spatially, nested inside other Areas, shared with collaborators, and eventually read or updated by AI agents through a controlled MCP interface.
+It is a collaborative spatial workspace where implementation context lives as movable Areas: notes, sketches, decisions, risks, tasks, UI states, files, images, and architecture fragments. Cascadery assumes its users are comfortable with the web platform: an Area can be styled directly with CSS slash commands, arranged spatially, nested inside other Areas, shared with collaborators, and read or updated by AI agents through controlled, reviewable MCP workflows.
 
 ## Product Direction
 
-Cascadery is not trying to be a general notes app or another meeting whiteboard. The sharpest wedge is developer-native thinking:
+Cascadery is not trying to be a general notes app or another meeting whiteboard. The sharpest wedge is developer-native implementation context:
 
 - Map an implementation before touching code.
 - Turn an issue, PRD, or repo scan into a visual plan.
 - Discuss architecture and UI states asynchronously with enough structure to preserve decisions.
 - Use CSS as an editing language instead of hiding all styling behind palettes and inspectors.
 - Give coding agents a readable, writable project context surface without making chat the center of the product.
+- Preserve decisions, risks, and handoff context in a durable, portable document.
 
-Working tagline:
+Working UI tagline:
 
 > CSS-native canvas for developer thinking.
+
+Full product direction:
+
+> CSS-native context canvas for developers and coding agents.
 
 ## Current Capabilities
 
@@ -43,11 +48,13 @@ Cascadery's follow-up specs are grounded in current market and interaction resea
 
 ## Follow-Up Specs
 
+- [Spec Index](docs/specs/README.md)
+- [Product Direction Audit](docs/specs/2026-06-29-cascadery-product-direction-audit.md)
 - [Product and Developer Experience Direction](docs/specs/2026-06-26-cascadery-product-dx.md)
 - [AI and MCP Agent Interface](docs/specs/2026-06-26-cascadery-ai-mcp-interface.md)
 - [Security and Privacy Baseline](docs/specs/2026-06-26-cascadery-security-privacy.md)
 
-Existing feature specs are in [docs/specs](docs/specs).
+Completed MVP specs are archived under [docs/specs/completed](docs/specs/completed).
 
 ## Development
 

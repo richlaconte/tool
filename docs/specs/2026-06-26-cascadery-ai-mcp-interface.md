@@ -6,6 +6,26 @@ Created on 2026-06-26 as follow-up work for the Cascadery product direction.
 
 Implementation note, 2026-06-26: the first endpoint may skip OAuth if it is explicitly enabled, rate-limited, and limited to read/search/suggest tools. Write tools, remote multi-user production access, and per-user permissions still require a stronger authorization model before broad exposure.
 
+Audited on 2026-06-29. This remains active, but the direction is correct: keep MCP no-auth access limited, explicit, and review-oriented until share/access enforcement and protected remote authorization exist.
+
+Implemented:
+
+- Environment-gated no-auth MCP route.
+- Rate limiting.
+- Read/search/suggest tools.
+- GLM-compatible AI suggestion hook.
+- Per-page MCP enablement setting.
+- Recent MCP activity surface.
+- Reviewable local agent proposal UI.
+
+Still outstanding:
+
+- Protected remote MCP authorization before broader hosted use.
+- Persisted per-client grants rather than a static no-auth client label.
+- Stronger write policy: no direct remote writes without trusted scope and human-visible review.
+- Durable agent audit log tied to page history.
+- Agent access to future Area metadata, links, comments, and export resources.
+
 ## Goal
 
 Add a quiet AI integration layer that lets agents read, summarize, organize, and propose changes to Cascadery pages through MCP without making chat the primary interface.

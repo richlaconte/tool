@@ -4,6 +4,26 @@
 
 Add zoom in/out support for the editor canvas so users can work at broad page scale or inspect details without changing Area data. Zoom should feel like a familiar design-canvas interaction, similar to Figma, FigJam, or Miro, while preserving this app's simple click-to-create and text-first workflow.
 
+## Status
+
+Audited on 2026-06-29. This remains active for polish only; the core zoom MVP is implemented.
+
+Implemented:
+
+- Fixed zoom controls.
+- Current percentage and reset.
+- Zoom in/out/fit/selection commands.
+- `Cmd/Ctrl + +`, `Cmd/Ctrl + -`, `Cmd/Ctrl + 0`, `Shift+1`, and `Shift+2`.
+- `Cmd/Ctrl + wheel` zoom around pointer.
+- Scaled canvas world with logical coordinate conversion.
+- Move, resize, creation, and drop calculations use zoom-aware helpers.
+
+Still outstanding:
+
+- Trackpad pinch support where browser events allow it.
+- Optional percentage dropdown/preset menu.
+- More robust low-zoom editor chrome strategy if counter-scaling becomes insufficient.
+
 ## Current State
 
 - `#canvas` is the only scroll container.

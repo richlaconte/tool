@@ -8,6 +8,27 @@ Complete the macOS Spotlight / VS Code style command palette so it becomes the m
 
 The app already opens a centered command palette when no Area is selected and the user types. It supports filtering, arrow navigation, Enter activation, backdrop close, and simple Help, Settings, and Page styles dialogs.
 
+## Status
+
+Audited on 2026-06-29. This remains active as a command-system and accessibility cleanup spec.
+
+Implemented:
+
+- Palette opens from typing with no Area selected.
+- Palette opens from Escape when no Area is selected.
+- The Cascadery brand button opens the palette.
+- Filtering, arrow navigation, Enter activation, backdrop close, and overflow scroll-into-view exist.
+- Help, Settings, Page styles, Share, image, snap-grid, zoom, and agent suggestion options exist.
+
+Still outstanding:
+
+- `Cmd+K` and `Cmd+Shift+P` shortcuts.
+- Alias-aware command records.
+- `role="listbox"` and `aria-selected` option semantics.
+- Focus return when closing the palette.
+- Extract command records and command execution out of `App.tsx`.
+- Area-scoped commands after Area metadata exists.
+
 ## HCI/UX Research Basis
 
 - Nielsen Norman Group describes accelerators as optional faster paths for expert users, not replacements for visible or discoverable UI. The palette should speed up work without hiding essential actions.

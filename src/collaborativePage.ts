@@ -1,6 +1,13 @@
 import * as Y from 'yjs'
 
 import type { AreaState, AssetState, ImageAreaState, TextAreaState } from './App'
+import {
+  isAreaKind,
+  isAreaStatus,
+  normalizeAreaMetadata,
+  type AreaLink,
+  type AreaMetadata,
+} from './areaMetadata.ts'
 import type { PageAppState, PageState } from './pagePersistence'
 
 type CollaborativeAreaPatch = Partial<Omit<AreaState, 'styles'>> & {
@@ -10,6 +17,7 @@ type CollaborativeAreaPatch = Partial<Omit<AreaState, 'styles'>> & {
 const PAGE_MAP = 'page'
 const AREAS_MAP = 'areas'
 const ASSETS_MAP = 'assets'
+const LINKS_MAP = 'links'
 
 export const createCollaborativePageDoc = (state: PageAppState) => {
   const doc = new Y.Doc()
@@ -28,10 +36,12 @@ export const replaceCollaborativePageDocState = (
     const pageMap = getPageMap(doc)
     const areasMap = getAreasMap(doc)
     const assetsMap = getAssetsMap(doc)
+    const linksMap = getLinksMap(doc)
 
     pageMap.clear()
     areasMap.clear()
     assetsMap.clear()
+    linksMap.clear()
 
     writePageMap(pageMap, state.page)
 
@@ -41,6 +51,10 @@ export const replaceCollaborativePageDocState = (
 
     for (const asset of state.assets) {
       assetsMap.set(asset.id, createPlainMap(asset))
+    }
+
+    for (const link of state.links ?? []) {
+      linksMap.set(link.id, createPlainMap(link))
     }
   }, origin)
 }
@@ -63,6 +77,11 @@ export const applyCollaborativePageStatePatch = (
       previousState.assets,
       nextState.assets
     )
+    patchLinksMap(
+      getLinksMap(doc),
+      previousState.links ?? [],
+      nextState.links ?? []
+    )
   }, origin)
 }
 
@@ -72,6 +91,7 @@ export const getPageStateFromCollaborativeDoc = (
   page: readPageMap(getPageMap(doc)),
   areas: readAreasMap(getAreasMap(doc)),
   assets: readAssetsMap(getAssetsMap(doc)),
+  links: readLinksMap(getLinksMap(doc)),
 })
 
 export const getCollaborativeAreaText = (doc: Y.Doc, areaId: string) => {
@@ -238,6 +258,9 @@ const createCollaborativeAreaMap = (area: AreaState) => {
   areaMap.set('createdAt', area.createdAt)
   areaMap.set('updatedAt', area.updatedAt)
   areaMap.set('styles', createStylesMap(area.styles))
+  if (area.metadata) {
+    areaMap.set('metadata', cloneJsonValue(area.metadata))
+  }
 
   if (area.type === 'image') {
     areaMap.set('assetId', area.assetId)
@@ -302,6 +325,7 @@ const patchCollaborativeAreaMap = (
     'height',
     'createdAt',
     'updatedAt',
+    'metadata',
   ] satisfies Array<keyof AreaState>
 
   for (const field of commonFields) {
@@ -348,6 +372,7 @@ const readAreasMap = (areasMap: Y.Map<Y.Map<unknown>>) => {
   const areas: AreaState[] = []
 
   areasMap.forEach((areaMap) => {
+    const metadata = readAreaMetadata(areaMap.get('metadata'))
     const base = {
       id: String(areaMap.get('id') ?? ''),
       parentId: readNullableString(areaMap.get('parentId')),
@@ -356,6 +381,7 @@ const readAreasMap = (areasMap: Y.Map<Y.Map<unknown>>) => {
       width: Number(areaMap.get('width') ?? 0),
       height: Number(areaMap.get('height') ?? 0),
       styles: readStylesMap(getStylesMap(areaMap)),
+      ...(metadata ? { metadata } : {}),
       createdAt: readOptionalString(areaMap.get('createdAt')),
       updatedAt: readOptionalString(areaMap.get('updatedAt')),
     }
@@ -397,6 +423,28 @@ const readAssetsMap = (assetsMap: Y.Map<Y.Map<unknown>>) => {
   })
 
   return assets
+}
+
+const readLinksMap = (linksMap: Y.Map<Y.Map<unknown>>) => {
+  const links: AreaLink[] = []
+
+  linksMap.forEach((linkMap) => {
+    const kind = String(linkMap.get('kind') ?? 'relates-to')
+
+    links.push({
+      id: String(linkMap.get('id') ?? ''),
+      fromAreaId: String(linkMap.get('fromAreaId') ?? ''),
+      toAreaId: String(linkMap.get('toAreaId') ?? ''),
+      kind: isKnownAreaLinkKind(kind) ? kind : 'relates-to',
+      ...(typeof linkMap.get('label') === 'string'
+        ? { label: String(linkMap.get('label')) }
+        : {}),
+      createdAt: String(linkMap.get('createdAt') ?? ''),
+      updatedAt: String(linkMap.get('updatedAt') ?? ''),
+    })
+  })
+
+  return links
 }
 
 const createPlainMap = (value: Record<string, unknown>) => {
@@ -441,6 +489,42 @@ const patchAssetsMap = (
         assetMap,
         key,
         previousAsset?.[key as keyof AssetState],
+        value
+      )
+    }
+  }
+}
+
+const patchLinksMap = (
+  linksMap: Y.Map<Y.Map<unknown>>,
+  previousLinks: AreaLink[],
+  nextLinks: AreaLink[]
+) => {
+  const previousLinksById = new Map(
+    previousLinks.map((link) => [link.id, link])
+  )
+  const nextLinksById = new Map(nextLinks.map((link) => [link.id, link]))
+
+  for (const [linkId] of previousLinksById) {
+    if (!nextLinksById.has(linkId)) {
+      linksMap.delete(linkId)
+    }
+  }
+
+  for (const nextLink of nextLinks) {
+    const previousLink = previousLinksById.get(nextLink.id)
+    const linkMap = linksMap.get(nextLink.id)
+
+    if (!linkMap) {
+      linksMap.set(nextLink.id, createPlainMap(nextLink))
+      continue
+    }
+
+    for (const [key, value] of Object.entries(nextLink)) {
+      setMapValueIfChanged(
+        linkMap,
+        key,
+        previousLink?.[key as keyof AreaLink],
         value
       )
     }
@@ -502,6 +586,35 @@ const getAreaTextMapValue = (areaMap: Y.Map<unknown>) => {
 const readStylesMap = (stylesMap: Y.Map<string>) =>
   Object.fromEntries(stylesMap.entries())
 
+const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {
+  const metadata = readRecord(cloneJsonValue(value))
+
+  if (!metadata.kind) return undefined
+  const kind = isAreaKind(metadata.kind) ? metadata.kind : 'note'
+
+  return normalizeAreaMetadata({
+    kind,
+    ...(isAreaStatus(metadata.status)
+      ? { status: metadata.status }
+      : {}),
+    tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+    ...(typeof metadata.filePath === 'string'
+      ? { filePath: metadata.filePath }
+      : {}),
+    ...(typeof metadata.url === 'string' ? { url: metadata.url } : {}),
+  })
+}
+
+const isKnownAreaLinkKind = (kind: string): kind is AreaLink['kind'] =>
+  [
+    'relates-to',
+    'depends-on',
+    'implements',
+    'blocks',
+    'answers',
+    'references',
+  ].includes(kind)
+
 const getPageMap = (doc: Y.Doc) => doc.getMap<unknown>(PAGE_MAP)
 
 const getAreasMap = (doc: Y.Doc) =>
@@ -509,6 +622,9 @@ const getAreasMap = (doc: Y.Doc) =>
 
 const getAssetsMap = (doc: Y.Doc) =>
   doc.getMap<Y.Map<unknown>>(ASSETS_MAP)
+
+const getLinksMap = (doc: Y.Doc) =>
+  doc.getMap<Y.Map<unknown>>(LINKS_MAP)
 
 const getAreaAndDescendantIds = (
   areasMap: Y.Map<Y.Map<unknown>>,

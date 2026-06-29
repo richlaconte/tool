@@ -52,6 +52,20 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'set-area-type',
+    title: 'Set Area type',
+    description: 'Choose metadata for the selected Area',
+    aliases: ['type', 'metadata', 'status', 'area kind'],
+    scope: 'area',
+  },
+  {
+    id: 'link-selected-area',
+    title: 'Link selected Area',
+    description: 'Connect the selected Area to another Area',
+    aliases: ['link area', 'relationship', 'connect', 'reference'],
+    scope: 'area',
+  },
+  {
     id: 'toggle-snap-grid',
     title: 'Toggle snap grid',
     description: 'Snap Area movement and resizing to page grid',

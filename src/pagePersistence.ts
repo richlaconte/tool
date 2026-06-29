@@ -1,4 +1,12 @@
 import type { AreaState, AssetState } from './App'
+import {
+  isAreaKind,
+  isAreaLinkKind,
+  isAreaStatus,
+  normalizeAreaMetadata,
+  type AreaLink,
+  type AreaMetadata,
+} from './areaMetadata.ts'
 import { clampSnapGridSize } from './snapGrid.ts'
 import type { ShareLinks } from './shareLinks.ts'
 import type { ThemeColorToken } from './themeColors.ts'
@@ -46,6 +54,7 @@ export type PersistedTextArea = {
   height: number
   text: string
   styles: Record<string, string>
+  metadata?: AreaMetadata
   createdAt: string
   updatedAt: string
 }
@@ -61,6 +70,7 @@ export type PersistedImageArea = {
   assetId: string
   alt: string
   styles: Record<string, string>
+  metadata?: AreaMetadata
   createdAt: string
   updatedAt: string
 }
@@ -70,12 +80,14 @@ export type PageJsonSnapshot = {
   page: PageState
   areas: Array<PersistedTextArea | PersistedImageArea>
   assets: AssetState[]
+  links?: AreaLink[]
 }
 
 export type PageAppState = {
   page: PageState
   areas: AreaState[]
   assets: AssetState[]
+  links?: AreaLink[]
 }
 
 export type ParsePageJsonResult =
@@ -132,73 +144,84 @@ export const createDefaultPageState = ({
 export const serializePageState = (
   state: PageAppState,
   now = new Date().toISOString()
-): PageJsonSnapshot => ({
-  schemaVersion: PAGE_SCHEMA_VERSION,
-  page: {
-    ...state.page,
-    settings: {
-      background: state.page.settings.background,
-      snapGrid: {
-        enabled: state.page.settings.snapGrid.enabled,
-        size: clampSnapGridSize(state.page.settings.snapGrid.size),
-        visible: state.page.settings.snapGrid.visible,
+): PageJsonSnapshot => {
+  const links = (state.links ?? []).map(cloneAreaLink)
+
+  return {
+    schemaVersion: PAGE_SCHEMA_VERSION,
+    page: {
+      ...state.page,
+      settings: {
+        background: state.page.settings.background,
+        snapGrid: {
+          enabled: state.page.settings.snapGrid.enabled,
+          size: clampSnapGridSize(state.page.settings.snapGrid.size),
+          visible: state.page.settings.snapGrid.visible,
+        },
+        theme: {
+          colors: state.page.settings.theme.colors.map((color) => ({
+            ...color,
+          })),
+        },
+        mcp: {
+          enabled: state.page.settings.mcp.enabled,
+        },
+        shareLinks: state.page.settings.shareLinks
+          ? {
+              ...state.page.settings.shareLinks,
+            }
+          : null,
       },
-      theme: {
-        colors: state.page.settings.theme.colors.map((color) => ({
-          ...color,
-        })),
-      },
-      mcp: {
-        enabled: state.page.settings.mcp.enabled,
-      },
-      shareLinks: state.page.settings.shareLinks
-        ? {
-            ...state.page.settings.shareLinks,
-          }
-        : null,
+      updatedAt: now,
     },
-    updatedAt: now,
-  },
-  areas: state.areas.map((area) => {
-    if (area.type === 'image') {
+    areas: state.areas.map((area) => {
+      const metadata = area.metadata
+        ? { metadata: normalizeAreaMetadata(area.metadata) }
+        : {}
+
+      if (area.type === 'image') {
+        return {
+          id: area.id,
+          type: 'image',
+          parentId: area.parentId,
+          x: area.x,
+          y: area.y,
+          width: area.width,
+          height: area.height,
+          assetId: area.assetId,
+          alt: area.alt,
+          styles: {
+            ...area.styles,
+          },
+          ...metadata,
+          createdAt: area.createdAt ?? now,
+          updatedAt: area.updatedAt ?? now,
+        }
+      }
+
       return {
         id: area.id,
-        type: 'image',
+        type: 'text',
         parentId: area.parentId,
         x: area.x,
         y: area.y,
         width: area.width,
         height: area.height,
-        assetId: area.assetId,
-        alt: area.alt,
+        text: area.text,
         styles: {
           ...area.styles,
         },
+        ...metadata,
         createdAt: area.createdAt ?? now,
         updatedAt: area.updatedAt ?? now,
       }
-    }
-
-    return {
-      id: area.id,
-      type: 'text',
-      parentId: area.parentId,
-      x: area.x,
-      y: area.y,
-      width: area.width,
-      height: area.height,
-      text: area.text,
-      styles: {
-        ...area.styles,
-      },
-      createdAt: area.createdAt ?? now,
-      updatedAt: area.updatedAt ?? now,
-    }
-  }),
-  assets: state.assets.map((asset) => ({
-    ...asset,
-  })),
-})
+    }),
+    assets: state.assets.map((asset) => ({
+      ...asset,
+    })),
+    ...(links.length > 0 ? { links } : {}),
+  }
+}
 
 export const stringifyPageState = (
   state: PageAppState,
@@ -236,8 +259,9 @@ export const parsePageJson = (
   const page = parsePageState(value.page)
   const areas = parseAreas(value.areas)
   const assets = parseAssets(value.assets)
+  const links = parseAreaLinks(value.links)
 
-  if (!page || !areas || !assets) {
+  if (!page || !areas || !assets || !links) {
     return {
       ok: false,
       error: 'Import is missing required page data.',
@@ -250,6 +274,7 @@ export const parsePageJson = (
       page,
       areas,
       assets,
+      links,
     },
   }
 }
@@ -409,6 +434,7 @@ const parseAreas = (value: unknown): AreaState[] | null => {
     if (!isRecord(area)) return null
 
     const styles = parseStyles(area.styles)
+    const metadata = parseAreaMetadata(area.metadata)
 
     if (
       typeof area.id !== 'string' ||
@@ -417,7 +443,8 @@ const parseAreas = (value: unknown): AreaState[] | null => {
       typeof area.y !== 'number' ||
       typeof area.width !== 'number' ||
       typeof area.height !== 'number' ||
-      !styles
+      !styles ||
+      metadata === undefined
     ) {
       return null
     }
@@ -441,6 +468,7 @@ const parseAreas = (value: unknown): AreaState[] | null => {
         assetId: area.assetId,
         alt: area.alt,
         styles,
+        ...(metadata ? { metadata } : {}),
         createdAt:
           typeof area.createdAt === 'string'
             ? area.createdAt
@@ -466,6 +494,7 @@ const parseAreas = (value: unknown): AreaState[] | null => {
       height: area.height,
       text: area.text,
       styles,
+      ...(metadata ? { metadata } : {}),
       createdAt:
         typeof area.createdAt === 'string'
           ? area.createdAt
@@ -478,6 +507,68 @@ const parseAreas = (value: unknown): AreaState[] | null => {
   }
 
   return areas
+}
+
+const parseAreaMetadata = (
+  value: unknown
+): AreaMetadata | null | undefined => {
+  if (value === undefined) return null
+  if (!isRecord(value) || !isAreaKind(value.kind)) return undefined
+
+  if (value.status !== undefined && !isAreaStatus(value.status)) {
+    return undefined
+  }
+
+  if (!Array.isArray(value.tags)) return undefined
+
+  if (
+    value.filePath !== undefined &&
+    typeof value.filePath !== 'string'
+  ) {
+    return undefined
+  }
+
+  if (value.url !== undefined && typeof value.url !== 'string') {
+    return undefined
+  }
+
+  if (!value.tags.every((tag) => typeof tag === 'string')) {
+    return undefined
+  }
+
+  return normalizeAreaMetadata({
+    kind: value.kind,
+    ...(value.status ? { status: value.status } : {}),
+    tags: value.tags,
+    ...(value.filePath ? { filePath: value.filePath } : {}),
+    ...(value.url ? { url: value.url } : {}),
+  })
+}
+
+const parseAreaLinks = (value: unknown): AreaLink[] | null => {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return null
+
+  const links: AreaLink[] = []
+
+  for (const link of value) {
+    if (
+      !isRecord(link) ||
+      typeof link.id !== 'string' ||
+      typeof link.fromAreaId !== 'string' ||
+      typeof link.toAreaId !== 'string' ||
+      !isAreaLinkKind(link.kind) ||
+      (link.label !== undefined && typeof link.label !== 'string') ||
+      typeof link.createdAt !== 'string' ||
+      typeof link.updatedAt !== 'string'
+    ) {
+      return null
+    }
+
+    links.push(cloneAreaLink(link as AreaLink))
+  }
+
+  return links
 }
 
 const parseAssets = (value: unknown): AssetState[] | null => {
@@ -532,7 +623,17 @@ const parseStyles = (
 const isValidParentId = (value: unknown) =>
   value === undefined || value === null || typeof value === 'string'
 
+const cloneAreaLink = (link: AreaLink): AreaLink => ({
+  id: link.id,
+  fromAreaId: link.fromAreaId,
+  toAreaId: link.toAreaId,
+  kind: link.kind,
+  ...(link.label ? { label: link.label } : {}),
+  createdAt: link.createdAt,
+  updatedAt: link.updatedAt,
+})
+
 const isRecord = (
   value: unknown
 ): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null
+  typeof value === 'object' && value !== null && !Array.isArray(value)

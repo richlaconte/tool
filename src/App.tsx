@@ -16,6 +16,19 @@ import {
   type DeletedAreaSnapshot,
 } from './areaActions'
 import {
+  AREA_KINDS,
+  AREA_LINK_KINDS,
+  AREA_STATUSES,
+  createAreaLink,
+  getAreaMetadata,
+  removeAreaLinksForDeletedAreas,
+  setAreaMetadata,
+  type AreaLink,
+  type AreaLinkKind,
+  type AreaMetadata,
+  type AreaStatus,
+} from './areaMetadata'
+import {
   DEFAULT_AREA_HEIGHT,
   DEFAULT_AREA_WIDTH,
   MIN_AREA_HEIGHT,
@@ -124,6 +137,7 @@ export type BaseAreaState = {
   height: number
   width: number
   styles: Record<string, string>
+  metadata?: AreaMetadata
   createdAt?: string
   updatedAt?: string
 }
@@ -203,6 +217,14 @@ const COMMAND_DIALOGS: Record<
   'page-styles': {
     title: 'Page styles',
     body: 'Page-wide style controls will live here, separate from per-Area /style commands.',
+  },
+  'set-area-type': {
+    title: 'Set Area type',
+    body: 'Choose lightweight metadata for the selected Area.',
+  },
+  'link-selected-area': {
+    title: 'Link selected Area',
+    body: 'Create a visible relationship from the selected Area to another Area.',
   },
   'agent-suggestions': {
     title: 'Agent proposal',
@@ -340,6 +362,17 @@ const createThemeColorId = (nextId: number) => {
   }
 
   return `color-${nextId}`
+}
+
+const createAreaLinkId = (nextId: number) => {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return `link_${crypto.randomUUID()}`
+  }
+
+  return `link-${nextId}`
 }
 
 const getInitialPageState = (pageId?: string): PageAppState => {
@@ -507,6 +540,23 @@ const getInitialImageAreaSize = (width: number, height: number) => {
   }
 }
 
+const getAreaLinkLine = (areas: AreaState[], link: AreaLink) => {
+  const fromArea = areas.find((area) => area.id === link.fromAreaId)
+  const toArea = areas.find((area) => area.id === link.toAreaId)
+
+  if (!fromArea || !toArea) return null
+
+  const fromPosition = getAreaAbsolutePosition(areas, fromArea.id)
+  const toPosition = getAreaAbsolutePosition(areas, toArea.id)
+
+  return {
+    x1: fromPosition.x + fromArea.width / 2,
+    y1: fromPosition.y + fromArea.height / 2,
+    x2: toPosition.x + toArea.width / 2,
+    y2: toPosition.y + toArea.height / 2,
+  }
+}
+
 const getFileAltText = (fileName: string) =>
   fileName.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim()
 
@@ -570,6 +620,9 @@ function App({
   const [assets, setAssets] = useState<AssetState[]>(
     initialPageState.assets
   )
+  const [links, setLinks] = useState<AreaLink[]>(
+    initialPageState.links ?? []
+  )
   const [page, setPage] = useState(initialPageState.page)
   const [pageHistory, setPageHistory] = useState(
     getInitialPageHistoryState
@@ -623,11 +676,16 @@ function App({
   const [themeColorToken, setThemeColorToken] = useState('')
   const [themeColorValue, setThemeColorValue] =
     useState('#2563eb')
+  const [linkTargetAreaId, setLinkTargetAreaId] = useState('')
+  const [linkKind, setLinkKind] =
+    useState<AreaLinkKind>('relates-to')
+  const [linkLabel, setLinkLabel] = useState('')
   const [copiedShareMode, setCopiedShareMode] =
     useState<ShareAccessMode | null>(null)
   const nextAreaId = useRef(0)
   const nextAssetId = useRef(0)
   const nextThemeColorId = useRef(0)
+  const nextAreaLinkId = useRef(0)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
@@ -639,6 +697,7 @@ function App({
   const latestPageStateRef = useRef<PageAppState>({
     areas: initialPageState.areas,
     assets: initialPageState.assets,
+    links: initialPageState.links ?? [],
     page: initialPageState.page,
   })
   const latestCursorRef = useRef<PresenceState['cursor']>(null)
@@ -658,9 +717,10 @@ function App({
     () => ({
       areas,
       assets,
+      links,
       page,
     }),
-    [areas, assets, page]
+    [areas, assets, links, page]
   )
   const handleRemoteCollaborativeState = useCallback(
     (nextState: PageAppState) => {
@@ -668,6 +728,7 @@ function App({
       setPage(nextState.page)
       setAreas(nextState.areas)
       setAssets(nextState.assets)
+      setLinks(nextState.links ?? [])
     },
     []
   )
@@ -855,9 +916,10 @@ function App({
     latestPageStateRef.current = {
       areas,
       assets,
+      links,
       page,
     }
-  }, [areas, assets, page])
+  }, [areas, assets, links, page])
 
   useEffect(() => {
     collaborationProfileRef.current = collaborationProfile
@@ -966,6 +1028,7 @@ function App({
       setPage(message.state.page)
       setAreas(message.state.areas)
       setAssets(message.state.assets)
+      setLinks(message.state.links ?? [])
     }
 
     const handleOnline = () => setCollaborationStatus('connected')
@@ -1033,6 +1096,7 @@ function App({
         state: {
           areas,
           assets,
+          links,
           page,
         },
       } satisfies CollaborationMessage)
@@ -1042,6 +1106,7 @@ function App({
   }, [
     areas,
     assets,
+    links,
     collaborationProfile.clientId,
     collaborationStatus,
     isServerCollaborationEnabled,
@@ -1150,7 +1215,7 @@ function App({
       try {
         localStorage.setItem(
           PAGE_STORAGE_KEY,
-          stringifyPageState({ areas, assets, page })
+          stringifyPageState({ areas, assets, links, page })
         )
         setSaveStatus('saved')
       } catch {
@@ -1162,7 +1227,7 @@ function App({
       window.clearTimeout(savingTimer)
       window.clearTimeout(saveTimer)
     }
-  }, [areas, assets, page])
+  }, [areas, assets, links, page])
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
@@ -1455,6 +1520,43 @@ function App({
     )
   }
 
+  const updateSelectedAreaMetadata = (
+    metadataPatch: Partial<AreaMetadata>
+  ) => {
+    if (isViewOnly || !selectedAreaId) return
+
+    setAreas((prev) =>
+      prev.map((area) =>
+        area.id === selectedAreaId
+          ? setAreaMetadata(area, metadataPatch)
+          : area
+      )
+    )
+  }
+
+  const createSelectedAreaLink = () => {
+    if (isViewOnly || !selectedAreaId) return
+
+    if (!linkTargetAreaId || linkTargetAreaId === selectedAreaId) {
+      setImportError('Choose another Area to link to.')
+      return
+    }
+
+    const link = createAreaLink({
+      id: createAreaLinkId(nextAreaLinkId.current),
+      fromAreaId: selectedAreaId,
+      toAreaId: linkTargetAreaId,
+      kind: linkKind,
+      label: linkLabel,
+    })
+
+    nextAreaLinkId.current += 1
+    setLinks((prev) => [...prev, link])
+    setLinkLabel('')
+    setImportError(null)
+    setOpenDialogId(null)
+  }
+
   const requestServerShareLink = async (
     accessMode: ShareAccessMode
   ) => {
@@ -1581,6 +1683,7 @@ function App({
       {
         areas,
         assets,
+        links,
         page,
       },
       LOCAL_AGENT_CLIENT
@@ -1598,6 +1701,7 @@ function App({
       {
         areas,
         assets,
+        links,
         page,
       },
       agentProposal,
@@ -1614,6 +1718,7 @@ function App({
 
     setAreas(result.state.areas)
     setAssets(result.state.assets)
+    setLinks(result.state.links ?? [])
     setPage(result.state.page)
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
@@ -1645,6 +1750,7 @@ function App({
       {
         areas,
         assets,
+        links,
         page,
       },
       operationPatch,
@@ -1666,6 +1772,7 @@ function App({
 
     setAreas(result.state.areas)
     setAssets(result.state.assets)
+    setLinks(result.state.links ?? [])
     setPage(result.state.page)
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
@@ -1794,15 +1901,17 @@ function App({
     if (!result.deletedArea) return
 
     const deletedArea = result.deletedArea
+    const deletedAreaIds = new Set([
+      areaId,
+      ...deletedArea.descendantAreas.map((area) => area.id),
+    ])
 
     setAreas(result.areas)
+    setLinks((currentLinks) =>
+      removeAreaLinksForDeletedAreas(currentLinks, deletedAreaIds)
+    )
     setDeletedAreaSnapshot(deletedArea)
     setSelectedAreaId((currentSelectedAreaId) => {
-      const deletedAreaIds = new Set([
-        areaId,
-        ...deletedArea.descendantAreas.map((area) => area.id),
-      ])
-
       return currentSelectedAreaId &&
         deletedAreaIds.has(currentSelectedAreaId)
         ? null
@@ -2208,7 +2317,7 @@ function App({
   }
 
   const exportPageJson = () => {
-    const json = stringifyPageState({ areas, assets, page })
+    const json = stringifyPageState({ areas, assets, links, page })
     const blob = new Blob([json], {
       type: 'application/json',
     })
@@ -2249,6 +2358,7 @@ function App({
           beforeState: {
             areas,
             assets,
+            links,
             page,
           },
           importedAreaCount: result.state.areas.length,
@@ -2259,6 +2369,7 @@ function App({
     setPage(result.state.page)
     setAreas(result.state.areas)
     setAssets(result.state.assets)
+    setLinks(result.state.links ?? [])
     setSelectedAreaId(null)
     setImportError(null)
   }
@@ -2275,6 +2386,7 @@ function App({
         {
           areas,
           assets,
+          links,
           page,
         },
         patch
@@ -2283,6 +2395,7 @@ function App({
       setPage(restoredState.page)
       setAreas(restoredState.areas)
       setAssets(restoredState.assets)
+      setLinks(restoredState.links ?? [])
       setSelectedAreaId(null)
       setOpenDialogId(null)
       setImportError(null)
@@ -2293,6 +2406,7 @@ function App({
       {
         areas,
         assets,
+        links,
         page,
       },
       patch.patch,
@@ -2310,6 +2424,7 @@ function App({
     setPage(result.state.page)
     setAreas(result.state.areas)
     setAssets(result.state.assets)
+    setLinks(result.state.links ?? [])
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
       ...currentRecords.slice(0, 9),
@@ -2440,6 +2555,15 @@ function App({
         page.settings.shareLinks.viewToken
       )
     : ''
+  const selectedArea = selectedAreaId
+    ? areas.find((area) => area.id === selectedAreaId) ?? null
+    : null
+  const selectedAreaMetadata = selectedArea
+    ? getAreaMetadata(selectedArea)
+    : null
+  const linkTargetAreas = selectedAreaId
+    ? areas.filter((area) => area.id !== selectedAreaId)
+    : []
   function renderArea(area: AreaState) {
     return (
       <Area
@@ -2644,6 +2768,25 @@ function App({
               : ''
           }`}
         >
+          <svg className="area-link-layer" aria-hidden="true">
+            {links.map((link) => {
+              const line = getAreaLinkLine(areas, link)
+
+              if (!line) return null
+
+              return (
+                <line
+                  className="area-link-line"
+                  key={link.id}
+                  x1={line.x1}
+                  y1={line.y1}
+                  x2={line.x2}
+                  y2={line.y2}
+                />
+              )
+            })}
+          </svg>
+
           {getRootAreas(areas).map(renderArea)}
 
           <div
@@ -2775,6 +2918,28 @@ function App({
               zoomCanvasToSelection()
               return
             }
+            if (
+              option.id === 'set-area-type' ||
+              option.id === 'link-selected-area'
+            ) {
+              if (!selectedAreaId) {
+                setImportError('Select an Area first.')
+                return
+              }
+
+              if (
+                option.id === 'link-selected-area' &&
+                !linkTargetAreaId
+              ) {
+                setLinkTargetAreaId(
+                  areas.find((area) => area.id !== selectedAreaId)?.id ??
+                    ''
+                )
+              }
+
+              setOpenDialogId(option.id)
+              return
+            }
             if (option.id === 'agent-suggestions') {
               createAgentSuggestion()
               return
@@ -2830,6 +2995,123 @@ function App({
                     Share links are available to the editor who creates
                     them.
                   </p>
+                )}
+              </div>
+            ) : openDialogId === 'set-area-type' ? (
+              <div className="area-metadata-controls">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {selectedArea && selectedAreaMetadata ? (
+                  <>
+                    <label className="page-style-control">
+                      <span>Type</span>
+                      <select
+                        aria-label="Area type"
+                        value={selectedAreaMetadata.kind}
+                        onChange={(e) =>
+                          updateSelectedAreaMetadata({
+                            kind: e.currentTarget
+                              .value as AreaMetadata['kind'],
+                          })
+                        }
+                      >
+                        {AREA_KINDS.map((kind) => (
+                          <option key={kind} value={kind}>
+                            {kind}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="page-style-control">
+                      <span>Status</span>
+                      <select
+                        aria-label="Area status"
+                        value={selectedAreaMetadata.status ?? ''}
+                        onChange={(e) => {
+                          const nextStatus = e.currentTarget.value
+
+                          updateSelectedAreaMetadata({
+                            status: nextStatus
+                              ? (nextStatus as AreaStatus)
+                              : undefined,
+                          })
+                        }}
+                      >
+                        <option value="">No status</option>
+                        {AREA_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : (
+                  <p>Select an Area first.</p>
+                )}
+              </div>
+            ) : openDialogId === 'link-selected-area' ? (
+              <div className="area-link-controls">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {selectedArea && linkTargetAreas.length > 0 ? (
+                  <>
+                    <label className="page-style-control">
+                      <span>Target Area</span>
+                      <select
+                        aria-label="Link target Area"
+                        value={linkTargetAreaId}
+                        onChange={(e) =>
+                          setLinkTargetAreaId(e.currentTarget.value)
+                        }
+                      >
+                        {linkTargetAreas.map((area) => (
+                          <option key={area.id} value={area.id}>
+                            {area.type === 'image'
+                              ? area.alt || area.id
+                              : area.text.trim().split('\n')[0] ||
+                                area.id}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="page-style-control">
+                      <span>Relationship</span>
+                      <select
+                        aria-label="Link relationship"
+                        value={linkKind}
+                        onChange={(e) =>
+                          setLinkKind(
+                            e.currentTarget.value as AreaLinkKind
+                          )
+                        }
+                      >
+                        {AREA_LINK_KINDS.map((kind) => (
+                          <option key={kind} value={kind}>
+                            {kind}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="page-style-control">
+                      <span>Label</span>
+                      <input
+                        aria-label="Link label"
+                        type="text"
+                        value={linkLabel}
+                        onChange={(e) =>
+                          setLinkLabel(e.currentTarget.value)
+                        }
+                      />
+                    </label>
+                    <button
+                      className="area-link-create-button"
+                      type="button"
+                      onClick={createSelectedAreaLink}
+                    >
+                      Create link
+                    </button>
+                  </>
+                ) : (
+                  <p>Add another Area before creating a link.</p>
                 )}
               </div>
             ) : openDialogId === 'agent-suggestions' ? (

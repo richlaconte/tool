@@ -44,7 +44,24 @@ const state: PageAppState = {
       width: 260,
       height: 120,
       text: 'Decision: expose read-only MCP before write tools.',
+      metadata: {
+        kind: 'decision',
+        status: 'decided',
+        tags: ['mcp'],
+        filePath: 'src/mcpGateway.ts',
+      },
       styles: {},
+      createdAt: now,
+      updatedAt: now,
+    },
+  ],
+  links: [
+    {
+      id: 'link-1',
+      fromAreaId: 'area-1',
+      toAreaId: 'area-1',
+      kind: 'references',
+      label: 'self reference for test',
       createdAt: now,
       updatedAt: now,
     },
@@ -166,7 +183,15 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   assert.equal(pages.pages[0].id, 'page-1')
   assert.equal(pageResource.page.id, 'page-1')
   assert.equal(pageResource.areas[0].id, 'area-1')
+  assert.deepEqual(pageResource.areas[0].metadata, {
+    kind: 'decision',
+    status: 'decided',
+    tags: ['mcp'],
+    filePath: 'src/mcpGateway.ts',
+  })
+  assert.deepEqual(pageResource.links, state.links)
   assert.equal(areas.areas[0].text, state.areas[0].text)
+  assert.deepEqual(areas.links, state.links)
   assert.equal(assets.assets[0].id, 'asset-1')
   assert.equal(assets.assets[0].storageKey, undefined)
   assert.deepEqual(actions.actions, [])

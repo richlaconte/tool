@@ -1,4 +1,5 @@
 import type { AreaState } from './App'
+import { removeAreaLinksForDeletedAreas } from './areaMetadata.ts'
 import type { PageAppState, PageSettings } from './pagePersistence'
 import type { ShareAccessMode } from './shareLinks'
 
@@ -154,6 +155,10 @@ export const applyPageOperation = (
       areas: state.areas.filter(
         (area) => !deletedAreaIds.has(area.id)
       ),
+      links: removeAreaLinksForDeletedAreas(
+        state.links ?? [],
+        deletedAreaIds
+      ),
     }
   }
 
@@ -291,6 +296,14 @@ const cloneArea = (area: AreaState): AreaState => ({
   styles: {
     ...area.styles,
   },
+  ...(area.metadata
+    ? {
+        metadata: {
+          ...area.metadata,
+          tags: [...area.metadata.tags],
+        },
+      }
+    : {}),
 })
 
 const getAreaAndDescendantIds = (

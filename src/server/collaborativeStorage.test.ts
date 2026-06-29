@@ -30,9 +30,26 @@ test('collaborative storage reads current page state from a Yjs document row', (
         width: 260,
         height: 120,
         text: 'Decision: MCP reads collaboration state.',
+        metadata: {
+          kind: 'decision',
+          status: 'decided',
+          tags: ['mcp'],
+          filePath: 'src/server/collaborativeStorage.ts',
+        },
         styles: {
           border: '1px solid #2563eb',
         },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+    links: [
+      {
+        id: 'link-1',
+        fromAreaId: 'area-1',
+        toAreaId: 'area-1',
+        kind: 'references',
+        label: 'self reference',
         createdAt: now,
         updatedAt: now,
       },
@@ -55,6 +72,13 @@ test('collaborative storage reads current page state from a Yjs document row', (
       : storedState?.areas[0].text,
     'Decision: MCP reads collaboration state.'
   )
+  assert.deepEqual(storedState?.areas[0].metadata, {
+    kind: 'decision',
+    status: 'decided',
+    tags: ['mcp'],
+    filePath: 'src/server/collaborativeStorage.ts',
+  })
+  assert.deepEqual(storedState?.links, state.links)
 })
 
 test('collaborative storage returns null when a page document is missing', () => {

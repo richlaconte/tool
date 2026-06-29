@@ -847,6 +847,7 @@ const readResource = async (
         title: state.page.title,
       },
       areas: pageResource.areas,
+      links: pageResource.links,
       permissionMode: pageResource.permissionMode,
     })
   }

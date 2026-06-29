@@ -9,6 +9,7 @@ import type { ReactNode } from 'react'
 
 import type { AreaState, AssetState } from '../App'
 import { getAreaShellZIndex } from '../areaLayering'
+import { getAreaMetadata } from '../areaMetadata'
 import { getVisibleAreaContentHeight } from '../areaResize'
 import {
   findCssSlashCommand,
@@ -107,6 +108,11 @@ const Area = ({
 
   const isImageArea = area.type === 'image'
   const areaText = isImageArea ? '' : area.text
+  const metadata = getAreaMetadata(area)
+  const metadataLabel =
+    metadata.kind !== 'note' || metadata.status
+      ? [metadata.kind, metadata.status].filter(Boolean).join(' / ')
+      : ''
   const supportsThemedCssDeclaration = (
     property: string,
     value: string
@@ -396,6 +402,9 @@ const Area = ({
           isReadOnly ? ' area--read-only' : ''
         }`}
       >
+        {metadataLabel && (
+          <span className="area-metadata-label">{metadataLabel}</span>
+        )}
         {!isReadOnly && (
           <>
             <div className="area-toolbar-bridge" aria-hidden="true" />

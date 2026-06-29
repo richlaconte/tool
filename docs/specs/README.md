@@ -14,16 +14,14 @@ These specs still have meaningful product or implementation work remaining.
 1. [Security and Privacy Baseline](2026-06-26-cascadery-security-privacy.md)
 2. [AI and MCP Agent Interface](2026-06-26-cascadery-ai-mcp-interface.md)
 3. [Image Support](2026-06-26-image-support.md)
-4. [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
-5. [Interoperability and Export](2026-06-29-interoperability-and-export.md)
+4. [Interoperability and Export](2026-06-29-interoperability-and-export.md)
 
 Recommended implementation order:
 
-1. Area metadata/types/links.
-2. Interoperability exports.
-3. Image storage/security hardening.
-4. Collaboration rate limits, security logs, and production security docs.
-5. Protected MCP access and deeper agent workflows.
+1. Interoperability exports.
+2. Image storage/security hardening.
+3. Collaboration rate limits, security logs, and production security docs.
+4. Protected MCP access and deeper agent workflows.
 
 ## Completed MVP Specs
 
@@ -32,6 +30,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Area Duplicate Action](completed/2026-06-26-area-duplicate-action.md)
 - [Area Resize](completed/2026-06-26-area-resize.md)
 - [Area Toolbar Delete](completed/2026-06-26-area-toolbar-delete.md)
+- [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)
 - [Canvas Zoom](completed/2026-06-26-canvas-zoom.md)
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)

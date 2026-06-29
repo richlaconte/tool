@@ -70,6 +70,22 @@ const shareLinks = {
   updatedAt: now,
   revokedAt: null,
 }
+const areaMetadata = {
+  kind: 'decision' as const,
+  status: 'decided' as const,
+  tags: ['architecture', 'agent'],
+  filePath: 'src/App.tsx',
+  url: 'https://example.com/decision',
+}
+const areaLink = {
+  id: 'link-1',
+  fromAreaId: 'area-1',
+  toAreaId: 'child-area',
+  kind: 'relates-to' as const,
+  label: 'supports',
+  createdAt: now,
+  updatedAt: now,
+}
 
 test('serializes page state into schema version 1 JSON', () => {
   const page = createDefaultPageState({
@@ -308,6 +324,44 @@ test('serializes and parses nested area parent ids', () => {
       { id: 'child-area', parentId: 'area-1' },
     ]
   )
+})
+
+test('serializes and parses area metadata and links', () => {
+  const page = createDefaultPageState({
+    id: 'page-1',
+    now,
+  })
+  const typedAreas = [
+    {
+      ...areas[0],
+      metadata: areaMetadata,
+    },
+    {
+      ...areas[0],
+      id: 'child-area',
+      parentId: 'area-1',
+      text: 'Supporting note',
+    },
+  ]
+  const snapshot = serializePageState(
+    {
+      areas: typedAreas,
+      assets: [],
+      links: [areaLink],
+      page,
+    },
+    now
+  )
+  const result = parsePageJson(JSON.stringify(snapshot))
+
+  assert.deepEqual(snapshot.areas[0].metadata, areaMetadata)
+  assert.deepEqual(snapshot.links, [areaLink])
+  assert.equal(result.ok, true)
+  assert.deepEqual(
+    result.ok ? result.state.areas[0].metadata : null,
+    areaMetadata
+  )
+  assert.deepEqual(result.ok ? result.state.links : [], [areaLink])
 })
 
 test('clamps persisted snap grid size while saving and restoring', () => {

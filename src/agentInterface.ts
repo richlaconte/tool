@@ -1,4 +1,9 @@
 import type { AreaState, AssetState, TextAreaState } from './App'
+import {
+  removeAreaLinksForDeletedAreas,
+  type AreaLink,
+  type AreaMetadata,
+} from './areaMetadata.ts'
 import { reparentArea } from './nestedAreas.ts'
 import type { PageAppState, PageState } from './pagePersistence'
 
@@ -25,6 +30,7 @@ export type AgentAreaResource = {
   text?: string
   alt?: string
   assetId?: string
+  metadata?: AreaMetadata
   styles: Record<string, string>
   createdAt?: string
   updatedAt?: string
@@ -41,6 +47,7 @@ export type AgentPageResource = {
   }
   areas: AgentAreaResource[]
   assets: AgentAssetResource[]
+  links: AreaLink[]
   permissionMode: {
     scopes: AgentScope[]
   }
@@ -243,6 +250,11 @@ export const getAgentPage = (
 
         return asset
       })
+    : [],
+  links: hasScope(client, 'page:read')
+    ? (state.links ?? []).map((link) => ({
+        ...link,
+      }))
     : [],
   permissionMode: {
     scopes: [...client.scopes],
@@ -1407,10 +1419,23 @@ const applyAgentOperation = (
   return {
     ...state,
     areas: state.areas.filter((area) => area.id !== operation.areaId),
+    links: removeAreaLinksForDeletedAreas(
+      state.links ?? [],
+      new Set([operation.areaId])
+    ),
   }
 }
 
 const toAgentAreaResource = (area: AreaState): AgentAreaResource => {
+  const metadata = area.metadata
+    ? {
+        metadata: {
+          ...area.metadata,
+          tags: [...area.metadata.tags],
+        },
+      }
+    : {}
+
   if (area.type === 'image') {
     return {
       id: area.id,
@@ -1425,6 +1450,7 @@ const toAgentAreaResource = (area: AreaState): AgentAreaResource => {
       styles: {
         ...area.styles,
       },
+      ...metadata,
       createdAt: area.createdAt,
       updatedAt: area.updatedAt,
     }
@@ -1442,6 +1468,7 @@ const toAgentAreaResource = (area: AreaState): AgentAreaResource => {
     styles: {
       ...area.styles,
     },
+    ...metadata,
     createdAt: area.createdAt,
     updatedAt: area.updatedAt,
   }
@@ -1529,9 +1556,20 @@ const clonePageAppState = (state: PageAppState): PageAppState => ({
     styles: {
       ...area.styles,
     },
+    ...(area.metadata
+      ? {
+          metadata: {
+            ...area.metadata,
+            tags: [...area.metadata.tags],
+          },
+        }
+      : {}),
   })),
   assets: state.assets.map((asset) => ({
     ...asset,
+  })),
+  links: (state.links ?? []).map((link) => ({
+    ...link,
   })),
 })
 

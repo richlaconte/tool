@@ -37,13 +37,10 @@ export const duplicateArea = (
   }
 
   const duplicatedArea: AreaState = {
-    ...sourceArea,
+    ...cloneArea(sourceArea),
     id: newAreaId,
     x: sourceArea.x + DUPLICATE_AREA_OFFSET.x,
     y: sourceArea.y + DUPLICATE_AREA_OFFSET.y,
-    styles: {
-      ...sourceArea.styles,
-    },
   }
 
   return {
@@ -69,12 +66,7 @@ export const deleteArea = (
   const area = areas[index]
   const descendantAreaIds = getDescendantAreaIds(areas, areaId)
   const deletedArea: DeletedAreaSnapshot = {
-    area: {
-      ...area,
-      styles: {
-        ...area.styles,
-      },
-    },
+    area: cloneArea(area),
     descendantAreas: areas
       .filter((currentArea) => descendantAreaIds.has(currentArea.id))
       .map(cloneArea),
@@ -118,6 +110,14 @@ const cloneArea = (area: AreaState): AreaState => ({
   styles: {
     ...area.styles,
   },
+  ...(area.metadata
+    ? {
+        metadata: {
+          ...area.metadata,
+          tags: [...area.metadata.tags],
+        },
+      }
+    : {}),
 })
 
 const getDescendantAreaIds = (

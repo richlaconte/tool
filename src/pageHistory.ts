@@ -280,16 +280,35 @@ const clonePageState = (state: PageAppState): PageAppState => ({
           styles: {
             ...area.styles,
           },
+          ...(area.metadata
+            ? {
+                metadata: {
+                  ...area.metadata,
+                  tags: [...area.metadata.tags],
+                },
+              }
+            : {}),
         }
       : {
           ...area,
           styles: {
             ...area.styles,
           },
+          ...(area.metadata
+            ? {
+                metadata: {
+                  ...area.metadata,
+                  tags: [...area.metadata.tags],
+                },
+              }
+            : {}),
         }
   ),
   assets: state.assets.map((asset) => ({
     ...asset,
+  })),
+  links: (state.links ?? []).map((link) => ({
+    ...link,
   })),
 })
 

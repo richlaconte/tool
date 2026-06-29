@@ -127,6 +127,7 @@ export const mergeRemoteStateWithPendingLocalAreaChanges = (
   return {
     areas: mergedAreas,
     assets: remoteState.assets,
+    links: remoteState.links,
     page: remoteState.page,
   }
 }
@@ -342,9 +343,10 @@ const getComparableAreaFields = (area: AreaState) => [
   'parentId',
   'x',
   'y',
-  'width',
-  'height',
-  'styles',
+    'width',
+    'height',
+    'metadata',
+    'styles',
   ...(area.type === 'image' ? ['assetId', 'alt'] : ['text']),
 ]
 

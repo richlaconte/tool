@@ -2,7 +2,7 @@
 
 ## Status
 
-Created on 2026-06-29 as a foundational product-direction spec.
+Completed on 2026-06-29 as an MVP foundational product-direction spec.
 
 ## Goal
 
@@ -149,3 +149,20 @@ Agent write proposals must use the same reviewable patch flow as other changes.
 - Rich graph layout.
 - Multi-select bulk metadata editing.
 
+## Implementation Notes
+
+- Added optional Area metadata for kind, status, tags, file paths, and URLs.
+- Added directional Area links with stable ids, labels, timestamps, and relationship kinds.
+- Page JSON, browser state, Yjs collaboration state, server-side collaborative storage, history restore snapshots, and MCP resources now preserve metadata and links.
+- The command palette exposes `Set Area type` and `Link selected Area`.
+- The first UI supports editing type/status and creating one directional link from the selected Area to another Area.
+- Links render as passive connector lines behind Areas.
+- Deleting an Area removes links attached to the deleted Area and its descendants.
+
+## Future Work
+
+- Implement the metadata slash commands listed above (`/type`, `/status`, `/tag`, `/file`).
+- Add link selection, link editing, and link deletion UI.
+- Add richer icons or visual variants for common Area kinds.
+- Let agent proposals create or update metadata and links through the reviewable patch flow.
+- Consider a compact Area inspector if metadata editing grows beyond type/status.

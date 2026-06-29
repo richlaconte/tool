@@ -1,6 +1,15 @@
 import type { Database as DatabaseConnection } from 'better-sqlite3'
 import * as Y from 'yjs'
 
+import {
+  isAreaKind,
+  isAreaLinkKind,
+  isAreaStatus,
+  normalizeAreaMetadata,
+  type AreaLink,
+  type AreaMetadata,
+} from '../areaMetadata.ts'
+
 export type StoredPageState = {
   page: {
     id: string
@@ -34,6 +43,7 @@ export type StoredPageState = {
         height: number
         text: string
         styles: Record<string, string>
+        metadata?: AreaMetadata
         createdAt?: string
         updatedAt?: string
       }
@@ -48,6 +58,7 @@ export type StoredPageState = {
         assetId: string
         alt: string
         styles: Record<string, string>
+        metadata?: AreaMetadata
         createdAt?: string
         updatedAt?: string
       }
@@ -61,6 +72,7 @@ export type StoredPageState = {
     storageKey: string
     createdAt: string
   }>
+  links: AreaLink[]
 }
 
 type DocumentRow = {
@@ -104,6 +116,7 @@ const readPageStateFromDoc = (
   page: readPageMap(doc.getMap('page'), fallbackPageId),
   areas: readAreasMap(doc.getMap<Y.Map<unknown>>('areas')),
   assets: readAssetsMap(doc.getMap<Y.Map<unknown>>('assets')),
+  links: readLinksMap(doc.getMap<Y.Map<unknown>>('links')),
 })
 
 const readPageMap = (
@@ -149,6 +162,7 @@ const readAreasMap = (areasMap: Y.Map<Y.Map<unknown>>) => {
   const areas: StoredPageState['areas'] = []
 
   areasMap.forEach((areaMap) => {
+    const metadata = readAreaMetadata(areaMap.get('metadata'))
     const base = {
       id: readString(areaMap.get('id'), ''),
       parentId: readNullableString(areaMap.get('parentId')),
@@ -157,6 +171,7 @@ const readAreasMap = (areasMap: Y.Map<Y.Map<unknown>>) => {
       width: readNumber(areaMap.get('width'), 0),
       height: readNumber(areaMap.get('height'), 0),
       styles: readStylesMap(areaMap.get('styles')),
+      ...(metadata ? { metadata } : {}),
       createdAt: readOptionalString(areaMap.get('createdAt')),
       updatedAt: readOptionalString(areaMap.get('updatedAt')),
     }
@@ -200,6 +215,28 @@ const readAssetsMap = (assetsMap: Y.Map<Y.Map<unknown>>) => {
   return assets
 }
 
+const readLinksMap = (linksMap: Y.Map<Y.Map<unknown>>) => {
+  const links: AreaLink[] = []
+
+  linksMap.forEach((linkMap) => {
+    const kind = readString(linkMap.get('kind'), 'relates-to')
+
+    links.push({
+      id: readString(linkMap.get('id'), ''),
+      fromAreaId: readString(linkMap.get('fromAreaId'), ''),
+      toAreaId: readString(linkMap.get('toAreaId'), ''),
+      kind: isAreaLinkKind(kind) ? kind : 'relates-to',
+      ...(typeof linkMap.get('label') === 'string'
+        ? { label: readString(linkMap.get('label'), '') }
+        : {}),
+      createdAt: readString(linkMap.get('createdAt'), ''),
+      updatedAt: readString(linkMap.get('updatedAt'), ''),
+    })
+  })
+
+  return links
+}
+
 const readStylesMap = (value: unknown) => {
   if (!(value instanceof Y.Map)) return {}
 
@@ -212,6 +249,24 @@ const readStylesMap = (value: unknown) => {
   })
 
   return styles
+}
+
+const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {
+  const metadata = readRecord(value)
+
+  if (!isAreaKind(metadata.kind)) return undefined
+
+  return normalizeAreaMetadata({
+    kind: metadata.kind,
+    ...(isAreaStatus(metadata.status)
+      ? { status: metadata.status }
+      : {}),
+    tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+    ...(typeof metadata.filePath === 'string'
+      ? { filePath: metadata.filePath }
+      : {}),
+    ...(typeof metadata.url === 'string' ? { url: metadata.url } : {}),
+  })
 }
 
 const readRecord = (value: unknown): Record<string, unknown> =>

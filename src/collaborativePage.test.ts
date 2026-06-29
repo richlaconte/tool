@@ -63,6 +63,17 @@ test('converts app page state into a Yjs document and back', () => {
         width: 180,
       },
     ],
+    links: [
+      {
+        id: 'link_1',
+        fromAreaId: 'parent',
+        toAreaId: 'child',
+        kind: 'references',
+        label: 'references image',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
     page,
   })
 
@@ -72,6 +83,43 @@ test('converts app page state into a Yjs document and back', () => {
   assert.equal(exported.areas.length, 2)
   assert.deepEqual(exported.areas[0], createAreas()[0])
   assert.equal(exported.assets[0].storageKey, 'assets/asset_1.png')
+  assert.deepEqual(exported.links, [
+    {
+      id: 'link_1',
+      fromAreaId: 'parent',
+      toAreaId: 'child',
+      kind: 'references',
+      label: 'references image',
+      createdAt: now,
+      updatedAt: now,
+    },
+  ])
+})
+
+test('collaborative area metadata survives document round trips', () => {
+  const [area] = createAreas()
+  const doc = createCollaborativePageDoc({
+    areas: [
+      {
+        ...area,
+        metadata: {
+          kind: 'risk',
+          status: 'blocked',
+          tags: ['launch'],
+          filePath: 'src/risk.ts',
+        },
+      },
+    ],
+    assets: [],
+    page: createDefaultPageState({ id: 'page_metadata', now }),
+  })
+
+  assert.deepEqual(getPageStateFromCollaborativeDoc(doc).areas[0].metadata, {
+    kind: 'risk',
+    status: 'blocked',
+    tags: ['launch'],
+    filePath: 'src/risk.ts',
+  })
 })
 
 test('text areas store content in Y.Text and accept diff updates', () => {

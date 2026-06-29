@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   findImageSlashCommand,
+  getImageFileContentValidationError,
   getImageFileValidationError,
   getImageUrlValidationError,
   removeImageSlashCommand,
@@ -46,10 +47,63 @@ test('validates image URLs conservatively', () => {
   assert.equal(getImageUrlValidationError('https://example.com/a.png'), null)
   assert.equal(getImageUrlValidationError('data:image/png;base64,abc'), null)
   assert.match(
+    getImageUrlValidationError('data:image/svg+xml,<svg />') ?? '',
+    /SVG/
+  )
+  assert.match(
+    getImageUrlValidationError('https://example.com/icon.svg') ?? '',
+    /SVG/
+  )
+  assert.match(
     getImageUrlValidationError('javascript:alert(1)') ?? '',
     /URL/
   )
 })
+
+test('validates image file contents against declared safe formats', async () => {
+  assert.equal(
+    await getImageFileContentValidationError(
+      createImageFileLike('image/png', [
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ])
+    ),
+    null
+  )
+
+  assert.match(
+    (await getImageFileContentValidationError(
+      createImageFileLike('image/png', [
+        0xff, 0xd8, 0xff, 0xe0,
+      ])
+    )) ?? '',
+    /contents/
+  )
+
+  assert.match(
+    (await getImageFileContentValidationError(
+      createImageFileLike('image/svg+xml', [
+        0x3c, 0x73, 0x76, 0x67,
+      ])
+    )) ?? '',
+    /PNG/
+  )
+})
+
+const createImageFileLike = (type: string, bytes: number[]) => {
+  const buffer = new Uint8Array(bytes)
+
+  return {
+    size: buffer.byteLength,
+    type,
+    slice: (start = 0, end = buffer.byteLength) => {
+      const sliced = buffer.slice(start, end)
+
+      return {
+        arrayBuffer: async () => sliced.buffer,
+      }
+    },
+  }
+}
 
 test('validates supported image files and size', () => {
   assert.equal(

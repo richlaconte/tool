@@ -19,6 +19,12 @@ type ImageFileLike = {
   type: string
 }
 
+type ImageFileContentLike = ImageFileLike & {
+  slice: (start?: number, end?: number) => {
+    arrayBuffer: () => Promise<ArrayBuffer>
+  }
+}
+
 const IMAGE_COMMAND_PATTERN = /^\/image(?:\s+(?<url>.+))?$/
 const IMAGE_COMMAND_IN_LINE_PATTERN = /(^|\s)(\/image(?:\s+.*)?$)/
 
@@ -72,6 +78,20 @@ export const getImageFileValidationError = (
   return null
 }
 
+export const getImageFileContentValidationError = async (
+  file: ImageFileContentLike
+) => {
+  const declaredTypeError = getImageFileValidationError(file)
+
+  if (declaredTypeError) return declaredTypeError
+
+  const bytes = new Uint8Array(await file.slice(0, 16).arrayBuffer())
+
+  if (matchesImageSignature(file.type, bytes)) return null
+
+  return 'Image file contents do not match a supported PNG, JPEG, GIF, or WebP image.'
+}
+
 export const getImageUrlValidationError = (url: string) => {
   if (!url.trim()) return 'Enter an image URL.'
 
@@ -84,6 +104,12 @@ export const getImageUrlValidationError = (url: string) => {
   try {
     const parsedUrl = new URL(url)
 
+    if (
+      parsedUrl.pathname.trim().toLowerCase().endsWith('.svg')
+    ) {
+      return 'SVG image URLs are not supported yet.'
+    }
+
     return parsedUrl.protocol === 'http:' ||
       parsedUrl.protocol === 'https:'
       ? null
@@ -92,3 +118,42 @@ export const getImageUrlValidationError = (url: string) => {
     return 'Enter a valid image URL.'
   }
 }
+
+const matchesImageSignature = (type: string, bytes: Uint8Array) => {
+  if (type === 'image/png') {
+    return (
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    )
+  }
+
+  if (type === 'image/jpeg') {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  }
+
+  if (type === 'image/gif') {
+    const signature = decodeAscii(bytes.slice(0, 6))
+
+    return signature === 'GIF87a' || signature === 'GIF89a'
+  }
+
+  if (type === 'image/webp') {
+    return (
+      decodeAscii(bytes.slice(0, 4)) === 'RIFF' &&
+      decodeAscii(bytes.slice(8, 12)) === 'WEBP'
+    )
+  }
+
+  return false
+}
+
+const decodeAscii = (bytes: Uint8Array) =>
+  Array.from(bytes)
+    .map((byte) => String.fromCharCode(byte))
+    .join('')

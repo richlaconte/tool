@@ -38,3 +38,13 @@ test('area renders image objects with accessible alt text', async () => {
   assert.match(source, /className="area-image"/)
   assert.match(source, /alt={area.alt}/)
 })
+
+test('image resize preserves aspect ratio by default', async () => {
+  const source = await readFile(
+    new URL('./components/Area.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /resizeWithPreservedAspectRatio/)
+  assert.match(source, /isImageArea && !e\.altKey/)
+})

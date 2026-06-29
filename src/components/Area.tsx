@@ -19,6 +19,7 @@ import {
   findImageSlashCommand,
   type ImageSlashCommand,
 } from '../imageSupport'
+import { resizeWithPreservedAspectRatio } from '../imageResize'
 import {
   resolveThemeColorTokens,
   type ThemeColorToken,
@@ -315,8 +316,20 @@ const Area = ({
     const nextHeight =
       resizeStart.current.height +
       (e.clientY - resizeStart.current.pointerY) / canvasZoom
+    const nextDimensions =
+      isImageArea && !e.altKey
+        ? resizeWithPreservedAspectRatio({
+            startWidth: resizeStart.current.width,
+            startHeight: resizeStart.current.height,
+            nextWidth,
+            nextHeight,
+          })
+        : {
+            width: nextWidth,
+            height: nextHeight,
+          }
 
-    onResize(area.id, nextWidth, nextHeight, e.altKey)
+    onResize(area.id, nextDimensions.width, nextDimensions.height, e.altKey)
   }
 
   const handleResizePointerEnd = (

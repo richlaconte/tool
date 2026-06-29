@@ -73,6 +73,7 @@ import type { CssSlashCommand } from './cssSlashCommand'
 import { removeCssSlashCommand } from './cssSlashCommand'
 import type { ImageSlashCommand } from './imageSupport'
 import {
+  getImageFileContentValidationError,
   getImageFileValidationError,
   getImageUrlValidationError,
   removeImageSlashCommand,
@@ -2230,7 +2231,9 @@ function App({
   ) => {
     if (isViewOnly) return
 
-    const validationError = getImageFileValidationError(file)
+    const validationError =
+      getImageFileValidationError(file) ??
+      (await getImageFileContentValidationError(file))
 
     if (validationError) {
       setImportError(validationError)

@@ -13,13 +13,11 @@ These specs still have meaningful product or implementation work remaining.
 
 1. [Security and Privacy Baseline](2026-06-26-cascadery-security-privacy.md)
 2. [AI and MCP Agent Interface](2026-06-26-cascadery-ai-mcp-interface.md)
-3. [Image Support](2026-06-26-image-support.md)
 
 Recommended implementation order:
 
-1. Image storage/security hardening.
-2. Collaboration rate limits, security logs, and production security docs.
-3. Protected MCP access and deeper agent workflows.
+1. Collaboration rate limits, security logs, and production security docs.
+2. Protected MCP access and deeper agent workflows.
 
 ## Completed MVP Specs
 
@@ -31,6 +29,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)
 - [Canvas Zoom](completed/2026-06-26-canvas-zoom.md)
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
+- [Image Support](completed/2026-06-26-image-support.md)
 - [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)

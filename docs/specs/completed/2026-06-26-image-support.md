@@ -6,7 +6,7 @@ Allow users to add images to the page as movable, resizable canvas objects.
 
 ## Status
 
-Audited on 2026-06-29. This remains active for storage/security and image-editing hardening, but the core MVP interaction paths are implemented.
+Completed on 2026-06-29 as an MVP image interaction spec.
 
 Implemented:
 
@@ -16,13 +16,14 @@ Implemented:
 - Drag/drop and paste insertion.
 - Move, resize, delete, duplicate, replace image, and edit alt text.
 - Page JSON persistence for image Areas and asset references.
+- Image aspect ratio is preserved by default while resizing, with Option/Alt-drag preserving freeform resize behavior.
+- SVG is explicitly excluded until first-class sanitization/storage exists.
+- Local uploads are checked against PNG, JPEG, GIF, and WebP file signatures instead of trusting browser MIME hints alone.
 
-Still outstanding:
+Moved to future/security work:
 
-- Preserve image aspect ratio by default while resizing.
-- Decide first-class SVG support or exclusion.
 - Move from local/data URL asset references toward authorization-aware asset storage.
-- Verify image content beyond browser MIME hints when server storage exists.
+- Add server-side image verification when server storage exists.
 - Add clearer image-specific error surfaces if upload/storage fails.
 
 ## HCI/UX Research Basis
@@ -136,3 +137,17 @@ type AssetState = {
 - Should images be embedded in local JSON as data URLs before server storage exists?
 - Should SVG be supported in version one?
 - Should image cropping/object-fit controls ship with initial image support or later?
+
+## Implementation Notes
+
+- `imageSupport.ts` validates accepted MIME types, size, SVG exclusions, remote URL shape, and local file signatures.
+- `imageResize.ts` preserves image aspect ratio using the dominant resize axis for natural corner dragging.
+- `Area.tsx` uses aspect-ratio resizing for image Areas by default and keeps text Areas freeform.
+- The remaining authorization-aware asset route and private cache policy are tracked by the Security and Privacy Baseline spec, because they affect page access, exports, and hosted storage more broadly than image editing alone.
+
+## Future Work
+
+- Authorization-aware asset upload, download, and cache routes.
+- Server-side content verification and dimension limits for stored assets.
+- Optional SVG support after sanitization and clear export behavior exist.
+- Optional crop/object-fit controls for image Areas.

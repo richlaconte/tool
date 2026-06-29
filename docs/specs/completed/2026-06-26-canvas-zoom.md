@@ -6,7 +6,7 @@ Add zoom in/out support for the editor canvas so users can work at broad page sc
 
 ## Status
 
-Audited on 2026-06-29. This remains active for polish only; the core zoom MVP is implemented.
+Completed on 2026-06-29. The core zoom MVP is implemented and covered by focused tests.
 
 Implemented:
 
@@ -18,9 +18,9 @@ Implemented:
 - Scaled canvas world with logical coordinate conversion.
 - Move, resize, creation, and drop calculations use zoom-aware helpers.
 
-Still outstanding:
+Future work:
 
-- Trackpad pinch support where browser events allow it.
+- Direct trackpad pinch support where browser events expose reliable gesture data. The current `Cmd/Ctrl + wheel` path covers browser zoom-wheel events, including some trackpad pinch implementations.
 - Optional percentage dropdown/preset menu.
 - More robust low-zoom editor chrome strategy if counter-scaling becomes insufficient.
 
@@ -90,8 +90,7 @@ Pointer and gesture:
 
 - Wheel alone keeps its current behavior: scroll/pan the canvas.
 - `Cmd/Ctrl + wheel` zooms around the pointer when the pointer is over the canvas.
-- Trackpad pinch zooms around the gesture midpoint when available.
-- Pinch support is progressive enhancement; plus/minus buttons and keyboard shortcuts are required alternatives.
+- Direct trackpad pinch support is a progressive enhancement. Plus/minus buttons, keyboard shortcuts, and `Cmd/Ctrl + wheel` are the MVP alternatives.
 
 ## Data Model
 
@@ -248,7 +247,6 @@ Command palette:
 - User can reset to `100%`.
 - User can zoom with `Cmd/Ctrl + +`, `Cmd/Ctrl + -`, and `Cmd/Ctrl + 0`.
 - User can zoom with `Cmd/Ctrl + wheel` over the canvas.
-- Trackpad pinch zoom works where browser events make it available.
 - Zoom controls and shortcuts work in view-only mode.
 - Zoom does not mutate Area geometry, page styles, assets, or persisted page JSON.
 - Creating Areas, dropping images, moving Areas, and resizing Areas remain accurate at non-100% zoom.

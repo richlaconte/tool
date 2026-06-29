@@ -57,5 +57,20 @@ export const setupDatabase = (database: ToolDatabase) => {
       created_at text not null,
       foreign key (page_id) references pages(id)
     );
+
+    create table if not exists mcp_agent_actions (
+      id text primary key,
+      page_id text,
+      tool_name text not null,
+      client_id text not null,
+      client_display_name text not null,
+      operation_count integer not null,
+      created_at text not null,
+      result text not null check (result in ('success', 'error')),
+      error_code integer
+    );
+
+    create index if not exists mcp_agent_actions_page_lookup
+      on mcp_agent_actions(page_id, created_at);
   `)
 }

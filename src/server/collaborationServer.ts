@@ -10,6 +10,15 @@ import {
   getPageAccessFromSession,
   getPageSessionSecret,
 } from './pageAccess.ts'
+import {
+  createCollaborationSecurityState,
+  getCollaborationSecurityConfigFromEnv,
+  type CollaborationSecurityConfig,
+} from './collaborationSecurity.ts'
+import {
+  createConsoleSecurityLogger,
+  type SecurityLogger,
+} from './securityLog.ts'
 import { getPageSessionFromCookie } from './shareSessions.ts'
 
 export type CollaborationContext = {
@@ -24,6 +33,8 @@ export type CollaborationServerOptions = {
   databasePath?: string
   pageDatabase?: ToolDatabase
   pageDatabasePath?: string
+  securityConfig?: CollaborationSecurityConfig
+  securityLogger?: SecurityLogger
   sessionSecret?: string
 }
 
@@ -91,10 +102,15 @@ export const createCollaborationServer = ({
   pageDatabase,
   pageDatabasePath = process.env.TOOL_DATABASE_PATH ??
     './.data/tool.sqlite',
+  securityConfig = getCollaborationSecurityConfigFromEnv(),
+  securityLogger = createConsoleSecurityLogger(),
   sessionSecret = getPageSessionSecret(),
 }: CollaborationServerOptions = {}): CollaborationServer => {
   const collaborationPageDatabase =
     pageDatabase ?? createDatabase(pageDatabasePath)
+  const securityState = createCollaborationSecurityState({
+    config: securityConfig,
+  })
   const hocuspocusServer = new HocuspocusServer<CollaborationContext>({
     extensions: [
       new SQLite({
@@ -104,7 +120,7 @@ export const createCollaborationServer = ({
     quiet: true,
     timeout: 30_000,
     websocketOptions: {
-      maxPayload: 1024 * 1024,
+      maxPayload: securityConfig.maxPayloadBytes,
     },
     async onAuthenticate(data) {
       const context = getCollaborationContextFromHeaders(
@@ -120,12 +136,62 @@ export const createCollaborationServer = ({
       )
 
       if (!context) {
+        securityLogger({
+          type: 'collaboration-auth-rejected',
+          at: new Date().toISOString(),
+          documentName: data.documentName,
+          reason: 'invalid-origin-session-or-document',
+        })
         throw new Error('Collaboration connection not allowed.')
+      }
+
+      const connectionResult = securityState.connect({
+        clientId: context.clientId,
+        pageId: context.pageId,
+        socketId: data.socketId,
+      })
+
+      if (!connectionResult.ok) {
+        securityLogger({
+          type: 'collaboration-connection-limit',
+          at: new Date().toISOString(),
+          clientId: context.clientId,
+          documentName: data.documentName,
+          pageId: context.pageId,
+          reason: connectionResult.reason,
+        })
+        throw new Error('Collaboration connection limit exceeded.')
       }
 
       data.connectionConfig.readOnly = context.readOnly
 
       return context
+    },
+    async beforeHandleMessage(data) {
+      const result = securityState.checkMessage({
+        byteLength: data.update.byteLength,
+        clientId: data.context.clientId,
+        pageId: data.context.pageId,
+      })
+
+      if (result.ok) return
+
+      securityLogger({
+        type:
+          result.reason === 'message-too-large'
+            ? 'collaboration-message-too-large'
+            : 'collaboration-message-rate-limit',
+        at: new Date().toISOString(),
+        clientId: data.context.clientId,
+        documentName: data.documentName,
+        pageId: data.context.pageId,
+        reason: result.reason,
+        retryAfterSeconds: result.retryAfterSeconds,
+      })
+      throw new Error('Collaboration message rejected.')
+    },
+    async onDisconnect(data) {
+      securityState.disconnect(data.socketId)
     },
   })
 

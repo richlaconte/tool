@@ -2,11 +2,9 @@
 
 ## Status
 
-Created on 2026-06-26 as follow-up work for the Cascadery product direction.
+Completed on 2026-06-29 as a no-auth, environment-gated, read/search/suggest MCP MVP.
 
-Implementation note, 2026-06-26: the first endpoint may skip OAuth if it is explicitly enabled, rate-limited, and limited to read/search/suggest tools. Write tools, remote multi-user production access, and per-user permissions still require a stronger authorization model before broad exposure.
-
-Audited on 2026-06-29. This remains active, but the direction is correct: keep MCP no-auth access limited, explicit, and review-oriented until share/access enforcement and protected remote authorization exist.
+Implementation note: the first endpoint intentionally skips OAuth because it is explicitly enabled, rate-limited, per-page gated, and limited to read/search/suggest plus dry-run patch tools. Direct remote writes, broad hosted use, and per-user permissions still require protected authorization before broad exposure.
 
 Implemented:
 
@@ -17,14 +15,15 @@ Implemented:
 - Per-page MCP enablement setting.
 - Recent MCP activity surface.
 - Reviewable local agent proposal UI.
+- Area metadata, links, Markdown export, and JSON Canvas export resources.
+- Durable SQLite-backed MCP agent action records.
 
-Still outstanding:
+Moved to future work:
 
 - Protected remote MCP authorization before broader hosted use.
 - Persisted per-client grants rather than a static no-auth client label.
-- Stronger write policy: no direct remote writes without trusted scope and human-visible review.
-- Durable agent audit log tied to page history.
-- Agent access to future Area metadata, links, comments, and export resources.
+- Trusted direct-write scopes after account/workspace permissions exist.
+- Comments and richer collaboration context if those product surfaces ship.
 
 ## Goal
 
@@ -218,3 +217,20 @@ Patch requirements:
 - Should cloud-hosted Cascadery ship remote MCP only after accounts and permissions exist?
 - Should agents be allowed to create images/assets, or only reference existing assets at first?
 - Should accepted agent patches be grouped into one undo event?
+
+## Implementation Notes
+
+- `mcpGateway.ts` exposes stable JSON-RPC tools and read-only resources, including page, Area, asset, agent-action, Markdown, and JSON Canvas resources.
+- Read/search/suggest tools return structured JSON and do not expose raw image bytes, share tokens, server secrets, or hidden operational data.
+- Write-shaped MCP tools return dry-run patches only; the no-auth endpoint does not directly mutate pages.
+- `mcpAgentActions.ts` persists sanitized MCP action records in SQLite for page-scoped audit resources.
+- GLM-backed decision-log suggestions are optional and configured through environment variables.
+- The app UI keeps MCP enablement per-page and surfaces recent MCP activity in low-noise page chrome.
+
+## Future Work
+
+- OAuth 2.1 or equivalent protected remote MCP authorization.
+- Per-client grants/scopes stored durably instead of the static no-auth client.
+- Trusted apply/write flows only after account/workspace permissions and review policy exist.
+- Optional stdio transport for local-only self-hosting if useful.
+- Agent access to comments or future richer object types once those surfaces exist.

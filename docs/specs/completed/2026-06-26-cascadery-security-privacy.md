@@ -2,9 +2,7 @@
 
 ## Status
 
-Created on 2026-06-26 as follow-up work for the Cascadery product direction.
-
-Audited on 2026-06-29. This remains an active foundational spec and should be treated as the highest-priority active implementation track before broader hosted or agent access expands.
+Completed on 2026-06-29 as an MVP hosted-collaboration security baseline.
 
 Current implemented baseline:
 
@@ -13,13 +11,15 @@ Current implemented baseline:
 - Server-enforced edit/view share links for HTTP page loads and WebSocket collaboration exist.
 - Share-token storage helpers, signed page sessions, and stale-session invalidation exist.
 - No-auth MCP is environment-gated and rate-limited.
+- Message-level collaboration rate limits, active connection limits, and WebSocket max payload configuration exist.
+- Structured security logs exist for rejected collaboration auth, connection limits, rate limits, and oversized messages.
+- Production deployment docs cover allowed origins, collaboration limits, MCP limits, GLM configuration, and security logging.
 
-Primary gaps:
+Moved to future work:
 
-- Message-level collaboration rate limiting and connection limits.
-- Structured security logs beyond current MCP action logs.
-- Asset serving/storage routes with authorization-aware cache and validation.
-- Production environment documentation for asset and MCP settings.
+- Asset serving/storage routes with authorization-aware cache and server-side validation.
+- Protected remote MCP authorization before broader hosted write access.
+- Account/workspace roles and account-level audit logs.
 
 ## Goal
 
@@ -208,3 +208,19 @@ Rendering requirements:
 - Should anonymous edit-link pages expire by default?
 - Should uploaded images be copied into page storage or referenced by URL with explicit warnings?
 - Which CSS properties should be blocked or warned on before public sharing?
+
+## Implementation Notes
+
+- `collaborationSecurity.ts` centralizes collaboration message rate limits, max payload checks, and active connection limits.
+- `collaborationServer.ts` applies security checks before Yjs messages are handled and rejects over-limit messages before document mutation.
+- `securityLog.ts` emits redacted structured JSON security events without page text, cookies, share tokens, image bytes, or Yjs payloads.
+- `docs/deployment.md` documents the security-sensitive production environment variables.
+- Page JSON import validation, redacted export JSON, image upload size/type/signature validation, view-only access enforcement, and MCP dry-run write behavior are covered by focused tests across the suite.
+
+## Future Work
+
+- Authorization-aware asset upload/download routes and private cache policy.
+- Server-side image content verification once binary storage exists.
+- OAuth or equivalent protected remote MCP authorization.
+- Account/workspace permissions and owner/admin/member/viewer roles.
+- Server-backed page-history timeline shared across collaborators.

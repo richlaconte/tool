@@ -30,7 +30,7 @@ test('app renders a scaled canvas world inside the scroll container', async () =
 })
 
 test('command palette exposes canvas zoom commands', async () => {
-  const source = await readProjectFile('src/App.tsx')
+  const source = await readProjectFile('src/commandPaletteOptions.ts')
 
   assert.match(source, /id: 'zoom-in'/)
   assert.match(source, /id: 'zoom-out'/)

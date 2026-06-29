@@ -4,8 +4,12 @@ import test from 'node:test'
 
 test('command palette exposes a share option and dialog controls', async () => {
   const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
 
-  assert.match(source, /id: 'share'/)
+  assert.match(commandSource, /id: 'share'/)
   assert.match(source, /title: 'Share'/)
   assert.match(source, /Can edit/)
   assert.match(source, /Can view/)

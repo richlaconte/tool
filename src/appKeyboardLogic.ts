@@ -1,6 +1,7 @@
 export type AppKeyboardAction =
   | 'deselect-area'
   | 'open-command-palette'
+  | 'open-empty-command-palette'
   | 'close-command-palette'
   | 'ignore'
 
@@ -14,6 +15,9 @@ type AppKeyboardState = {
   isEditableTarget: boolean
   isCommandPaletteTarget?: boolean
   hasModifier?: boolean
+  hasMetaOrCtrlModifier?: boolean
+  hasShiftModifier?: boolean
+  hasAltModifier?: boolean
 }
 
 export const getAppKeyboardAction = (
@@ -33,6 +37,21 @@ export const getAppKeyboardAction = (
     return 'ignore'
   }
 
+  const normalizedKey = state.key.toLowerCase()
+  const hasMetaOrCtrlModifier =
+    state.hasMetaOrCtrlModifier ?? false
+  const hasAltModifier = state.hasAltModifier ?? false
+  const hasShiftModifier = state.hasShiftModifier ?? false
+
+  if (
+    hasMetaOrCtrlModifier &&
+    !hasAltModifier &&
+    (normalizedKey === 'k' ||
+      (normalizedKey === 'p' && hasShiftModifier))
+  ) {
+    return 'open-empty-command-palette'
+  }
+
   if (state.key === 'Escape') {
     return state.hasSelectedArea
       ? 'deselect-area'
@@ -43,7 +62,10 @@ export const getAppKeyboardAction = (
     return 'ignore'
   }
 
-  if (state.key.length === 1 && !state.hasModifier) {
+  const hasTextBlockingModifier =
+    state.hasModifier ?? (hasMetaOrCtrlModifier || hasAltModifier)
+
+  if (state.key.length === 1 && !hasTextBlockingModifier) {
     return 'open-command-palette'
   }
 

@@ -7,8 +7,12 @@ test('page styles exposes snap grid controls', async () => {
     new URL('./App.tsx', import.meta.url),
     'utf8'
   )
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
 
-  assert.match(source, /id: 'toggle-snap-grid'/)
+  assert.match(commandSource, /id: 'toggle-snap-grid'/)
   assert.match(source, /aria-label="Snap to grid"/)
   assert.match(source, /aria-label="Show grid"/)
   assert.match(source, /aria-label="Grid size"/)

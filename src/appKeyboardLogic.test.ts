@@ -45,6 +45,35 @@ test('typing opens the command palette when no area is selected', () => {
   )
 })
 
+test('system command shortcuts open an empty command palette', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'k',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'open-empty-command-palette'
+  )
+
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'P',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+      hasShiftModifier: true,
+      hasModifier: true,
+    }),
+    'open-empty-command-palette'
+  )
+})
+
 test('escape closes an open command palette', () => {
   assert.equal(
     getAppKeyboardAction({

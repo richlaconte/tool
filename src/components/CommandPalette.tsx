@@ -6,10 +6,14 @@ import {
   getNextCommandOptionIndex,
 } from '../commandPaletteLogic'
 
+export type CommandPaletteScope = 'global' | 'page' | 'area'
+
 export type CommandPaletteOption = {
   id: string
   title: string
   description: string
+  aliases?: string[]
+  scope?: CommandPaletteScope
 }
 
 type CommandPaletteProps = {
@@ -28,7 +32,9 @@ const CommandPalette = ({
   onClose,
 }: CommandPaletteProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const previousActiveElementRef = useRef<HTMLElement | null>(null)
   const selectedOptionRefs = useRef(new Map<string, HTMLButtonElement>())
+  const listId = 'command-palette-list'
   const filteredOptions = useMemo(
     () => getFilteredCommandOptions(options, query),
     [options, query]
@@ -41,8 +47,19 @@ const CommandPalette = ({
 
     return exactOption ? filteredOptions.indexOf(exactOption) : 0
   })
+  const selectedOption = filteredOptions[selectedIndex]
+  const selectedOptionId = selectedOption
+    ? `command-palette-option-${selectedOption.id}`
+    : undefined
 
   useEffect(() => {
+    const previousActiveElement = document.activeElement
+
+    previousActiveElementRef.current =
+      previousActiveElement instanceof HTMLElement
+        ? previousActiveElement
+        : null
+
     inputRef.current?.focus()
   }, [])
 
@@ -56,11 +73,23 @@ const CommandPalette = ({
       ?.scrollIntoView({ block: 'nearest' })
   }, [filteredOptions, selectedIndex])
 
+  const closeAndRestoreFocus = () => {
+    const previousActiveElement = previousActiveElementRef.current
+
+    onClose()
+
+    requestAnimationFrame(() => {
+      if (previousActiveElement?.isConnected) {
+        previousActiveElement.focus()
+      }
+    })
+  }
+
   const openSelectedOption = () => {
     const selectedOption = filteredOptions[selectedIndex]
 
     if (!selectedOption) {
-      onClose()
+      closeAndRestoreFocus()
       return
     }
 
@@ -71,7 +100,7 @@ const CommandPalette = ({
     <div
       className="command-palette-backdrop"
       onPointerDown={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) closeAndRestoreFocus()
       }}
     >
       <div
@@ -81,7 +110,11 @@ const CommandPalette = ({
       >
         <input
           ref={inputRef}
+          aria-activedescendant={selectedOptionId}
+          aria-controls={listId}
+          aria-expanded="true"
           className="command-palette-input"
+          role="combobox"
           value={query}
           onChange={(e) => {
             const nextQuery = e.currentTarget.value
@@ -104,7 +137,7 @@ const CommandPalette = ({
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.preventDefault()
-              onClose()
+              closeAndRestoreFocus()
             } else if (e.key === 'Enter') {
               e.preventDefault()
               openSelectedOption()
@@ -131,7 +164,12 @@ const CommandPalette = ({
           placeholder="Search commands"
         />
 
-        <div className="command-palette-list">
+        <div
+          aria-label="Commands"
+          className="command-palette-list"
+          id={listId}
+          role="listbox"
+        >
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option, optionIndex) => (
               <button
@@ -147,8 +185,11 @@ const CommandPalette = ({
                     ? ' command-palette-option--selected'
                     : ''
                 }`}
+                aria-selected={optionIndex === selectedIndex}
+                id={`command-palette-option-${option.id}`}
                 key={option.id}
                 onClick={() => onOpenOption(option)}
+                role="option"
                 type="button"
               >
                 <span>{option.title}</span>

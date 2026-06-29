@@ -6,28 +6,30 @@ Complete the macOS Spotlight / VS Code style command palette so it becomes the m
 
 ## Current State
 
-The app already opens a centered command palette when no Area is selected and the user types. It supports filtering, arrow navigation, Enter activation, backdrop close, and simple Help, Settings, and Page styles dialogs.
+The app opens a centered command palette when no Area is selected and the user types, when the user presses Escape with no Area selected, when the user uses `Cmd+K` / `Cmd+Shift+P`, or when the user clicks the Cascadery brand button. It supports alias-aware filtering, arrow navigation, Enter activation, backdrop close, focus return, overflow scroll-into-view, and simple Help, Settings, and Page styles dialogs.
 
 ## Status
 
-Audited on 2026-06-29. This remains active as a command-system and accessibility cleanup spec.
+Completed on 2026-06-29. The command palette MVP is represented in the app and focused tests.
 
 Implemented:
 
 - Palette opens from typing with no Area selected.
 - Palette opens from Escape when no Area is selected.
+- Palette opens empty from `Cmd+K` and `Cmd+Shift+P`.
 - The Cascadery brand button opens the palette.
 - Filtering, arrow navigation, Enter activation, backdrop close, and overflow scroll-into-view exist.
+- Command filtering and exact activation support aliases.
+- Command records live in a typed registry with global, page, and area scopes.
+- Palette options expose listbox/option semantics and selected state.
+- Focus enters the palette input on open and returns to the previous active element on close.
 - Help, Settings, Page styles, Share, image, snap-grid, zoom, and agent suggestion options exist.
 
-Still outstanding:
+Future work:
 
-- `Cmd+K` and `Cmd+Shift+P` shortcuts.
-- Alias-aware command records.
-- `role="listbox"` and `aria-selected` option semantics.
-- Focus return when closing the palette.
-- Extract command records and command execution out of `App.tsx`.
-- Area-scoped commands after Area metadata exists.
+- Rich area-scoped commands after Area metadata exists.
+- Visible alias labels if user testing shows command discovery needs them.
+- A fuller command runner abstraction if command execution continues to grow.
 
 ## HCI/UX Research Basis
 
@@ -47,7 +49,7 @@ Sources:
 The palette should feel like a compact command launcher:
 
 - It opens in the center when the user starts typing with no Area selected.
-- It can later also open from an explicit shortcut, such as `Cmd+K` or `Cmd+Shift+P`, plus a visible button if the app gains a toolbar.
+- It opens from `Cmd+K`, `Cmd+Shift+P`, or the Cascadery brand button.
 - It filters commands by title, aliases, and short descriptions.
 - Up/Down moves through visible options.
 - Enter activates the selected command.
@@ -57,7 +59,7 @@ The palette should feel like a compact command launcher:
 
 ## Command Model
 
-Commands should move out of `App.tsx` into a data model:
+Commands live in a typed registry:
 
 ```ts
 type Command = {
@@ -66,7 +68,6 @@ type Command = {
   description: string
   aliases: string[]
   scope: 'global' | 'page' | 'area'
-  run: () => void
 }
 ```
 
@@ -100,6 +101,5 @@ type Command = {
 
 ## Open Questions
 
-- Should the primary shortcut be `Cmd+K`, `Cmd+Shift+P`, or both?
 - Should command aliases be visible as small secondary labels?
 - Should the palette support Area-scoped commands when an Area is selected, or remain global only?

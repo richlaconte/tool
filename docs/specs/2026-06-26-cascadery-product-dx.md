@@ -111,7 +111,7 @@ Required follow-up capabilities:
 
 Tracking specs:
 
-- [Command Palette Completion](2026-06-26-command-palette-completion.md)
+- [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
 - [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
 
 ### Agent Context Board

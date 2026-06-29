@@ -7,8 +7,12 @@ test('app exposes image insertion entry points', async () => {
     new URL('./App.tsx', import.meta.url),
     'utf8'
   )
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
 
-  assert.match(source, /id: 'insert-image'/)
+  assert.match(commandSource, /id: 'insert-image'/)
   assert.match(source, /accept="image\/png,image\/jpeg,image\/gif,image\/webp"/)
   assert.match(source, /onDrop=/)
   assert.match(source, /paste/)

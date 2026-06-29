@@ -2,9 +2,15 @@ export type CommandOptionLike = {
   id: string
   title: string
   description: string
+  aliases?: string[]
 }
 
 const normalizeQuery = (query: string) => query.trim().toLowerCase()
+
+const getOptionSearchText = (option: CommandOptionLike) =>
+  [option.title, option.description, ...(option.aliases ?? [])]
+    .join(' ')
+    .toLowerCase()
 
 export const getFilteredCommandOptions = <
   Option extends CommandOptionLike,
@@ -17,9 +23,7 @@ export const getFilteredCommandOptions = <
   if (!normalizedQuery) return options
 
   return options.filter((option) =>
-    `${option.title} ${option.description}`
-      .toLowerCase()
-      .includes(normalizedQuery)
+    getOptionSearchText(option).includes(normalizedQuery)
   )
 }
 
@@ -36,7 +40,10 @@ export const findExactCommandOption = <
   return options.find(
     (option) =>
       option.title.toLowerCase() === normalizedQuery ||
-      option.id.toLowerCase() === normalizedQuery
+      option.id.toLowerCase() === normalizedQuery ||
+      (option.aliases ?? []).some(
+        (alias) => alias.toLowerCase() === normalizedQuery
+      )
   )
 }
 

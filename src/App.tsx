@@ -9,7 +9,6 @@ import type { CSSProperties, ChangeEvent } from 'react'
 
 import Area from './components/Area'
 import CommandPalette from './components/CommandPalette'
-import type { CommandPaletteOption } from './components/CommandPalette'
 import {
   deleteArea,
   duplicateArea,
@@ -101,6 +100,7 @@ import {
   getLatestMcpAgentActivity,
   getMcpAgentActivityLabel,
 } from './mcpAgentActivity'
+import { COMMAND_PALETTE_OPTIONS } from './commandPaletteOptions'
 
 export type BaseAreaState = {
   id: string
@@ -170,69 +170,6 @@ type CollaborationMessage =
       senderId: string
       state: PageAppState
     }
-
-const COMMAND_PALETTE_OPTIONS: CommandPaletteOption[] = [
-  {
-    id: 'help',
-    title: 'Help',
-    description: 'Show keyboard shortcuts and editing tips',
-  },
-  {
-    id: 'settings',
-    title: 'Settings',
-    description: 'Open editor preferences',
-  },
-  {
-    id: 'page-styles',
-    title: 'Page styles',
-    description: 'Manage page-wide appearance',
-  },
-  {
-    id: 'agent-suggestions',
-    title: 'Agent suggestions',
-    description: 'Review a suggested decision-log patch',
-  },
-  {
-    id: 'share',
-    title: 'Share',
-    description: 'Create edit and view-only links',
-  },
-  {
-    id: 'toggle-snap-grid',
-    title: 'Toggle snap grid',
-    description: 'Snap Area movement and resizing to page grid',
-  },
-  {
-    id: 'insert-image',
-    title: 'Insert image',
-    description: 'Add a movable image to the page',
-  },
-  {
-    id: 'zoom-in',
-    title: 'Zoom in',
-    description: 'Increase canvas zoom',
-  },
-  {
-    id: 'zoom-out',
-    title: 'Zoom out',
-    description: 'Decrease canvas zoom',
-  },
-  {
-    id: 'reset-zoom',
-    title: 'Reset zoom',
-    description: 'Return the canvas to 100%',
-  },
-  {
-    id: 'zoom-to-fit',
-    title: 'Zoom to fit',
-    description: 'Fit all Areas in view',
-  },
-  {
-    id: 'zoom-to-selection',
-    title: 'Zoom to selection',
-    description: 'Center the selected Area',
-  },
-]
 
 const COMMAND_DIALOGS: Record<
   string,
@@ -1251,6 +1188,9 @@ function App({ pageId }: { pageId?: string }) {
         isEditableTarget: isEditingTarget,
         isCommandPaletteTarget: isPaletteTarget,
         hasModifier: e.metaKey || e.ctrlKey || e.altKey,
+        hasMetaOrCtrlModifier: hasSystemModifier,
+        hasShiftModifier: e.shiftKey,
+        hasAltModifier: e.altKey,
       })
 
       if (keyboardAction === 'ignore') return
@@ -1271,7 +1211,12 @@ function App({ pageId }: { pageId?: string }) {
         return
       }
 
-      setCommandPaletteQuery(e.key === 'Escape' ? '' : e.key)
+      setCommandPaletteQuery(
+        keyboardAction === 'open-empty-command-palette' ||
+          e.key === 'Escape'
+          ? ''
+          : e.key
+      )
     }
 
     document.addEventListener('keydown', handleKeyDown)

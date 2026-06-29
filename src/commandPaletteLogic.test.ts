@@ -17,6 +17,7 @@ const options = [
     id: 'settings',
     title: 'Settings',
     description: 'Open editor preferences',
+    aliases: ['preferences', 'configure editor'],
   },
   {
     id: 'page-styles',
@@ -34,9 +35,25 @@ test('filters command options by title and description', () => {
   )
 })
 
+test('filters command options by alias text', () => {
+  assert.deepEqual(
+    getFilteredCommandOptions(options, 'configure').map(
+      (option) => option.id
+    ),
+    ['settings']
+  )
+})
+
 test('finds an exact command option by visible title', () => {
   assert.equal(
     findExactCommandOption(options, 'settings')?.id,
+    'settings'
+  )
+})
+
+test('finds an exact command option by alias', () => {
+  assert.equal(
+    findExactCommandOption(options, 'configure editor')?.id,
     'settings'
   )
 })

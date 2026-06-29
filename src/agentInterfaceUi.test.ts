@@ -11,8 +11,12 @@ test('app exposes a reviewable agent suggestion flow', async () => {
     new URL('./App.css', import.meta.url),
     'utf8'
   )
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
 
-  assert.match(source, /id: 'agent-suggestions'/)
+  assert.match(commandSource, /id: 'agent-suggestions'/)
   assert.match(source, /suggestDecisionLog/)
   assert.match(source, /applyAgentPatch/)
   assert.match(source, /agentProposal/)

@@ -167,6 +167,8 @@ test('MCP resources list and read page context without leaking raw assets', asyn
     'cascadery://pages/page-1',
     'cascadery://pages/page-1/areas',
     'cascadery://pages/page-1/assets',
+    'cascadery://pages/page-1/markdown',
+    'cascadery://pages/page-1/json-canvas',
     'cascadery://pages/page-1/agent-actions',
   ])
 
@@ -174,6 +176,12 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   const pageResource = await readJsonResource('cascadery://pages/page-1')
   const areas = await readJsonResource('cascadery://pages/page-1/areas')
   const assets = await readJsonResource('cascadery://pages/page-1/assets')
+  const markdown = await readTextResource(
+    'cascadery://pages/page-1/markdown'
+  )
+  const jsonCanvas = await readJsonResource(
+    'cascadery://pages/page-1/json-canvas'
+  )
   const actions = await readJsonResource(
     'cascadery://pages/page-1/agent-actions'
   )
@@ -194,6 +202,10 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   assert.deepEqual(areas.links, state.links)
   assert.equal(assets.assets[0].id, 'asset-1')
   assert.equal(assets.assets[0].storageKey, undefined)
+  assert.match(markdown.text, /## Decisions/)
+  assert.equal(markdown.mimeType, 'text/markdown')
+  assert.equal(jsonCanvas.nodes[0].id, 'area-1')
+  assert.equal(jsonCanvas.edges[0].fromNode, 'area-1')
   assert.deepEqual(actions.actions, [])
   assert.deepEqual(actions.permissionMode.scopes, [
     'page:read',
@@ -202,6 +214,8 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   ])
   assert.doesNotMatch(serializedPageResource, /secret-binary/)
   assert.doesNotMatch(serializedAssets, /secret-binary/)
+  assert.doesNotMatch(markdown.text, /secret-binary/)
+  assert.doesNotMatch(JSON.stringify(jsonCanvas), /secret-binary/)
 })
 
 test('MCP page setting hides disabled pages and blocks page tools', async () => {
@@ -735,6 +749,28 @@ test('MCP gateway returns structured errors for missing pages and unconfigured A
 
 const readJsonResource = async (uri: string) => {
   return readJsonResourceWithContext(uri, context)
+}
+
+const readTextResource = async (uri: string) => {
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: uri,
+      method: 'resources/read',
+      params: {
+        uri,
+      },
+    },
+    context
+  )
+
+  assert.equal(response.error, undefined)
+
+  return response.result.contents[0] as {
+    mimeType: string
+    text: string
+    uri: string
+  }
 }
 
 const readJsonResourceWithContext = async (

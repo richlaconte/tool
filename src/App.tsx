@@ -91,6 +91,13 @@ import {
   type PageAppState,
 } from './pagePersistence'
 import {
+  exportPageAsMarkdown,
+  MARKDOWN_MIME_TYPE,
+  JSON_CANVAS_MIME_TYPE,
+  stringifyExportedPageState,
+  stringifyPageAsJsonCanvas,
+} from './pageExports'
+import {
   addPageHistoryEntry,
   applyRestorePageStatePatch,
   createAgentHistoryEntry,
@@ -2316,22 +2323,63 @@ function App({
     )
   }
 
-  const exportPageJson = () => {
-    const json = stringifyPageState({ areas, assets, links, page })
-    const blob = new Blob([json], {
-      type: 'application/json',
+  const getPageExportSlug = () =>
+    page.title
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'untitled-page'
+
+  const downloadPageFile = ({
+    contents,
+    extension,
+    mimeType,
+  }: {
+    contents: string
+    extension: string
+    mimeType: string
+  }) => {
+    const blob = new Blob([contents], {
+      type: mimeType,
     })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
 
     link.href = url
-    link.download = `${page.title
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'untitled-page'}.json`
+    link.download = `${getPageExportSlug()}.${extension}`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const getCurrentPageAppState = (): PageAppState => ({
+    areas,
+    assets,
+    links,
+    page,
+  })
+
+  const exportPageJson = () => {
+    downloadPageFile({
+      contents: stringifyExportedPageState(getCurrentPageAppState()),
+      extension: 'json',
+      mimeType: 'application/json',
+    })
+  }
+
+  const exportPageMarkdown = () => {
+    downloadPageFile({
+      contents: exportPageAsMarkdown(getCurrentPageAppState()),
+      extension: 'md',
+      mimeType: MARKDOWN_MIME_TYPE,
+    })
+  }
+
+  const exportPageJsonCanvas = () => {
+    downloadPageFile({
+      contents: stringifyPageAsJsonCanvas(getCurrentPageAppState()),
+      extension: 'canvas',
+      mimeType: JSON_CANVAS_MIME_TYPE,
+    })
   }
 
   const importPageJson = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -2670,6 +2718,20 @@ function App({
           onClick={exportPageJson}
         >
           Export JSON
+        </button>
+        <button
+          className="page-persistence-button"
+          type="button"
+          onClick={exportPageMarkdown}
+        >
+          Export Markdown
+        </button>
+        <button
+          className="page-persistence-button"
+          type="button"
+          onClick={exportPageJsonCanvas}
+        >
+          Export Canvas
         </button>
         {!isViewOnly && (
           <button

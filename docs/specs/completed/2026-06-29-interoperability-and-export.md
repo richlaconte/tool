@@ -2,7 +2,7 @@
 
 ## Status
 
-Created on 2026-06-29 as a foundational portability spec.
+Completed on 2026-06-29 as an MVP foundational portability spec.
 
 ## Goal
 
@@ -101,8 +101,8 @@ Later:
 
 ## User Experience
 
-- Export dialog offers `Cascadery JSON`, `Markdown`, and later `JSON Canvas`.
-- Each export option explains what it preserves.
+- The page toolbar offers `Cascadery JSON`, `Markdown`, and `JSON Canvas` downloads.
+- The JSON download uses the Cascadery schema but redacts active share secrets.
 - Import dialog validates before replacing page state.
 - Import errors name the field or section that failed validation.
 
@@ -112,7 +112,6 @@ MCP tools can expose export-friendly resources:
 
 - `cascadery://pages/{pageId}/markdown`
 - `cascadery://pages/{pageId}/json-canvas`
-- `cascadery://pages/{pageId}/context-bundle`
 
 These resources should be read-only and safe by default.
 
@@ -138,3 +137,20 @@ These resources should be read-only and safe by default.
 - Bidirectional sync with Obsidian or Miro.
 - Exporting binary asset bundles in the first version.
 
+## Implementation Notes
+
+- `pageExports.ts` provides pure Markdown, JSON Canvas, and redacted Cascadery JSON export helpers.
+- Markdown export groups typed Areas into implementation sections and preserves text Area bodies exactly.
+- JSON Canvas export maps text Areas to text nodes, image Areas to text nodes with image references when no binary bundle is produced, and Area links to edges.
+- JSON Canvas node and edge extension fields preserve Cascadery metadata, styles, link kinds, and non-secret asset metadata.
+- User-facing JSON export redacts `shareLinks`; browser/server persistence still keeps full internal state where appropriate.
+- MCP resources expose the same Markdown and JSON Canvas formats with `text/markdown` and `application/vnd.jsoncanvas+json` MIME types.
+- Tests cover Markdown grouping, JSON Canvas mapping, MCP resources, and secret/raw asset exclusion.
+
+## Future Work
+
+- Add a richer export dialog with preservation summaries once the toolbar has more than a few export targets.
+- Add JSON Canvas import and Markdown import into new pages or selected Areas.
+- Add optional binary asset bundle export for local image files.
+- Add a dedicated `context-bundle` MCP resource once agent context packaging needs prompts, file references, and constraints beyond Markdown.
+- Map compatible CSS fields into native JSON Canvas color/border fields while keeping full CSS in extension metadata.

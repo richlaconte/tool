@@ -21,6 +21,12 @@ import {
   type AgentClient,
   type AgentPatch,
 } from './agentInterface.ts'
+import {
+  exportPageAsJsonCanvas,
+  exportPageAsMarkdown,
+  JSON_CANVAS_MIME_TYPE,
+  MARKDOWN_MIME_TYPE,
+} from './pageExports.ts'
 import type { PageAppState } from './pagePersistence.ts'
 
 export const MCP_JSON_RPC_VERSION = '2.0'
@@ -864,6 +870,24 @@ const readResource = async (
     })
   }
 
+  if (parsedResource.kind === 'markdown') {
+    return resourceResponse(
+      id,
+      params.uri,
+      exportPageAsMarkdown(state),
+      MARKDOWN_MIME_TYPE
+    )
+  }
+
+  if (parsedResource.kind === 'json-canvas') {
+    return resourceResponse(
+      id,
+      params.uri,
+      exportPageAsJsonCanvas(state),
+      JSON_CANVAS_MIME_TYPE
+    )
+  }
+
   return resourceResponse(id, params.uri, {
     schemaVersion: 1,
     page: {
@@ -906,6 +930,18 @@ const createResourceDefinitions = (
       mimeType: JSON_MIME_TYPE,
     },
     {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/markdown`,
+      name: `${state.page.title} Markdown export`,
+      description: 'Markdown handoff for this Cascadery page.',
+      mimeType: MARKDOWN_MIME_TYPE,
+    },
+    {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/json-canvas`,
+      name: `${state.page.title} JSON Canvas export`,
+      description: 'JSON Canvas export for this Cascadery page.',
+      mimeType: JSON_CANVAS_MIME_TYPE,
+    },
+    {
       uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/agent-actions`,
       name: `${state.page.title} agent actions`,
       description: 'Agent action records for this Cascadery page.',
@@ -917,7 +953,13 @@ const createResourceDefinitions = (
 const parsePageResourceUri = (uri: string):
   | {
       pageId: string
-      kind: 'page' | 'areas' | 'assets' | 'agent-actions'
+      kind:
+        | 'page'
+        | 'areas'
+        | 'assets'
+        | 'markdown'
+        | 'json-canvas'
+        | 'agent-actions'
     }
   | null => {
   const match = /^cascadery:\/\/pages\/([^/]+)(?:\/([^/]+))?$/.exec(uri)
@@ -934,7 +976,13 @@ const parsePageResourceUri = (uri: string):
     }
   }
 
-  if (suffix !== 'areas' && suffix !== 'assets' && suffix !== 'agent-actions') {
+  if (
+    suffix !== 'areas' &&
+    suffix !== 'assets' &&
+    suffix !== 'markdown' &&
+    suffix !== 'json-canvas' &&
+    suffix !== 'agent-actions'
+  ) {
     return null
   }
 
@@ -947,14 +995,18 @@ const parsePageResourceUri = (uri: string):
 const resourceResponse = (
   id: string | number | null,
   uri: string,
-  payload: unknown
+  payload: unknown,
+  mimeType = JSON_MIME_TYPE
 ) =>
   resultResponse(id, {
     contents: [
       {
         uri,
-        mimeType: JSON_MIME_TYPE,
-        text: JSON.stringify(payload),
+        mimeType,
+        text:
+          typeof payload === 'string'
+            ? payload
+            : JSON.stringify(payload),
       },
     ],
   })

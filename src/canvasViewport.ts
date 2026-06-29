@@ -67,6 +67,22 @@ export const getNextCanvasZoom = (
 export const formatCanvasZoom = (zoom: number) =>
   `${Math.round(clampCanvasZoom(zoom) * 100)}%`
 
+export const clampWheelZoomDelta = (deltaY: number) => {
+  if (!Number.isFinite(deltaY)) return 0
+
+  return Math.max(-240, Math.min(240, deltaY))
+}
+
+export const getContinuousCanvasZoom = (
+  currentZoom: number,
+  deltaY: number,
+  sensitivity = 700
+) => {
+  const scale = 2 ** (-clampWheelZoomDelta(deltaY) / sensitivity)
+
+  return clampCanvasZoom(currentZoom * scale)
+}
+
 export const screenToCanvasPoint = (
   clientX: number,
   clientY: number,

@@ -14,6 +14,7 @@ type AppKeyboardState = {
   isDialogOpen: boolean
   isEditableTarget: boolean
   isCommandPaletteTarget?: boolean
+  isReadOnly?: boolean
   hasModifier?: boolean
   hasMetaOrCtrlModifier?: boolean
   hasShiftModifier?: boolean
@@ -34,6 +35,10 @@ export const getAppKeyboardAction = (
   }
 
   if (state.isCommandPaletteTarget) {
+    return 'ignore'
+  }
+
+  if (state.isReadOnly) {
     return 'ignore'
   }
 

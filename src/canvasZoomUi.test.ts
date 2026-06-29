@@ -48,3 +48,23 @@ test('zoomed canvas interactions use logical coordinate conversion', async () =>
   assert.match(areaSource, /canvasZoom/)
   assert.match(areaSource, /\/ canvasZoom/)
 })
+
+test('modifier wheel zoom uses a continuous animation-frame path', async () => {
+  const source = await readProjectFile('src/App.tsx')
+  const wheelStart = source.indexOf(
+    'const handleWheel = (event: WheelEvent)'
+  )
+  const wheelEnd = source.indexOf(
+    "canvas.addEventListener('wheel'",
+    wheelStart
+  )
+  const wheelBlock = source.slice(wheelStart, wheelEnd)
+
+  assert.notEqual(wheelStart, -1)
+  assert.notEqual(wheelEnd, -1)
+  assert.match(source, /getContinuousCanvasZoom/)
+  assert.match(source, /zoomCanvasContinuously/)
+  assert.match(wheelBlock, /zoomCanvasContinuously\(event\.deltaY/)
+  assert.doesNotMatch(wheelBlock, /zoomCanvasByDirection/)
+  assert.match(source, /requestAnimationFrame/)
+})

@@ -74,6 +74,50 @@ test('system command shortcuts open an empty command palette', () => {
   )
 })
 
+test('read-only mode ignores command palette opening shortcuts', () => {
+  const baseState = {
+    hasSelectedArea: false,
+    isCommandPaletteOpen: false,
+    isDialogOpen: false,
+    isEditableTarget: false,
+    isReadOnly: true,
+  }
+
+  assert.equal(
+    getAppKeyboardAction({
+      ...baseState,
+      key: 'Escape',
+    }),
+    'ignore'
+  )
+  assert.equal(
+    getAppKeyboardAction({
+      ...baseState,
+      key: 's',
+    }),
+    'ignore'
+  )
+  assert.equal(
+    getAppKeyboardAction({
+      ...baseState,
+      key: 'k',
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'ignore'
+  )
+  assert.equal(
+    getAppKeyboardAction({
+      ...baseState,
+      key: 'P',
+      hasMetaOrCtrlModifier: true,
+      hasShiftModifier: true,
+      hasModifier: true,
+    }),
+    'ignore'
+  )
+})
+
 test('escape closes an open command palette', () => {
   assert.equal(
     getAppKeyboardAction({

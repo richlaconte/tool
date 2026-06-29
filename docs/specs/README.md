@@ -9,13 +9,11 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-- [View-Only Presentation Mode](2026-06-29-view-only-presentation-mode.md)
-- [Smooth Trackpad Zoom](2026-06-29-smooth-trackpad-zoom.md)
+There are no active foundational specs right now. Future work called out inside
+completed specs can be promoted into new active specs when it becomes the next
+product priority.
 
-Recommended implementation order:
-
-1. View-Only Presentation Mode.
-2. Smooth Trackpad Zoom.
+Recommended implementation order: none.
 
 ## Completed MVP Specs
 
@@ -35,9 +33,11 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Page JSON Persistence](completed/2026-06-26-page-json-persistence.md)
 - [Security and Privacy Baseline](completed/2026-06-26-cascadery-security-privacy.md)
 - [Share Links](completed/2026-06-26-share-links.md)
+- [Smooth Trackpad Zoom](completed/2026-06-29-smooth-trackpad-zoom.md)
 - [Snap Grid](completed/2026-06-26-snap-grid.md)
 - [Theme Color Shortcuts](completed/2026-06-26-theme-color-shortcuts.md)
 - [Version History and Change Review](completed/2026-06-29-version-history-and-change-review.md)
+- [View-Only Presentation Mode](completed/2026-06-29-view-only-presentation-mode.md)
 
 ## Completion Rule
 

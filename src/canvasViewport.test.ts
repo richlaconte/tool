@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  clampWheelZoomDelta,
   clampCanvasZoom,
   formatCanvasZoom,
   getAnchorPreservingScroll,
+  getContinuousCanvasZoom,
   getNextCanvasZoom,
   getZoomToFit,
   screenToCanvasPoint,
@@ -26,6 +28,27 @@ test('formats canvas zoom as a visible percentage', () => {
   assert.equal(formatCanvasZoom(1), '100%')
   assert.equal(formatCanvasZoom(1.25), '125%')
   assert.equal(formatCanvasZoom(0.5), '50%')
+})
+
+test('computes continuous zoom from wheel deltas without jumping to step levels', () => {
+  const zoomedIn = getContinuousCanvasZoom(1, -10)
+  const zoomedOut = getContinuousCanvasZoom(1, 10)
+
+  assert.ok(zoomedIn > 1)
+  assert.ok(zoomedIn < 1.25)
+  assert.ok(zoomedOut < 1)
+  assert.ok(zoomedOut > 0.75)
+})
+
+test('clamps continuous wheel zoom deltas and final zoom range', () => {
+  assert.equal(clampWheelZoomDelta(999), 240)
+  assert.equal(clampWheelZoomDelta(-999), -240)
+  assert.equal(
+    getContinuousCanvasZoom(1, -999),
+    getContinuousCanvasZoom(1, -240)
+  )
+  assert.equal(getContinuousCanvasZoom(4, -999), 4)
+  assert.equal(getContinuousCanvasZoom(0.25, 999), 0.25)
 })
 
 test('converts screen coordinates to logical canvas coordinates', () => {

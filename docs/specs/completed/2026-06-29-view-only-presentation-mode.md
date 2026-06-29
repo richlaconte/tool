@@ -6,7 +6,22 @@ View-only share links should feel like a clean read-only presentation of a Casca
 
 ## Status
 
-Created on 2026-06-29 as an active viewer-experience spec.
+Completed on 2026-06-29. The core view-only presentation mode is implemented and covered by focused tests.
+
+Implemented:
+
+- View-only links hide editor chrome, command palette rendering, dialogs, page persistence controls, collaboration presence UI, MCP chrome, zoom controls, undo toasts, and empty-editor hints.
+- View-only links expose a single visible app-level action: `Create your own Cascadery canvas`.
+- Keyboard palette-opening shortcuts are ignored in read-only mode.
+- View-only mode clears local selection, command palette, and dialog state after route/access changes.
+- View-only users do not publish local cursor presence.
+- Remote selection and cursor overlays are hidden in view-only mode.
+- The create-your-own action links to the server-backed new-page route.
+
+Future work:
+
+- Decide whether create-your-own should duplicate the viewed canvas instead of creating a blank canvas.
+- Revisit whether an extremely minimal viewer zoom affordance is needed for accessibility beyond browser zoom and direct gestures.
 
 ## Current State
 

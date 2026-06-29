@@ -55,6 +55,7 @@ import {
   formatCanvasZoom,
   getAnchorPreservingScroll,
   getCanvasWorldSize,
+  getContinuousCanvasZoom,
   getNextCanvasZoom,
   getZoomToFit,
   screenToCanvasPoint,
@@ -697,6 +698,13 @@ function App({
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
+  const canvasZoomRef = useRef(canvasZoom)
+  const wheelZoomDeltaRef = useRef(0)
+  const wheelZoomAnchorRef = useRef<{
+    clientX: number
+    clientY: number
+  } | null>(null)
+  const wheelZoomFrameRef = useRef<number | null>(null)
   const collaborationChannelRef = useRef<BroadcastChannel | null>(
     null
   )
@@ -720,6 +728,7 @@ function App({
       page.settings.shareLinks
     )
   const isViewOnly = shareAccessMode === 'view'
+  const shouldShowEditorChrome = !isViewOnly
   const isServerCollaborationEnabled = Boolean(pageId)
   const collaborativePageState = useMemo(
     () => ({
@@ -763,6 +772,18 @@ function App({
     [page.id, pageHistory]
   )
 
+  useEffect(() => {
+    if (!isViewOnly) return
+
+    const cleanupFrame = requestAnimationFrame(() => {
+      setSelectedAreaId(null)
+      setCommandPaletteQuery(null)
+      setOpenDialogId(null)
+    })
+
+    return () => cancelAnimationFrame(cleanupFrame)
+  }, [isViewOnly])
+
   const getCanvasCenterAnchor = useCallback(() => {
     const canvas = canvasRef.current
 
@@ -781,6 +802,10 @@ function App({
     }
   }, [])
 
+  useEffect(() => {
+    canvasZoomRef.current = canvasZoom
+  }, [canvasZoom])
+
   const setCanvasZoomFromAnchor = useCallback(
     (
       nextZoomValue: number,
@@ -790,6 +815,7 @@ function App({
       const nextZoom = clampCanvasZoom(nextZoomValue)
 
       if (!canvas) {
+        canvasZoomRef.current = nextZoom
         setCanvasZoom(nextZoom)
         return
       }
@@ -802,11 +828,12 @@ function App({
           rectTop: rect.top,
           scrollLeft: canvas.scrollLeft,
           scrollTop: canvas.scrollTop,
-          zoom: canvasZoom,
+          zoom: canvasZoomRef.current,
         },
         nextZoom,
       })
 
+      canvasZoomRef.current = nextZoom
       setCanvasZoom(nextZoom)
 
       requestAnimationFrame(() => {
@@ -814,7 +841,7 @@ function App({
         canvas.scrollTop = Math.max(0, scroll.scrollTop)
       })
     },
-    [canvasZoom, getCanvasCenterAnchor]
+    [getCanvasCenterAnchor]
   )
 
   const zoomCanvasByDirection = useCallback(
@@ -825,6 +852,48 @@ function App({
       )
     },
     [canvasZoom, getCanvasCenterAnchor, setCanvasZoomFromAnchor]
+  )
+
+  const zoomCanvasContinuously = useCallback(
+    (
+      deltaY: number,
+      anchor = getCanvasCenterAnchor()
+    ) => {
+      wheelZoomDeltaRef.current += deltaY
+      wheelZoomAnchorRef.current = anchor
+
+      if (wheelZoomFrameRef.current !== null) return
+
+      wheelZoomFrameRef.current = requestAnimationFrame(() => {
+        wheelZoomFrameRef.current = null
+
+        const nextDeltaY = wheelZoomDeltaRef.current
+        const nextAnchor =
+          wheelZoomAnchorRef.current ?? getCanvasCenterAnchor()
+
+        wheelZoomDeltaRef.current = 0
+        wheelZoomAnchorRef.current = null
+
+        setCanvasZoomFromAnchor(
+          getContinuousCanvasZoom(
+            canvasZoomRef.current,
+            nextDeltaY
+          ),
+          nextAnchor
+        )
+      })
+    },
+    [getCanvasCenterAnchor, setCanvasZoomFromAnchor]
+  )
+
+  useEffect(
+    () => () => {
+      if (wheelZoomFrameRef.current === null) return
+
+      cancelAnimationFrame(wheelZoomFrameRef.current)
+      wheelZoomFrameRef.current = null
+    },
+    []
   )
 
   const resetCanvasZoom = useCallback(() => {
@@ -1125,6 +1194,7 @@ function App({
   useEffect(() => {
     const canvas = document.getElementById('canvas')
 
+    if (isViewOnly) return
     if (!canvas) return
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -1150,7 +1220,7 @@ function App({
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('pointerleave', handlePointerLeave)
     }
-  }, [canvasZoom, publishPresence])
+  }, [canvasZoom, isViewOnly, publishPresence])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -1159,9 +1229,17 @@ function App({
 
     const handleWheel = (event: WheelEvent) => {
       if (!event.metaKey && !event.ctrlKey) return
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest(
+          '.command-palette, .command-palette-backdrop, .command-dialog, .command-dialog-backdrop'
+        )
+      ) {
+        return
+      }
 
       event.preventDefault()
-      zoomCanvasByDirection(event.deltaY < 0 ? 1 : -1, {
+      zoomCanvasContinuously(event.deltaY, {
         clientX: event.clientX,
         clientY: event.clientY,
       })
@@ -1174,7 +1252,7 @@ function App({
     return () => {
       canvas.removeEventListener('wheel', handleWheel)
     }
-  }, [zoomCanvasByDirection])
+  }, [zoomCanvasContinuously])
 
   useEffect(() => {
     collaborationChannelRef.current?.postMessage({
@@ -1342,6 +1420,7 @@ function App({
         isDialogOpen: openDialogId !== null,
         isEditableTarget: isEditingTarget,
         isCommandPaletteTarget: isPaletteTarget,
+        isReadOnly: isViewOnly,
         hasModifier: e.metaKey || e.ctrlKey || e.altKey,
         hasMetaOrCtrlModifier: hasSystemModifier,
         hasShiftModifier: e.shiftKey,
@@ -1381,6 +1460,7 @@ function App({
     }
   }, [
     commandPaletteQuery,
+    isViewOnly,
     openDialogId,
     resetCanvasZoom,
     selectedAreaId,
@@ -2572,22 +2652,12 @@ function App({
     '--snap-grid-size': string
   }
   const showThemeColorSwatches =
+    shouldShowEditorChrome &&
     page.settings.theme.colors.length > 0 &&
     (openDialogId === 'page-styles' || selectedAreaId !== null)
-  const commandPaletteOptions = isViewOnly
-    ? COMMAND_PALETTE_OPTIONS.filter((option) =>
-        [
-          'help',
-          'settings',
-          'share',
-          'zoom-in',
-          'zoom-out',
-          'reset-zoom',
-          'zoom-to-fit',
-          'zoom-to-selection',
-        ].includes(option.id)
-      )
-    : COMMAND_PALETTE_OPTIONS
+  const commandPaletteOptions = shouldShowEditorChrome
+    ? COMMAND_PALETTE_OPTIONS
+    : []
   const currentUrl =
     typeof window === 'undefined'
       ? 'https://example.test/'
@@ -2658,37 +2728,36 @@ function App({
       onDragOver={handleCanvasDragOver}
       onDrop={handleCanvasDrop}
     >
-      <button
-        className="site-brand"
-        type="button"
-        aria-label="Open command palette"
-        onClick={() => setCommandPaletteQuery('')}
-      >
-        <img
-          alt=""
-          className="site-brand-mark"
-          draggable="false"
-          src="/logo.svg"
-        />
-        <span>cascadery</span>
-      </button>
+      {shouldShowEditorChrome && (
+        <button
+          className="site-brand"
+          type="button"
+          aria-label="Open command palette"
+          onClick={() => setCommandPaletteQuery('')}
+        >
+          <img
+            alt=""
+            className="site-brand-mark"
+            draggable="false"
+            src="/logo.svg"
+          />
+          <span>cascadery</span>
+        </button>
+      )}
 
-      <div className="page-persistence">
-        {isViewOnly && (
-          <span className="access-mode-badge access-mode-badge--view-only">
-            View only
-          </span>
-        )}
-        {page.settings.mcp.enabled && (
-          isViewOnly ? (
-            <span
-              aria-label={`MCP exposed to ${MCP_STATUS_LABEL}`}
-              className="mcp-status-badge"
-              title={MCP_STATUS_LABEL}
-            >
-              MCP exposed
-            </span>
-          ) : (
+      {isViewOnly && (
+        <a
+          className="view-only-create-canvas"
+          href="/"
+          aria-label="Create your own Cascadery canvas"
+        >
+          Create your own Cascadery canvas
+        </a>
+      )}
+
+      {shouldShowEditorChrome && (
+        <div className="page-persistence">
+          {page.settings.mcp.enabled && (
             <button
               aria-label={`Disable MCP access for ${MCP_STATUS_LABEL}`}
               className="mcp-status-badge"
@@ -2698,45 +2767,43 @@ function App({
             >
               MCP exposed
             </button>
-          )
-        )}
-        {mcpAgentActivityLabel && (
+          )}
+          {mcpAgentActivityLabel && (
+            <span
+              aria-live="polite"
+              className="mcp-activity-status"
+              title={mcpAgentActivityLabel}
+            >
+              {mcpAgentActivityLabel}
+            </span>
+          )}
           <span
             aria-live="polite"
-            className="mcp-activity-status"
-            title={mcpAgentActivityLabel}
+            className={`save-status save-status--${saveStatus}`}
           >
-            {mcpAgentActivityLabel}
+            {getSaveStatusLabel(saveStatus)}
           </span>
-        )}
-        <span
-          aria-live="polite"
-          className={`save-status save-status--${saveStatus}`}
-        >
-          {getSaveStatusLabel(saveStatus)}
-        </span>
-        <button
-          className="page-persistence-button"
-          type="button"
-          onClick={exportPageJson}
-        >
-          Export JSON
-        </button>
-        <button
-          className="page-persistence-button"
-          type="button"
-          onClick={exportPageMarkdown}
-        >
-          Export Markdown
-        </button>
-        <button
-          className="page-persistence-button"
-          type="button"
-          onClick={exportPageJsonCanvas}
-        >
-          Export Canvas
-        </button>
-        {!isViewOnly && (
+          <button
+            className="page-persistence-button"
+            type="button"
+            onClick={exportPageJson}
+          >
+            Export JSON
+          </button>
+          <button
+            className="page-persistence-button"
+            type="button"
+            onClick={exportPageMarkdown}
+          >
+            Export Markdown
+          </button>
+          <button
+            className="page-persistence-button"
+            type="button"
+            onClick={exportPageJsonCanvas}
+          >
+            Export Canvas
+          </button>
           <button
             className="page-persistence-button"
             type="button"
@@ -2744,65 +2811,67 @@ function App({
           >
             Import JSON
           </button>
-        )}
-        <input
-          ref={importInputRef}
-          accept="application/json,.json"
-          className="page-import-input"
-          type="file"
-          onChange={importPageJson}
-        />
-        <input
-          ref={imageInputRef}
-          accept="image/png,image/jpeg,image/gif,image/webp"
-          className="page-import-input"
-          type="file"
-          onChange={importImageFile}
-        />
-        {importError && (
-          <span className="import-error" role="alert">
-            {importError}
-          </span>
-        )}
-      </div>
+          <input
+            ref={importInputRef}
+            accept="application/json,.json"
+            className="page-import-input"
+            type="file"
+            onChange={importPageJson}
+          />
+          <input
+            ref={imageInputRef}
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            className="page-import-input"
+            type="file"
+            onChange={importImageFile}
+          />
+          {importError && (
+            <span className="import-error" role="alert">
+              {importError}
+            </span>
+          )}
+        </div>
+      )}
 
-      <div
-        aria-label="Collaboration presence"
-        className="collaboration-presence"
-      >
-        <span
-          className={`collaboration-status collaboration-status--${displayedCollaborationStatus}`}
+      {shouldShowEditorChrome && (
+        <div
+          aria-label="Collaboration presence"
+          className="collaboration-presence"
         >
-          {getCollaborationStatusLabel(displayedCollaborationStatus)}
-        </span>
-        <span
-          className="presence-avatar presence-avatar--local"
-          style={
-            {
-              '--presence-color': collaborationProfile.color,
-            } as PresenceCssProperties
-          }
-          title={`You: ${collaborationProfile.userName}`}
-        >
-          {getPresenceInitials(collaborationProfile.userName)}
-        </span>
-        {displayedRemotePresences.map((presence) => (
           <span
-            className="presence-avatar"
-            key={presence.clientId}
+            className={`collaboration-status collaboration-status--${displayedCollaborationStatus}`}
+          >
+            {getCollaborationStatusLabel(displayedCollaborationStatus)}
+          </span>
+          <span
+            className="presence-avatar presence-avatar--local"
             style={
               {
-                '--presence-color': presence.color,
+                '--presence-color': collaborationProfile.color,
               } as PresenceCssProperties
             }
-            title={presence.userName}
+            title={`You: ${collaborationProfile.userName}`}
           >
-            {getPresenceInitials(presence.userName)}
+            {getPresenceInitials(collaborationProfile.userName)}
           </span>
-        ))}
-      </div>
+          {displayedRemotePresences.map((presence) => (
+            <span
+              className="presence-avatar"
+              key={presence.clientId}
+              style={
+                {
+                  '--presence-color': presence.color,
+                } as PresenceCssProperties
+              }
+              title={presence.userName}
+            >
+              {getPresenceInitials(presence.userName)}
+            </span>
+          ))}
+        </div>
+      )}
 
-      {!hasClickedCanvas && areas.length === 0 && (
+      {shouldShowEditorChrome && !hasClickedCanvas && areas.length === 0 && (
         <div className="canvas-hint">
           <span>Click anywhere to begin.</span>
           <span>
@@ -2854,73 +2923,77 @@ function App({
 
           {getRootAreas(areas).map(renderArea)}
 
-          <div
-            className="remote-collaboration-layer"
-            aria-hidden="true"
-          >
-            {displayedRemotePresences.map((presence) => {
-              if (!presence.selectedAreaId) return null
+          {shouldShowEditorChrome && (
+            <div
+              className="remote-collaboration-layer"
+              aria-hidden="true"
+            >
+              {displayedRemotePresences.map((presence) => {
+                if (!presence.selectedAreaId) return null
 
-              const area = areas.find(
-                (currentArea) =>
-                  currentArea.id === presence.selectedAreaId
-              )
+                const area = areas.find(
+                  (currentArea) =>
+                    currentArea.id === presence.selectedAreaId
+                )
 
-              if (!area) return null
+                if (!area) return null
 
-              const position = getAreaAbsolutePosition(
-                areas,
-                area.id
-              )
+                const position = getAreaAbsolutePosition(
+                  areas,
+                  area.id
+                )
 
-              return (
-                <div
-                  className="remote-selection-ring"
-                  key={`${presence.clientId}-selection`}
-                  style={
-                    {
-                      '--presence-color': presence.color,
-                      height: area.height,
-                      left: position.x,
-                      top: position.y,
-                      width: area.width,
-                    } as PresenceCssProperties
-                  }
-                >
-                  <span>{presence.userName}</span>
-                </div>
-              )
-            })}
-            {displayedRemotePresences.map((presence) =>
-              presence.cursor ? (
-                <div
-                  className="remote-cursor"
-                  key={`${presence.clientId}-cursor`}
-                  style={
-                    {
-                      '--presence-color': presence.color,
-                      left: presence.cursor.x,
-                      top: presence.cursor.y,
-                    } as PresenceCssProperties
-                  }
-                >
-                  <span>{presence.userName}</span>
-                </div>
-              ) : null
-            )}
-          </div>
+                return (
+                  <div
+                    className="remote-selection-ring"
+                    key={`${presence.clientId}-selection`}
+                    style={
+                      {
+                        '--presence-color': presence.color,
+                        height: area.height,
+                        left: position.x,
+                        top: position.y,
+                        width: area.width,
+                      } as PresenceCssProperties
+                    }
+                  >
+                    <span>{presence.userName}</span>
+                  </div>
+                )
+              })}
+              {displayedRemotePresences.map((presence) =>
+                presence.cursor ? (
+                  <div
+                    className="remote-cursor"
+                    key={`${presence.clientId}-cursor`}
+                    style={
+                      {
+                        '--presence-color': presence.color,
+                        left: presence.cursor.x,
+                        top: presence.cursor.y,
+                      } as PresenceCssProperties
+                    }
+                  >
+                    <span>{presence.userName}</span>
+                  </div>
+                ) : null
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <CanvasZoomControls
-        zoom={canvasZoom}
-        onFit={zoomCanvasToFit}
-        onReset={resetCanvasZoom}
-        onZoomIn={() => zoomCanvasByDirection(1)}
-        onZoomOut={() => zoomCanvasByDirection(-1)}
-      />
+      {shouldShowEditorChrome && (
+        <CanvasZoomControls
+          zoom={canvasZoom}
+          onFit={zoomCanvasToFit}
+          onReset={resetCanvasZoom}
+          onZoomIn={() => zoomCanvasByDirection(1)}
+          onZoomOut={() => zoomCanvasByDirection(-1)}
+        />
+      )}
 
-      {deletedAreaSnapshot && (
+      {shouldShowEditorChrome && deletedAreaSnapshot && (
         <div
           aria-live="polite"
           className="undo-toast"
@@ -2937,7 +3010,7 @@ function App({
         </div>
       )}
 
-      {commandPaletteQuery !== null && (
+      {shouldShowEditorChrome && commandPaletteQuery !== null && (
         <CommandPalette
           query={commandPaletteQuery}
           options={commandPaletteOptions}
@@ -3015,21 +3088,23 @@ function App({
         />
       )}
 
-      {openDialogId !== null && COMMAND_DIALOGS[openDialogId] && (
-        <div
-          className="command-dialog-backdrop"
-          onPointerDown={(e) => {
-            if (e.target === e.currentTarget) setOpenDialogId(null)
-          }}
-        >
-          <section
-            className="command-dialog"
-            role="dialog"
-            aria-label={COMMAND_DIALOGS[openDialogId].title}
+      {shouldShowEditorChrome &&
+        openDialogId !== null &&
+        COMMAND_DIALOGS[openDialogId] && (
+          <div
+            className="command-dialog-backdrop"
+            onPointerDown={(e) => {
+              if (e.target === e.currentTarget) setOpenDialogId(null)
+            }}
           >
-            <h2>{COMMAND_DIALOGS[openDialogId].title}</h2>
-            {openDialogId === 'share' ? (
-              <div className="share-link-controls">
+            <section
+              className="command-dialog"
+              role="dialog"
+              aria-label={COMMAND_DIALOGS[openDialogId].title}
+            >
+              <h2>{COMMAND_DIALOGS[openDialogId].title}</h2>
+              {openDialogId === 'share' ? (
+                <div className="share-link-controls">
                 <p>
                   Anyone with an edit link can change this page. View-only
                   links open a clean read mode.

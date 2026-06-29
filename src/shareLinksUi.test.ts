@@ -43,8 +43,42 @@ test('app has explicit view-only mode affordances', async () => {
   )
 
   assert.match(appSource, /isViewOnly/)
-  assert.match(appSource, /View only/)
-  assert.match(appSource, /view-only/)
+  assert.match(appSource, /Create your own Cascadery canvas/)
+  assert.match(appSource, /view-only-create-canvas/)
   assert.match(areaSource, /isReadOnly/)
   assert.match(areaSource, /contentEditable=\{isReadOnly/)
+})
+
+test('view-only presentation hides editor chrome and exposes create-own action', async () => {
+  const appSource = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(appSource, /const shouldShowEditorChrome = !isViewOnly/)
+  assert.match(appSource, /Create your own Cascadery canvas/)
+  assert.match(
+    appSource,
+    /\{shouldShowEditorChrome && \(\s*<button\s+className="site-brand"/
+  )
+  assert.match(
+    appSource,
+    /\{shouldShowEditorChrome && \(\s*<div className="page-persistence"/
+  )
+  assert.match(
+    appSource,
+    /\{shouldShowEditorChrome && \(\s*<div\s+aria-label="Collaboration presence"/
+  )
+  assert.match(
+    appSource,
+    /\{shouldShowEditorChrome && \(\s*<CanvasZoomControls/
+  )
+  assert.match(
+    appSource,
+    /\{shouldShowEditorChrome && commandPaletteQuery !== null && \(/
+  )
+  assert.match(
+    appSource,
+    /\{shouldShowEditorChrome &&\s*openDialogId !== null &&/
+  )
 })

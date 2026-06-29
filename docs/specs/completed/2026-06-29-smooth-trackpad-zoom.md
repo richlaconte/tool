@@ -6,7 +6,22 @@ Rework canvas zoom so macOS trackpad pinch and high-frequency wheel zoom feel sm
 
 ## Status
 
-Created on 2026-06-29 as an active input-refinement spec.
+Completed on 2026-06-29. The core smooth wheel/trackpad zoom path is implemented and covered by focused tests.
+
+Implemented:
+
+- Continuous zoom helpers map modifier-wheel deltas to proportional zoom changes.
+- Wheel deltas are clamped before scaling so large inputs do not lurch.
+- Final zoom is still clamped to the existing canvas zoom range.
+- Modifier-wheel zoom uses an animation-frame accumulator instead of advancing one predefined zoom level per event.
+- Pointer-anchored zoom preservation remains shared with existing zoom behavior.
+- Buttons and keyboard shortcuts still use the existing discrete zoom levels.
+- Wheel events inside command palette or dialog UI are ignored by the canvas zoom listener.
+
+Future work:
+
+- Tune the sensitivity constant on multiple real trackpads and mice.
+- Consider an optional user setting for zoom speed if users report device-specific differences.
 
 ## Current State
 

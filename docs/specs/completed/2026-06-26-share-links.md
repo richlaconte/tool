@@ -6,23 +6,26 @@ Generate two unique, unguessable links for each page: one edit link and one view
 
 ## Status
 
-Audited on 2026-06-29. This remains active.
+Completed on 2026-06-29. The share-link MVP is represented in the app, server routes, collaboration server, and focused tests.
 
 Implemented:
 
-- Client-side share dialog.
-- Edit and view URL generation.
+- Share dialog with server-backed edit and view URL generation for collaborative pages.
 - Copy and regenerate controls.
 - Server-side token hashing helpers.
 - Signed page-session helper primitives.
-
-Still outstanding:
-
 - Validate share tokens in the `/p/[pageId]` route.
 - Set and read signed page sessions from HTTP routes.
 - Enforce edit/view access during WebSocket upgrade.
 - Reject collaboration updates from view-only sessions server-side.
 - Ensure regenerated links invalidate old sessions on reconnect.
+- `Referrer-Policy: no-referrer` on token-to-session redirects.
+
+Future work:
+
+- Account/workspace ownership for non-link-based access.
+- Optional link expiration controls.
+- More visible revocation history if teams need audit review.
 
 ## HCI/UX Research Basis
 

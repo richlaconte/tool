@@ -95,7 +95,7 @@ Required follow-up capabilities:
 
 Tracking specs:
 
-- [Share Links](2026-06-26-share-links.md)
+- [Share Links](completed/2026-06-26-share-links.md)
 - [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
 
 ### CSS-Native UI Scratchpad

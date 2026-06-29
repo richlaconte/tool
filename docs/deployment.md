@@ -19,6 +19,14 @@ fly apps create richlaconte-tool
 fly volumes create tool_data --app richlaconte-tool --region iad --size 1
 ```
 
+Set the page-session signing secret. This signs edit/view share sessions after
+the raw share token has been exchanged, so use a long random value and keep it
+stable across deploys:
+
+```sh
+fly secrets set TOOL_PAGE_SESSION_SECRET="$(openssl rand -base64 48)"
+```
+
 Deploy once from your machine:
 
 ```sh

@@ -10,17 +10,22 @@ export type PageSession = {
   accessMode: ShareMode
   clientId: string
   expiresAt: number
+  shareLinkUpdatedAt: string
 }
 
 export const createPageSessionCookie = (
   session: PageSession,
-  secret: string
+  secret: string,
+  now = Date.now()
 ) =>
   stringifySetCookie({
     name: PAGE_SESSION_COOKIE,
     value: signSession(session, secret),
     httpOnly: true,
-    maxAge: Math.max(0, Math.floor((session.expiresAt - Date.now()) / 1000)),
+    maxAge: Math.max(
+      0,
+      Math.floor((session.expiresAt - now) / 1000)
+    ),
     path: '/',
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -94,7 +99,9 @@ const isPageSession = (value: unknown): value is PageSession =>
   'accessMode' in value &&
   'clientId' in value &&
   'expiresAt' in value &&
+  'shareLinkUpdatedAt' in value &&
   typeof value.pageId === 'string' &&
   (value.accessMode === 'edit' || value.accessMode === 'view') &&
   typeof value.clientId === 'string' &&
-  typeof value.expiresAt === 'number'
+  typeof value.expiresAt === 'number' &&
+  typeof value.shareLinkUpdatedAt === 'string'

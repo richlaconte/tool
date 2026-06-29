@@ -41,10 +41,12 @@ test('creates a page with edit and view links while storing only token hashes', 
   assert.deepEqual(validateShareToken(db, 'page_1', 'edit', 'edit-token'), {
     pageId: 'page_1',
     accessMode: 'edit',
+    shareLinkUpdatedAt: '2026-06-26T12:00:00.000Z',
   })
   assert.deepEqual(validateShareToken(db, 'page_1', 'view', 'view-token'), {
     pageId: 'page_1',
     accessMode: 'view',
+    shareLinkUpdatedAt: '2026-06-26T12:00:00.000Z',
   })
   assert.equal(validateShareToken(db, 'page_1', 'edit', 'wrong-token'), null)
 })
@@ -53,6 +55,7 @@ test('regenerates one share token without changing the other mode', () => {
   const db = createInMemoryDatabase()
   const created = createPageWithShareLinks(db, {
     createToken: () => 'old-token',
+    now: '2026-06-26T12:00:00.000Z',
     pageId: 'page_2',
   })
 
@@ -68,6 +71,7 @@ test('regenerates one share token without changing the other mode', () => {
     {
       pageId: 'page_2',
       accessMode: 'edit',
+      shareLinkUpdatedAt: '2026-06-26T13:00:00.000Z',
     }
   )
   assert.deepEqual(
@@ -75,6 +79,7 @@ test('regenerates one share token without changing the other mode', () => {
     {
       pageId: 'page_2',
       accessMode: 'view',
+      shareLinkUpdatedAt: '2026-06-26T12:00:00.000Z',
     }
   )
 })
@@ -87,6 +92,7 @@ test('signed page session cookies parse, expire, and reject tampering', () => {
       clientId: 'client_1',
       expiresAt: 1_788_888_800_000,
       pageId: 'page_3',
+      shareLinkUpdatedAt: '2026-06-26T12:00:00.000Z',
     },
     secret
   )
@@ -101,6 +107,7 @@ test('signed page session cookies parse, expire, and reject tampering', () => {
       clientId: 'client_1',
       expiresAt: 1_788_888_800_000,
       pageId: 'page_3',
+      shareLinkUpdatedAt: '2026-06-26T12:00:00.000Z',
     }
   )
   assert.equal(

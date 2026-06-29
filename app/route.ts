@@ -7,11 +7,16 @@ export const dynamic = 'force-dynamic'
 
 export const GET = (request: Request) => {
   const database = createDatabase()
-  const { page } = createPageWithShareLinks(database)
+  const created = createPageWithShareLinks(database)
   const protocol = request.headers.get('x-forwarded-proto') ?? 'http'
   const host = request.headers.get('host') ?? new URL(request.url).host
-
-  return NextResponse.redirect(
-    new URL(`/p/${page.id}`, `${protocol}://${host}`)
+  const destination = new URL(
+    `/p/${created.page.id}`,
+    `${protocol}://${host}`
   )
+
+  destination.searchParams.set('share', 'edit')
+  destination.searchParams.set('token', created.editToken)
+
+  return NextResponse.redirect(destination)
 }

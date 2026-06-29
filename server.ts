@@ -4,6 +4,11 @@ import { createRequire } from 'node:module'
 import type { Duplex } from 'node:stream'
 
 import { createCollaborationServer } from './src/server/collaborationServer.js'
+import { createDatabase } from './src/server/database.js'
+import {
+  getPageSessionSecret,
+  handlePageAccessRequest,
+} from './src/server/pageAccess.js'
 
 type NextApp = {
   getRequestHandler(): (
@@ -29,9 +34,14 @@ const next = require('next') as CreateNextServer
 const port = Number.parseInt(process.env.PORT ?? '3000', 10)
 const hostname = process.env.HOSTNAME ?? '0.0.0.0'
 const dev = process.env.NODE_ENV !== 'production'
+const pageDatabase = createDatabase()
+const pageSessionSecret = getPageSessionSecret()
 
 const app = next({ dev, hostname, port })
-const collaborationServer = createCollaborationServer()
+const collaborationServer = createCollaborationServer({
+  pageDatabase,
+  sessionSecret: pageSessionSecret,
+})
 
 await app.prepare()
 
@@ -39,6 +49,17 @@ const handle = app.getRequestHandler()
 const handleUpgrade = app.getUpgradeHandler()
 
 const server = createServer(async (request, response) => {
+  if (
+    handlePageAccessRequest({
+      database: pageDatabase,
+      request,
+      response,
+      secret: pageSessionSecret,
+    })
+  ) {
+    return
+  }
+
   await handle(request, response)
 })
 

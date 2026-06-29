@@ -4,16 +4,27 @@ import type { Duplex } from 'node:stream'
 import { SQLite } from '@hocuspocus/extension-sqlite'
 import { Server as HocuspocusServer } from '@hocuspocus/server'
 
+import { createDatabase } from './database.ts'
+import type { ToolDatabase } from './database.ts'
+import {
+  getPageAccessFromSession,
+  getPageSessionSecret,
+} from './pageAccess.ts'
+import { getPageSessionFromCookie } from './shareSessions.ts'
+
 export type CollaborationContext = {
-  accessMode: 'edit'
+  accessMode: 'edit' | 'view'
   clientId: string
   pageId: string
-  readOnly: false
+  readOnly: boolean
 }
 
 export type CollaborationServerOptions = {
   allowedOrigins?: string[]
   databasePath?: string
+  pageDatabase?: ToolDatabase
+  pageDatabasePath?: string
+  sessionSecret?: string
 }
 
 export type CollaborationServer = {
@@ -36,7 +47,13 @@ type CollaborationRequestContext = {
 
 export const getCollaborationContextFromHeaders = (
   headers: HeaderRecord | Headers,
-  options: Pick<CollaborationServerOptions, 'allowedOrigins'> = {},
+  options: Pick<
+    CollaborationServerOptions,
+    'allowedOrigins' | 'pageDatabase' | 'sessionSecret'
+  > & {
+    database?: ToolDatabase
+    now?: number
+  } = {},
   requestContext: CollaborationRequestContext = {}
 ): CollaborationContext | null => {
   const origin = getHeader(headers, 'origin')
@@ -52,12 +69,18 @@ export const getCollaborationContextFromHeaders = (
   )
   if (!pageId) return null
 
-  return {
-    accessMode: 'edit',
-    clientId: requestContext.clientId ?? 'anonymous-client',
-    pageId,
-    readOnly: false,
-  }
+  const database = options.pageDatabase ?? options.database
+  const sessionSecret = options.sessionSecret
+
+  if (!database || !sessionSecret) return null
+
+  const session = getPageSessionFromCookie(
+    getHeader(headers, 'cookie'),
+    sessionSecret,
+    options.now
+  )
+
+  return getPageAccessFromSession(database, pageId, session)
 }
 
 export const createCollaborationServer = ({
@@ -65,7 +88,13 @@ export const createCollaborationServer = ({
   databasePath = process.env.TOOL_YJS_DATABASE_PATH ??
     process.env.TOOL_DATABASE_PATH ??
     './.data/collaboration.sqlite',
+  pageDatabase,
+  pageDatabasePath = process.env.TOOL_DATABASE_PATH ??
+    './.data/tool.sqlite',
+  sessionSecret = getPageSessionSecret(),
 }: CollaborationServerOptions = {}): CollaborationServer => {
+  const collaborationPageDatabase =
+    pageDatabase ?? createDatabase(pageDatabasePath)
   const hocuspocusServer = new HocuspocusServer<CollaborationContext>({
     extensions: [
       new SQLite({
@@ -82,9 +111,10 @@ export const createCollaborationServer = ({
         headersToRecord(data.requestHeaders),
         {
           allowedOrigins,
+          pageDatabase: collaborationPageDatabase,
+          sessionSecret,
         },
         {
-          clientId: `client_${data.socketId}`,
           documentName: data.documentName,
         }
       )
@@ -93,7 +123,7 @@ export const createCollaborationServer = ({
         throw new Error('Collaboration connection not allowed.')
       }
 
-      data.connectionConfig.readOnly = false
+      data.connectionConfig.readOnly = context.readOnly
 
       return context
     },

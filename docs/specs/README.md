@@ -12,20 +12,19 @@ This directory is split between active foundational specs and completed MVP spec
 These specs still have meaningful product or implementation work remaining.
 
 1. [Security and Privacy Baseline](2026-06-26-cascadery-security-privacy.md)
-2. [Share Links](2026-06-26-share-links.md)
-3. [AI and MCP Agent Interface](2026-06-26-cascadery-ai-mcp-interface.md)
-4. [Image Support](2026-06-26-image-support.md)
-5. [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
-6. [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
-7. [Interoperability and Export](2026-06-29-interoperability-and-export.md)
+2. [AI and MCP Agent Interface](2026-06-26-cascadery-ai-mcp-interface.md)
+3. [Image Support](2026-06-26-image-support.md)
+4. [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
+5. [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
+6. [Interoperability and Export](2026-06-29-interoperability-and-export.md)
 
 Recommended implementation order:
 
-1. Security and server-enforced share access.
-2. Version history and undo foundations.
-3. Area metadata/types/links.
-4. Interoperability exports.
-5. Image storage/security hardening.
+1. Version history and undo foundations.
+2. Area metadata/types/links.
+3. Interoperability exports.
+4. Image storage/security hardening.
+5. Collaboration rate limits, security logs, and production security docs.
 6. Protected MCP access and deeper agent workflows.
 
 ## Completed MVP Specs
@@ -40,6 +39,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)
 - [Page JSON Persistence](completed/2026-06-26-page-json-persistence.md)
+- [Share Links](completed/2026-06-26-share-links.md)
 - [Snap Grid](completed/2026-06-26-snap-grid.md)
 - [Theme Color Shortcuts](completed/2026-06-26-theme-color-shortcuts.md)
 

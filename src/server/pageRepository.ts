@@ -28,6 +28,7 @@ export type CreatedPageWithShareLinks = {
 export type ShareAccess = {
   pageId: string
   accessMode: ShareMode
+  shareLinkUpdatedAt: string
 }
 
 export type RegenerateShareTokenOptions = {
@@ -83,7 +84,7 @@ export const validateShareToken = (
 ): ShareAccess | null => {
   const row = database
     .prepare(
-      `select id
+      `select updated_at as shareLinkUpdatedAt
        from share_links
        where page_id = ?
          and mode = ?
@@ -91,14 +92,39 @@ export const validateShareToken = (
          and revoked_at is null
        limit 1`
     )
-    .get(pageId, accessMode, hashShareToken(token))
+    .get(pageId, accessMode, hashShareToken(token)) as
+    | { shareLinkUpdatedAt: string }
+    | undefined
 
   return row
     ? {
         pageId,
         accessMode,
+        shareLinkUpdatedAt: row.shareLinkUpdatedAt,
       }
     : null
+}
+
+export const getActiveShareLinkUpdatedAt = (
+  database: ToolDatabase,
+  pageId: string,
+  accessMode: ShareMode
+) => {
+  const row = database
+    .prepare(
+      `select updated_at as shareLinkUpdatedAt
+       from share_links
+       where page_id = ?
+         and mode = ?
+         and revoked_at is null
+       order by updated_at desc
+       limit 1`
+    )
+    .get(pageId, accessMode) as
+    | { shareLinkUpdatedAt: string }
+    | undefined
+
+  return row?.shareLinkUpdatedAt ?? null
 }
 
 export const listPages = (database: ToolDatabase): PageRecord[] =>
@@ -158,6 +184,7 @@ export const regenerateShareToken = (
     pageId,
     accessMode,
     token,
+    shareLinkUpdatedAt: now,
   }
 }
 

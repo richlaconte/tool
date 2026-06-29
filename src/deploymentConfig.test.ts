@@ -44,6 +44,15 @@ test('Fly configuration keeps the collaborative SQLite app on one persistent mac
   assert.match(flyConfig, /path = "\/api\/health"/)
 })
 
+test('environment documentation includes the page session secret', async () => {
+  const envExample = await readProjectFile('.env.example')
+  const deploymentDocs = await readProjectFile('docs/deployment.md')
+
+  assert.match(envExample, /TOOL_PAGE_SESSION_SECRET=/)
+  assert.match(deploymentDocs, /TOOL_PAGE_SESSION_SECRET/)
+  assert.match(deploymentDocs, /fly secrets set TOOL_PAGE_SESSION_SECRET=/)
+})
+
 test('GitHub Actions verifies and deploys pushes to main', async () => {
   const workflow = await readProjectFile('.github/workflows/deploy.yml')
 

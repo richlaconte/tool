@@ -10,16 +10,16 @@ Current implemented baseline:
 
 - Server-backed pages and Yjs persistence exist.
 - Collaboration origin checks and max payload configuration exist.
-- Share-token storage helpers exist.
+- Server-enforced edit/view share links for HTTP page loads and WebSocket collaboration exist.
+- Share-token storage helpers, signed page sessions, and stale-session invalidation exist.
 - No-auth MCP is environment-gated and rate-limited.
 
 Primary gaps:
 
-- Server-enforced edit/view access for HTTP and WebSocket routes.
-- Message-level collaboration authorization and rate limiting.
+- Message-level collaboration rate limiting and connection limits.
 - Structured security logs beyond current MCP action logs.
 - Asset serving/storage routes with authorization-aware cache and validation.
-- Production environment documentation for origin, database, asset, and MCP settings.
+- Production environment documentation for asset and MCP settings.
 
 ## Goal
 
@@ -90,7 +90,7 @@ If MVP pages remain link-editable:
 
 ### Next Access Model
 
-Add server-enforced share links:
+Implemented server-enforced share links:
 
 - Edit link grants read/write.
 - View link grants read-only state and presence.

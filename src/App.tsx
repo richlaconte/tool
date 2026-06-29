@@ -502,7 +502,13 @@ const requestImageAltText = (defaultAlt: string) =>
 const getFirstImageFile = (files: FileList | File[]) =>
   Array.from(files).find((file) => file.type.startsWith('image/')) ?? null
 
-function App({ pageId }: { pageId?: string }) {
+function App({
+  pageId,
+  serverAccessMode,
+}: {
+  pageId?: string
+  serverAccessMode?: ShareAccessMode
+}) {
   const [initialPageState] = useState(() => getInitialPageState(pageId))
   const [areas, setAreas] = useState<AreaState[]>(
     initialPageState.areas
@@ -583,10 +589,12 @@ function App({ pageId }: { pageId?: string }) {
   const hasMountedForSave = useRef(false)
   const hasMountedForCollaborationSync = useRef(false)
   const pendingImageInsert = useRef<PendingImageInsert | null>(null)
-  const shareAccessMode = getShareAccessMode(
-    typeof window === 'undefined' ? '' : window.location.search,
-    page.settings.shareLinks
-  )
+  const shareAccessMode =
+    serverAccessMode ??
+    getShareAccessMode(
+      typeof window === 'undefined' ? '' : window.location.search,
+      page.settings.shareLinks
+    )
   const isViewOnly = shareAccessMode === 'view'
   const isServerCollaborationEnabled = Boolean(pageId)
   const collaborativePageState = useMemo(
@@ -1373,8 +1381,111 @@ function App({ pageId }: { pageId?: string }) {
     )
   }
 
-  const ensureShareLinks = () => {
+  const requestServerShareLink = async (
+    accessMode: ShareAccessMode
+  ) => {
+    const response = await fetch(
+      `/api/pages/${page.id}/share-links`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          accessMode,
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error('Share link could not be created.')
+    }
+
+    const payload = (await response.json()) as {
+      accessMode?: unknown
+      url?: unknown
+    }
+
+    if (
+      payload.accessMode !== accessMode ||
+      typeof payload.url !== 'string'
+    ) {
+      throw new Error('Share link response was invalid.')
+    }
+
+    const url = new URL(payload.url)
+    const token = url.searchParams.get('token')
+
+    if (!token) {
+      throw new Error('Share link response was missing a token.')
+    }
+
+    return {
+      accessMode,
+      token,
+    }
+  }
+
+  const updateShareLinkToken = (
+    accessMode: ShareAccessMode,
+    token: string
+  ) => {
+    const now = new Date().toISOString()
+
+    setPage((currentPage) => {
+      const currentLinks = currentPage.settings.shareLinks ?? {
+        pageId: currentPage.id,
+        editToken: '',
+        viewToken: '',
+        createdAt: now,
+        updatedAt: now,
+        revokedAt: null,
+      }
+
+      return {
+        ...currentPage,
+        settings: {
+          ...currentPage.settings,
+          shareLinks: {
+            ...currentLinks,
+            editToken:
+              accessMode === 'edit'
+                ? token
+                : currentLinks.editToken,
+            viewToken:
+              accessMode === 'view'
+                ? token
+                : currentLinks.viewToken,
+            updatedAt: now,
+          },
+        },
+      }
+    })
+  }
+
+  const ensureShareLinks = async () => {
     if (isViewOnly) return
+
+    if (pageId) {
+      if (
+        page.settings.shareLinks?.editToken &&
+        page.settings.shareLinks.viewToken
+      ) {
+        return
+      }
+
+      try {
+        const editLink = await requestServerShareLink('edit')
+        updateShareLinkToken(editLink.accessMode, editLink.token)
+
+        const viewLink = await requestServerShareLink('view')
+        updateShareLinkToken(viewLink.accessMode, viewLink.token)
+        setImportError(null)
+      } catch {
+        setImportError('Share links could not be created.')
+      }
+      return
+    }
 
     setPage((currentPage) => {
       if (currentPage.settings.shareLinks) return currentPage
@@ -1505,8 +1616,20 @@ function App({ pageId }: { pageId?: string }) {
     setOpenDialogId(nextProposal ? 'agent-suggestions' : null)
   }
 
-  const regenerateShareUrl = (accessMode: ShareAccessMode) => {
+  const regenerateShareUrl = async (accessMode: ShareAccessMode) => {
     if (isViewOnly) return
+
+    if (pageId) {
+      try {
+        const link = await requestServerShareLink(accessMode)
+        updateShareLinkToken(link.accessMode, link.token)
+        setCopiedShareMode(null)
+        setImportError(null)
+      } catch {
+        setImportError('Share link could not be regenerated.')
+      }
+      return
+    }
 
     setPage((currentPage) => {
       if (!currentPage.settings.shareLinks) return currentPage
@@ -2458,7 +2581,7 @@ function App({ pageId }: { pageId?: string }) {
           onOpenOption={(option) => {
             setCommandPaletteQuery(null)
             if (option.id === 'share') {
-              ensureShareLinks()
+              void ensureShareLinks()
               setOpenDialogId(option.id)
               return
             }

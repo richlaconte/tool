@@ -19,6 +19,19 @@ test('command palette exposes a share option and dialog controls', async () => {
   assert.match(source, /Regenerate view link/)
 })
 
+test('share dialog requests server-backed links on collaborative pages', async () => {
+  const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
+  const routeSource = await readFile(
+    new URL('../app/api/pages/[pageId]/share-links/route.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /requestServerShareLink/)
+  assert.match(source, /\/api\/pages\/\$\{page\.id\}\/share-links/)
+  assert.match(routeSource, /createShareLinkMutation/)
+  assert.match(routeSource, /headers\.append\('Set-Cookie'/)
+})
+
 test('app has explicit view-only mode affordances', async () => {
   const appSource = await readFile(
     new URL('./App.tsx', import.meta.url),

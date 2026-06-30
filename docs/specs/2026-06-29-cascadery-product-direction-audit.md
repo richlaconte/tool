@@ -122,32 +122,11 @@ Required foundations:
 
 ## Spec Audit Summary
 
-Moved completed MVP specs to `docs/specs/completed/`:
+Current spec state after the 2026-06-30 completion pass:
 
-- Area duplicate action.
-- Area resize.
-- Area toolbar delete.
-- Multi-user collaboration.
-- Nested Areas.
-- Page JSON persistence.
-- Snap grid.
-- Theme color shortcuts.
-
-Kept active:
-
-- Security and privacy baseline.
-- Share links.
-- AI and MCP agent interface.
-- Command palette completion.
-- Image support.
-- Canvas zoom.
-- Product and developer experience direction.
-
-Added foundational specs:
-
-- Area types, metadata, and links.
-- Version history and change review.
-- Interoperability and export.
+- Active foundational specs: none outstanding.
+- Completed MVP specs live in `docs/specs/completed/`.
+- Product direction docs remain at the root of `docs/specs/` as long-lived philosophy and audit references, not active implementation specs.
 
 ## Pivot Recommendation
 
@@ -162,4 +141,3 @@ After:
 > CSS-native context canvas for developers and coding agents.
 
 Use the shorter tagline in UI. Use the fuller version in README, product copy, and specs.
-

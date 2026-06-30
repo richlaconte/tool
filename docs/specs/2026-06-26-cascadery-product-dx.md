@@ -10,6 +10,8 @@ Audited on 2026-06-29. Keep this as the product philosophy spec. The refined dir
 
 The shorter UI tagline remains "CSS-native canvas for developer thinking." Product and roadmap decisions should favor implementation context, safe agent readability, document trust, and data portability over broad whiteboard parity.
 
+As of the 2026-06-30 completion pass, linked foundational tracking specs in this document are completed MVP specs unless a future spec is created for deeper polish.
+
 ## Goal
 
 Define Cascadery as a developer-native spatial workspace: a CSS-stylable canvas for implementation thinking, architecture discussion, UI exploration, and agent-readable project context.
@@ -79,8 +81,8 @@ Required follow-up capabilities:
 
 Tracking specs:
 
-- [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
-- [Interoperability and Export](2026-06-29-interoperability-and-export.md)
+- [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)
+- [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
 
 ### Visual RFC
 
@@ -96,7 +98,7 @@ Required follow-up capabilities:
 Tracking specs:
 
 - [Share Links](completed/2026-06-26-share-links.md)
-- [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
+- [Version History and Change Review](completed/2026-06-29-version-history-and-change-review.md)
 
 ### CSS-Native UI Scratchpad
 
@@ -112,7 +114,7 @@ Required follow-up capabilities:
 Tracking specs:
 
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
-- [Area Types, Metadata, and Links](2026-06-29-area-types-metadata-and-links.md)
+- [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)
 
 ### Agent Context Board
 
@@ -127,9 +129,9 @@ Required follow-up capabilities:
 
 Tracking specs:
 
-- [AI and MCP Agent Interface](2026-06-26-cascadery-ai-mcp-interface.md)
-- [Version History and Change Review](2026-06-29-version-history-and-change-review.md)
-- [Security and Privacy Baseline](2026-06-26-cascadery-security-privacy.md)
+- [AI and MCP Agent Interface](completed/2026-06-26-cascadery-ai-mcp-interface.md)
+- [Version History and Change Review](completed/2026-06-29-version-history-and-change-review.md)
+- [Security and Privacy Baseline](completed/2026-06-26-cascadery-security-privacy.md)
 
 ## Interaction Model
 

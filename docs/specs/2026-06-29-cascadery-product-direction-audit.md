@@ -122,9 +122,9 @@ Required foundations:
 
 ## Spec Audit Summary
 
-Current spec state after the 2026-06-30 completion pass:
+Current spec state after the latest planning pass:
 
-- Active foundational specs: none outstanding.
+- Active foundational specs are listed in `docs/specs/README.md`.
 - Completed MVP specs live in `docs/specs/completed/`.
 - Product direction docs remain at the root of `docs/specs/` as long-lived philosophy and audit references, not active implementation specs.
 

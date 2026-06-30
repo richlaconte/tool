@@ -9,7 +9,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-No active foundational specs are outstanding.
+- [Linked Areas Direct Manipulation UX](2026-06-30-linked-areas-direct-manipulation-ux.md)
 
 ## Completed MVP Specs
 

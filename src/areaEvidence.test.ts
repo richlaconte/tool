@@ -6,6 +6,7 @@ import {
   createAreaEvidenceReference,
   detectAreaEvidenceKind,
   findEvidenceSlashCommand,
+  findEvidenceSlashCommandCandidate,
   getAreaEvidenceLabel,
   removeAreaEvidenceSlashCommand,
   removeAreaEvidenceReference,
@@ -97,4 +98,32 @@ test('finds and removes /ref commands from area text', () => {
     text: 'Check this\n',
     caretIndex: 11,
   })
+})
+
+test('finds partial /ref commands for highlight feedback', () => {
+  const partialText = 'Evidence\n/ref '
+  const partialCommand = findEvidenceSlashCommandCandidate(
+    partialText,
+    partialText.length
+  )
+
+  assert.deepEqual(partialCommand, {
+    raw: '/ref ',
+    target: '',
+    targetIsValid: false,
+    start: 9,
+    end: 14,
+  })
+
+  const completeText = 'Evidence\n/ref https://example.com/spec'
+  assert.deepEqual(
+    findEvidenceSlashCommandCandidate(completeText, completeText.length),
+    {
+      raw: '/ref https://example.com/spec',
+      target: 'https://example.com/spec',
+      targetIsValid: true,
+      start: 9,
+      end: 38,
+    }
+  )
 })

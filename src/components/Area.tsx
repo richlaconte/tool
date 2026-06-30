@@ -17,8 +17,10 @@ import {
 import { getVisibleAreaContentHeight } from '../areaResize'
 import {
   findEvidenceSlashCommand,
+  findEvidenceSlashCommandCandidate,
   getAreaEvidenceLabel,
   type EvidenceSlashCommand,
+  type EvidenceSlashCommandCandidate,
 } from '../areaEvidence'
 import {
   findCssSlashCommand,
@@ -227,6 +229,12 @@ const Area = ({
   const gifCommandForHighlight = !isImageArea
     ? findGifSlashCommand(areaText, highlightCommandCaretIndex)
     : null
+  const evidenceCommandForHighlight = !isImageArea
+    ? findEvidenceSlashCommandCandidate(
+        areaText,
+        highlightCommandCaretIndex
+      )
+    : null
   const cssCommandForHighlight = !isImageArea
     ? findCssSlashCommand(
         areaText,
@@ -236,16 +244,20 @@ const Area = ({
     : null
   const highlightedCommand =
     gifCommandForHighlight ??
+    evidenceCommandForHighlight ??
     (cssCommandForHighlight?.propertyIsValid
       ? cssCommandForHighlight
       : null)
   const highlightedCommandIsInvalid =
-    !gifCommandForHighlight &&
     Boolean(
+      evidenceCommandForHighlight &&
+        !evidenceCommandForHighlight.targetIsValid
+    ) ||
+    (!gifCommandForHighlight &&
+      !evidenceCommandForHighlight &&
       cssCommandForHighlight &&
         cssCommandForHighlight.value.length > 0 &&
-        !cssCommandForHighlight.declarationIsValid
-    )
+        !cssCommandForHighlight.declarationIsValid)
 
   const canEditText = !isImageArea
 
@@ -823,7 +835,7 @@ const Area = ({
               data-placeholder={
                 isReadOnly
                   ? ''
-                  : 'Start typing, or use /style and /ref'
+                  : 'Start typing, /style, or /ref src/App.tsx'
               }
               role="textbox"
               suppressContentEditableWarning
@@ -1106,6 +1118,7 @@ const renderHighlightedText = (
   command:
     | Pick<CssSlashCommand, 'start' | 'end'>
     | Pick<GifSlashCommand, 'start' | 'end'>
+    | Pick<EvidenceSlashCommandCandidate, 'start' | 'end'>
     | null,
   isInvalid = false
 ): ReactNode => {

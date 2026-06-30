@@ -343,7 +343,7 @@ const COMMAND_DIALOGS: Record<
 > = {
   help: {
     title: 'Help',
-    body: 'Map implementation context. Style it with CSS. Hand it to agents safely. Areas hold notes, decisions, tasks, risks, UI states, files, images, and evidence. Use /border: 1px solid red to style an Area, /ref src/App.tsx to ground it, and the handoff brief when an agent needs focused context.',
+    body: 'Map implementation context. Style it with CSS. Hand it to agents safely. Areas hold notes, decisions, tasks, risks, UI states, files, images, and evidence. Use /border: 1px solid red to style an Area, /ref src/App.tsx, then press Enter to ground it, and the handoff brief when an agent needs focused context.',
   },
   settings: {
     title: 'Settings',

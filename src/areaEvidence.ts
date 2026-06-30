@@ -13,6 +13,10 @@ export type EvidenceSlashCommand = {
   end: number
 }
 
+export type EvidenceSlashCommandCandidate = EvidenceSlashCommand & {
+  targetIsValid: boolean
+}
+
 const EVIDENCE_COMMAND_PATTERN = /^\/ref(?:\s+(?<target>.+))?$/
 const EVIDENCE_COMMAND_IN_LINE_PATTERN = /(^|\s)(\/ref(?:\s+.*)?$)/
 
@@ -98,6 +102,31 @@ export const findEvidenceSlashCommand = (
   text: string,
   caretIndex: number
 ): EvidenceSlashCommand | null => {
+  const command = findEvidenceSlashCommandInLine(text, caretIndex)
+
+  if (!command?.target) return null
+
+  return command
+}
+
+export const findEvidenceSlashCommandCandidate = (
+  text: string,
+  caretIndex: number
+): EvidenceSlashCommandCandidate | null => {
+  const command = findEvidenceSlashCommandInLine(text, caretIndex)
+
+  if (!command) return null
+
+  return {
+    ...command,
+    targetIsValid: command.target.length > 0,
+  }
+}
+
+const findEvidenceSlashCommandInLine = (
+  text: string,
+  caretIndex: number
+): EvidenceSlashCommand | null => {
   const safeCaretIndex = Math.max(0, Math.min(caretIndex, text.length))
   const lineStart = text.lastIndexOf('\n', safeCaretIndex - 1) + 1
   const nextLineBreak = text.indexOf('\n', safeCaretIndex)
@@ -110,9 +139,10 @@ export const findEvidenceSlashCommand = (
   const slashIndex = lineStart + lineMatch.index + lineMatch[1].length
   const raw = text.slice(slashIndex, lineEnd)
   const commandMatch = EVIDENCE_COMMAND_PATTERN.exec(raw.trim())
-  const target = commandMatch?.groups?.target?.trim()
 
-  if (!target) return null
+  if (!commandMatch) return null
+
+  const target = commandMatch.groups?.target?.trim() ?? ''
 
   return {
     raw,

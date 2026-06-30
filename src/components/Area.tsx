@@ -177,12 +177,7 @@ const Area = ({
     (gifPlaybackOverride === 'pause' ||
       (gifPlaybackOverride === null && prefersReducedMotion))
   const areaText = isImageArea ? '' : area.text
-  const metadata = getAreaMetadata(area)
-  const metadataLabel =
-    metadata.kind !== 'note' || metadata.status
-      ? [metadata.kind, metadata.status].filter(Boolean).join(' / ')
-      : ''
-  const evidence = metadata.evidence ?? []
+  const evidence = getAreaMetadata(area).evidence ?? []
   const supportsThemedCssDeclaration = (
     property: string,
     value: string
@@ -640,9 +635,6 @@ const Area = ({
           isLinkTarget ? ' area--link-target' : ''
         }`}
       >
-        {metadataLabel && (
-          <span className="area-metadata-label">{metadataLabel}</span>
-        )}
         {evidence.length > 0 && (
           <EvidenceChips
             areaId={area.id}

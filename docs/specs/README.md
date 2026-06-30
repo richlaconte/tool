@@ -9,7 +9,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-No active foundational specs are outstanding.
+- [Area CSS Style Dialog](2026-06-30-area-css-style-dialog.md)
 
 ## Completed MVP Specs
 

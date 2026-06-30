@@ -8,7 +8,7 @@ The first version should be deterministic and transparent: gather typed Areas, l
 
 ## Status
 
-Created on 2026-06-29 as an active agent-context and export spec.
+Completed on 2026-06-30. The MVP includes deterministic Markdown handoff generation, missing-context warnings, copy/export UI, MCP handoff resource, and focused tests.
 
 ## Research Basis
 

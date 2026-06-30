@@ -8,7 +8,7 @@ An Area should not only say "risk: auth redirect loop." It should be able to poi
 
 ## Status
 
-Created on 2026-06-29 as an active structured-context spec.
+Completed on 2026-06-30. The MVP supports Area evidence metadata, `/ref` slash commands, evidence chips, JSON persistence, Markdown/JSON Canvas export, MCP reads, and focused tests.
 
 ## Research Basis
 

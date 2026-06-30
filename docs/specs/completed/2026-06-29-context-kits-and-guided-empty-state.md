@@ -14,7 +14,7 @@ Initial kits:
 
 ## Status
 
-Created on 2026-06-29 as an active onboarding and activation spec.
+Completed on 2026-06-30. The MVP includes static context kits, guided empty-state kit insertion, command-palette kit insertion, persistence through normal Area state, and focused tests.
 
 ## Research Basis
 

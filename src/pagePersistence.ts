@@ -1,10 +1,12 @@
 import type { AreaState, AssetState } from './App'
 import {
   isAreaKind,
+  isAreaEvidenceKind,
   isAreaLinkKind,
   isAreaStatus,
   normalizeAreaMetadata,
   type AreaLink,
+  type AreaEvidenceReference,
   type AreaMetadata,
 } from './areaMetadata.ts'
 import { clampSnapGridSize } from './snapGrid.ts'
@@ -532,6 +534,9 @@ const parseAreaMetadata = (
     return undefined
   }
 
+  const evidence = parseAreaEvidence(value.evidence)
+  if (evidence === undefined) return undefined
+
   if (!value.tags.every((tag) => typeof tag === 'string')) {
     return undefined
   }
@@ -542,7 +547,45 @@ const parseAreaMetadata = (
     tags: value.tags,
     ...(value.filePath ? { filePath: value.filePath } : {}),
     ...(value.url ? { url: value.url } : {}),
+    ...(evidence ? { evidence } : {}),
   })
+}
+
+const parseAreaEvidence = (
+  value: unknown
+): AreaEvidenceReference[] | null | undefined => {
+  if (value === undefined) return null
+  if (!Array.isArray(value)) return undefined
+
+  const evidence: AreaEvidenceReference[] = []
+
+  for (const reference of value) {
+    if (
+      !isRecord(reference) ||
+      typeof reference.id !== 'string' ||
+      !isAreaEvidenceKind(reference.kind) ||
+      typeof reference.label !== 'string' ||
+      typeof reference.target !== 'string' ||
+      typeof reference.createdAt !== 'string' ||
+      (reference.updatedAt !== undefined &&
+        typeof reference.updatedAt !== 'string')
+    ) {
+      return undefined
+    }
+
+    evidence.push({
+      id: reference.id,
+      kind: reference.kind,
+      label: reference.label,
+      target: reference.target,
+      createdAt: reference.createdAt,
+      ...(reference.updatedAt
+        ? { updatedAt: reference.updatedAt }
+        : {}),
+    })
+  }
+
+  return evidence
 }
 
 const parseAreaLinks = (value: unknown): AreaLink[] | null => {

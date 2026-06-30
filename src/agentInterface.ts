@@ -1432,6 +1432,13 @@ const toAgentAreaResource = (area: AreaState): AgentAreaResource => {
         metadata: {
           ...area.metadata,
           tags: [...area.metadata.tags],
+          ...(area.metadata.evidence
+            ? {
+                evidence: area.metadata.evidence.map((reference) => ({
+                  ...reference,
+                })),
+              }
+            : {}),
         },
       }
     : {}

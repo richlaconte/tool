@@ -49,6 +49,15 @@ const state: PageAppState = {
         status: 'decided',
         tags: ['mcp'],
         filePath: 'src/mcpGateway.ts',
+        evidence: [
+          {
+            id: 'evidence-1',
+            kind: 'file',
+            label: 'mcpGateway.ts',
+            target: 'src/mcpGateway.ts',
+            createdAt: now,
+          },
+        ],
       },
       styles: {},
       createdAt: now,
@@ -168,6 +177,7 @@ test('MCP resources list and read page context without leaking raw assets', asyn
     'cascadery://pages/page-1/areas',
     'cascadery://pages/page-1/assets',
     'cascadery://pages/page-1/markdown',
+    'cascadery://pages/page-1/handoff',
     'cascadery://pages/page-1/json-canvas',
     'cascadery://pages/page-1/agent-actions',
   ])
@@ -178,6 +188,9 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   const assets = await readJsonResource('cascadery://pages/page-1/assets')
   const markdown = await readTextResource(
     'cascadery://pages/page-1/markdown'
+  )
+  const handoff = await readTextResource(
+    'cascadery://pages/page-1/handoff'
   )
   const jsonCanvas = await readJsonResource(
     'cascadery://pages/page-1/json-canvas'
@@ -196,6 +209,15 @@ test('MCP resources list and read page context without leaking raw assets', asyn
     status: 'decided',
     tags: ['mcp'],
     filePath: 'src/mcpGateway.ts',
+    evidence: [
+      {
+        id: 'evidence-1',
+        kind: 'file',
+        label: 'mcpGateway.ts',
+        target: 'src/mcpGateway.ts',
+        createdAt: now,
+      },
+    ],
   })
   assert.deepEqual(pageResource.links, state.links)
   assert.equal(areas.areas[0].text, state.areas[0].text)
@@ -204,6 +226,9 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   assert.equal(assets.assets[0].storageKey, undefined)
   assert.match(markdown.text, /## Decisions/)
   assert.equal(markdown.mimeType, 'text/markdown')
+  assert.match(handoff.text, /# Agent Handoff:/)
+  assert.match(handoff.text, /mcpGateway\.ts/)
+  assert.equal(handoff.mimeType, 'text/markdown')
   assert.equal(jsonCanvas.nodes[0].id, 'area-1')
   assert.equal(jsonCanvas.edges[0].fromNode, 'area-1')
   assert.deepEqual(actions.actions, [])
@@ -215,6 +240,7 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   assert.doesNotMatch(serializedPageResource, /secret-binary/)
   assert.doesNotMatch(serializedAssets, /secret-binary/)
   assert.doesNotMatch(markdown.text, /secret-binary/)
+  assert.doesNotMatch(handoff.text, /secret-binary/)
   assert.doesNotMatch(JSON.stringify(jsonCanvas), /secret-binary/)
 })
 

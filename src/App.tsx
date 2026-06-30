@@ -72,6 +72,13 @@ import {
 } from './agentInterface'
 import type { CssSlashCommand } from './cssSlashCommand'
 import { removeCssSlashCommand } from './cssSlashCommand'
+import {
+  addAreaEvidenceReference,
+  createAreaEvidenceReference,
+  removeAreaEvidenceReference,
+  removeAreaEvidenceSlashCommand,
+  type EvidenceSlashCommand,
+} from './areaEvidence'
 import type { ImageSlashCommand } from './imageSupport'
 import {
   getImageFileContentValidationError,
@@ -92,6 +99,13 @@ import {
   stringifyPageState,
   type PageAppState,
 } from './pagePersistence'
+import {
+  CONTEXT_KITS,
+  getContextKitById,
+  insertContextKit,
+  type ContextKit,
+} from './contextKits'
+import { createAgentHandoffBrief } from './agentHandoff'
 import {
   exportPageAsMarkdown,
   MARKDOWN_MIME_TYPE,
@@ -217,15 +231,15 @@ const COMMAND_DIALOGS: Record<
 > = {
   help: {
     title: 'Help',
-    body: 'Click anywhere to create an Area. Type freely, or enter CSS commands like /border: 1px solid red to style the selected Area. Press Escape to leave an Area. Use Command or Control with +, -, or 0 to zoom the canvas.',
+    body: 'Map implementation context. Style it with CSS. Hand it to agents safely. Areas hold notes, decisions, tasks, risks, UI states, files, images, and evidence. Use /border: 1px solid red to style an Area, /ref src/App.tsx to ground it, and the handoff brief when an agent needs focused context.',
   },
   settings: {
     title: 'Settings',
-    body: 'Settings will live here. For now, use the command palette to discover available editor actions.',
+    body: 'Page-level canvas preferences for collaboration, identity, and editor behavior.',
   },
   'page-styles': {
     title: 'Page styles',
-    body: 'Page-wide style controls will live here, separate from per-Area /style commands.',
+    body: 'Page-wide canvas appearance, separate from per-Area CSS slash commands.',
   },
   'set-area-type': {
     title: 'Set Area type',
@@ -239,9 +253,21 @@ const COMMAND_DIALOGS: Record<
     title: 'Agent proposal',
     body: 'Review suggested agent changes before applying them to the canvas.',
   },
+  'insert-context-kit': {
+    title: 'Insert context kit',
+    body: 'Choose a starter layout for a common developer context workflow.',
+  },
+  'add-evidence': {
+    title: 'Add evidence',
+    body: 'Attach a file, URL, issue, PR, commit, command, or note to the selected Area.',
+  },
+  'agent-handoff': {
+    title: 'Agent handoff brief',
+    body: 'Copy or export a deterministic Markdown brief from this context canvas.',
+  },
   share: {
     title: 'Share',
-    body: 'Create links for people who can edit this page or only view it.',
+    body: 'Create collaboration links for this implementation context canvas.',
   },
   history: {
     title: 'History',
@@ -382,6 +408,17 @@ const createAreaLinkId = (nextId: number) => {
   }
 
   return `link-${nextId}`
+}
+
+const createEvidenceId = (nextId: number) => {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return `evidence_${crypto.randomUUID()}`
+  }
+
+  return `evidence-${nextId}`
 }
 
 const getInitialPageState = (pageId?: string): PageAppState => {
@@ -695,6 +732,7 @@ function App({
   const nextAssetId = useRef(0)
   const nextThemeColorId = useRef(0)
   const nextAreaLinkId = useRef(0)
+  const nextEvidenceId = useRef(0)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
@@ -1622,6 +1660,86 @@ function App({
     )
   }
 
+  const addEvidenceToSelectedArea = (target: string) => {
+    if (isViewOnly || !selectedAreaId) return
+
+    const trimmedTarget = target.trim()
+    if (!trimmedTarget) return
+
+    const evidence = createAreaEvidenceReference({
+      id: createEvidenceId(nextEvidenceId.current),
+      target: trimmedTarget,
+    })
+
+    nextEvidenceId.current += 1
+
+    setAreas((prev) =>
+      prev.map((area) =>
+        area.id === selectedAreaId
+          ? addAreaEvidenceReference(area, evidence)
+          : area
+      )
+    )
+    setImportError(null)
+  }
+
+  const requestEvidenceForSelectedArea = () => {
+    if (isViewOnly || !selectedAreaId) return
+
+    const target = window.prompt('Evidence reference')
+    if (target === null) return
+
+    addEvidenceToSelectedArea(target)
+  }
+
+  const commitAreaEvidenceCommand = (
+    id: string,
+    command: EvidenceSlashCommand
+  ) => {
+    if (isViewOnly) return
+
+    const evidence = createAreaEvidenceReference({
+      id: createEvidenceId(nextEvidenceId.current),
+      target: command.target,
+    })
+
+    nextEvidenceId.current += 1
+
+    setAreas((prev) =>
+      prev.map((area) => {
+        if (area.id !== id || area.type === 'image') return area
+
+        const result = removeAreaEvidenceSlashCommand(
+          area.text,
+          command
+        )
+
+        return addAreaEvidenceReference(
+          {
+            ...area,
+            text: result.text,
+          },
+          evidence
+        )
+      })
+    )
+  }
+
+  const removeEvidenceFromArea = (
+    areaId: string,
+    evidenceId: string
+  ) => {
+    if (isViewOnly) return
+
+    setAreas((prev) =>
+      prev.map((area) =>
+        area.id === areaId
+          ? removeAreaEvidenceReference(area, evidenceId)
+          : area
+      )
+    )
+  }
+
   const createSelectedAreaLink = () => {
     if (isViewOnly || !selectedAreaId) return
 
@@ -2465,6 +2583,65 @@ function App({
     })
   }
 
+  const exportAgentHandoffBrief = () => {
+    downloadPageFile({
+      contents: createAgentHandoffBrief(getCurrentPageAppState()).markdown,
+      extension: 'handoff.md',
+      mimeType: MARKDOWN_MIME_TYPE,
+    })
+  }
+
+  const copyAgentHandoffBrief = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        createAgentHandoffBrief(getCurrentPageAppState()).markdown
+      )
+      setImportError(null)
+    } catch {
+      setImportError('Handoff brief could not be copied.')
+    }
+  }
+
+  const insertContextKitById = (kitId: string) => {
+    if (isViewOnly) return
+
+    const kit = getContextKitById(kitId)
+    if (!kit) return
+
+    const areaIdStart = nextAreaId.current
+    const linkIdStart = nextAreaLinkId.current
+    const shouldCenterKit = areas.length > 0
+    const center = shouldCenterKit
+      ? getViewportCenterPoint(canvasZoom)
+      : { x: 0, y: 0 }
+    const nextState = insertContextKit(
+      {
+        areas,
+        assets,
+        links,
+        page,
+      },
+      kit,
+      {
+        createAreaId: (index) => createAreaId(areaIdStart + index),
+        createLinkId: (index) => createAreaLinkId(linkIdStart + index),
+        offsetX: shouldCenterKit ? center.x - 260 : 0,
+        offsetY: shouldCenterKit ? center.y - 160 : 0,
+      }
+    )
+
+    nextAreaId.current += kit.areas.length
+    nextAreaLinkId.current += kit.links?.length ?? 0
+    setAreas(nextState.areas)
+    setAssets(nextState.assets)
+    setLinks(nextState.links ?? [])
+    setSelectedAreaId(nextState.selectedAreaId)
+    setAutoFocusAreaId(nextState.selectedAreaId)
+    setHasClickedCanvas(true)
+    setOpenDialogId(null)
+    setImportError(null)
+  }
+
   const importPageJson = async (e: ChangeEvent<HTMLInputElement>) => {
     if (isViewOnly) return
 
@@ -2682,6 +2859,12 @@ function App({
   const selectedAreaMetadata = selectedArea
     ? getAreaMetadata(selectedArea)
     : null
+  const agentHandoffBrief = createAgentHandoffBrief({
+    areas,
+    assets,
+    links,
+    page,
+  })
   const linkTargetAreas = selectedAreaId
     ? areas.filter((area) => area.id !== selectedAreaId)
     : []
@@ -2711,6 +2894,8 @@ function App({
         onResize={resizeAreaById}
         onCommitCssCommand={commitAreaCssCommand}
         onCommitImageCommand={commitAreaImageCommand}
+        onCommitEvidenceCommand={commitAreaEvidenceCommand}
+        onRemoveEvidence={removeEvidenceFromArea}
         onReplaceImage={replaceImageById}
         onChangeImageAlt={updateImageAlt}
         onDeselect={() => setSelectedAreaId(null)}
@@ -2873,7 +3058,22 @@ function App({
 
       {shouldShowEditorChrome && !hasClickedCanvas && areas.length === 0 && (
         <div className="canvas-hint">
-          <span>Click anywhere to begin.</span>
+          <strong>Map implementation context.</strong>
+          <span>Click anywhere to start, or choose a context kit.</span>
+          <div className="context-kit-buttons" aria-label="Context kits">
+            {CONTEXT_KITS.map((kit) => (
+              <button
+                className="context-kit-button"
+                key={kit.id}
+                type="button"
+                onClick={() => insertContextKitById(kit.id)}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <span>{kit.title}</span>
+                <small>{kit.description}</small>
+              </button>
+            ))}
+          </div>
           <span>
             Press <kbd>esc</kbd> or start typing for options and settings.
           </span>
@@ -3036,6 +3236,14 @@ function App({
               imageInputRef.current?.click()
               return
             }
+            if (option.id === 'insert-context-kit') {
+              setOpenDialogId(option.id)
+              return
+            }
+            if (option.id === 'agent-handoff') {
+              setOpenDialogId(option.id)
+              return
+            }
             if (option.id === 'zoom-in') {
               zoomCanvasByDirection(1)
               return
@@ -3058,10 +3266,16 @@ function App({
             }
             if (
               option.id === 'set-area-type' ||
-              option.id === 'link-selected-area'
+              option.id === 'link-selected-area' ||
+              option.id === 'add-evidence'
             ) {
               if (!selectedAreaId) {
                 setImportError('Select an Area first.')
+                return
+              }
+
+              if (option.id === 'add-evidence') {
+                requestEvidenceForSelectedArea()
                 return
               }
 
@@ -3106,8 +3320,8 @@ function App({
               {openDialogId === 'share' ? (
                 <div className="share-link-controls">
                 <p>
-                  Anyone with an edit link can change this page. View-only
-                  links open a clean read mode.
+                  Anyone with an edit link can change this context canvas.
+                  View-only links open a clean read mode.
                 </p>
                 {page.settings.shareLinks ? (
                   <>
@@ -3373,6 +3587,44 @@ function App({
                   <p>No recent changes yet.</p>
                 )}
               </div>
+            ) : openDialogId === 'insert-context-kit' ? (
+              <ContextKitPicker
+                kits={CONTEXT_KITS}
+                onInsert={insertContextKitById}
+              />
+            ) : openDialogId === 'agent-handoff' ? (
+              <div className="agent-handoff-dialog">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {agentHandoffBrief.warnings.length > 0 && (
+                  <div className="agent-handoff-warnings">
+                    <strong>Warnings</strong>
+                    <ul>
+                      {agentHandoffBrief.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <pre className="agent-handoff-preview">
+                  {agentHandoffBrief.markdown}
+                </pre>
+                <div className="agent-handoff-actions">
+                  <button
+                    className="agent-proposal-button"
+                    type="button"
+                    onClick={copyAgentHandoffBrief}
+                  >
+                    Copy Markdown
+                  </button>
+                  <button
+                    className="agent-proposal-button agent-proposal-button--secondary"
+                    type="button"
+                    onClick={exportAgentHandoffBrief}
+                  >
+                    Export Markdown
+                  </button>
+                </div>
+              </div>
             ) : openDialogId === 'settings' ? (
               <div className="settings-controls">
                 <p>
@@ -3587,6 +3839,31 @@ function App({
     </div>
   )
 }
+
+const ContextKitPicker = ({
+  kits,
+  onInsert,
+}: {
+  kits: ContextKit[]
+  onInsert: (kitId: string) => void
+}) => (
+  <div className="context-kit-picker">
+    <p>Start with a compact map for the work in front of you.</p>
+    <div className="context-kit-picker-list">
+      {kits.map((kit) => (
+        <button
+          className="context-kit-picker-button"
+          key={kit.id}
+          type="button"
+          onClick={() => onInsert(kit.id)}
+        >
+          <span>{kit.title}</span>
+          <small>{kit.description}</small>
+        </button>
+      ))}
+    </div>
+  </div>
+)
 
 const ShareLinkRow = ({
   accessMode,

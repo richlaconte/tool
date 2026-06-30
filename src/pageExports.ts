@@ -165,6 +165,14 @@ const renderAreaMarkdown = (
   }
   if (metadata.filePath) lines.push(`File: \`${metadata.filePath}\``)
   if (metadata.url) lines.push(`URL: ${metadata.url}`)
+  if ((metadata.evidence ?? []).length > 0) {
+    lines.push('Evidence:')
+    for (const evidence of metadata.evidence ?? []) {
+      lines.push(
+        `- ${evidence.kind}: ${evidence.label} (\`${evidence.target}\`)`
+      )
+    }
+  }
 
   if (area.type === 'image') {
     lines.push(`Asset: \`${area.assetId}\``)

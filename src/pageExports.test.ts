@@ -55,6 +55,15 @@ const state: PageAppState = {
         status: 'decided',
         tags: ['collaboration'],
         filePath: 'src/server/collaborationServer.ts',
+        evidence: [
+          {
+            id: 'evidence-1',
+            kind: 'command',
+            label: 'pnpm test',
+            target: 'pnpm test',
+            createdAt: now,
+          },
+        ],
       },
       styles: {
         border: '1px solid #2563eb',
@@ -145,6 +154,8 @@ test('Markdown export groups typed Areas and preserves text', () => {
   assert.match(markdown, /Status: decided/)
   assert.match(markdown, /Tags: collaboration/)
   assert.match(markdown, /File: `src\/server\/collaborationServer\.ts`/)
+  assert.match(markdown, /Evidence:/)
+  assert.match(markdown, /- command: pnpm test \(`pnpm test`\)/)
   assert.match(markdown, /Use WebSockets\nfor shared editing\./)
   assert.match(markdown, /## Tasks\n\n### Add Markdown export/)
   assert.match(markdown, /URL: https:\/\/example\.com\/export/)
@@ -182,6 +193,15 @@ test('JSON Canvas export maps Areas and links without leaking raw assets', () =>
         status: 'decided',
         tags: ['collaboration'],
         filePath: 'src/server/collaborationServer.ts',
+        evidence: [
+          {
+            id: 'evidence-1',
+            kind: 'command',
+            label: 'pnpm test',
+            target: 'pnpm test',
+            createdAt: now,
+          },
+        ],
       },
       styles: {
         border: '1px solid #2563eb',

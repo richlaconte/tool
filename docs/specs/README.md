@@ -9,17 +9,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-- [Brand Positioning and Narrative System](2026-06-29-brand-positioning-and-narrative.md)
-- [Context Kits and Guided Empty State](2026-06-29-context-kits-and-guided-empty-state.md)
-- [Evidence Anchors and Code References](2026-06-29-evidence-anchors-and-code-references.md)
-- [Agent Handoff Briefs](2026-06-29-agent-handoff-briefs.md)
-
-Recommended implementation order:
-
-1. Brand Positioning and Narrative System.
-2. Context Kits and Guided Empty State.
-3. Evidence Anchors and Code References.
-4. Agent Handoff Briefs.
+No active foundational specs are outstanding.
 
 ## Completed MVP Specs
 
@@ -30,8 +20,12 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Area Toolbar Delete](completed/2026-06-26-area-toolbar-delete.md)
 - [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)
 - [AI and MCP Agent Interface](completed/2026-06-26-cascadery-ai-mcp-interface.md)
+- [Agent Handoff Briefs](completed/2026-06-29-agent-handoff-briefs.md)
+- [Brand Positioning and Narrative System](completed/2026-06-29-brand-positioning-and-narrative.md)
 - [Canvas Zoom](completed/2026-06-26-canvas-zoom.md)
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
+- [Context Kits and Guided Empty State](completed/2026-06-29-context-kits-and-guided-empty-state.md)
+- [Evidence Anchors and Code References](completed/2026-06-29-evidence-anchors-and-code-references.md)
 - [Image Support](completed/2026-06-26-image-support.md)
 - [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)

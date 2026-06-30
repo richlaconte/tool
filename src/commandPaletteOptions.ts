@@ -52,6 +52,20 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'insert-context-kit',
+    title: 'Insert context kit',
+    description: 'Start from a developer workflow kit',
+    aliases: ['template', 'starter', 'kit', 'implementation map'],
+    scope: 'page',
+  },
+  {
+    id: 'agent-handoff',
+    title: 'Create agent handoff brief',
+    description: 'Preview and copy a structured Markdown brief',
+    aliases: ['handoff', 'brief', 'agent brief', 'copy markdown'],
+    scope: 'page',
+  },
+  {
     id: 'set-area-type',
     title: 'Set Area type',
     description: 'Choose metadata for the selected Area',
@@ -63,6 +77,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     title: 'Link selected Area',
     description: 'Connect the selected Area to another Area',
     aliases: ['link area', 'relationship', 'connect', 'reference'],
+    scope: 'area',
+  },
+  {
+    id: 'add-evidence',
+    title: 'Add evidence to selected Area',
+    description: 'Attach a file, URL, issue, PR, commit, or command reference',
+    aliases: ['ref', 'reference', 'anchor', 'file reference', 'evidence'],
     scope: 'area',
   },
   {

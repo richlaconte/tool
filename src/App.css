@@ -130,7 +130,8 @@
   top: 50%;
   z-index: 1;
   display: grid;
-  gap: 4px;
+  width: min(720px, calc(100vw - 40px));
+  gap: 10px;
   color: #9ca3af;
   font: 15px/1.4 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -138,6 +139,12 @@
   text-align: center;
   transform: translate(-50%, -50%);
   user-select: none;
+}
+
+.canvas-hint strong {
+  color: #8b95a1;
+  font-size: 17px;
+  line-height: 1.25;
 }
 
 .canvas-hint kbd {
@@ -148,6 +155,60 @@
   font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 2px 5px;
+}
+
+.context-kit-buttons,
+.context-kit-picker-list {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.context-kit-button,
+.context-kit-picker-button {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  border: 1px solid rgb(148 163 184 / 30%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 82%);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 7%);
+  color: #374151;
+  cursor: pointer;
+  font: 12px/1.25 ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 8px;
+  text-align: left;
+  user-select: none;
+}
+
+.context-kit-button span,
+.context-kit-picker-button span {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-kit-button small,
+.context-kit-picker-button small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.context-kit-button:hover,
+.context-kit-button:focus-visible,
+.context-kit-picker-button:hover,
+.context-kit-picker-button:focus-visible {
+  border-color: rgb(37 99 235 / 30%);
+  background: #ffffff;
+  outline: 2px solid rgb(37 99 235 / 16%);
+  outline-offset: 2px;
 }
 
 .site-brand {
@@ -828,6 +889,66 @@ button.mcp-status-badge:focus-visible {
   display: grid;
   gap: 12px;
   margin: 0 0 18px;
+}
+
+.context-kit-picker,
+.agent-handoff-dialog {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.context-kit-picker p,
+.agent-handoff-dialog p {
+  margin: 0;
+}
+
+.context-kit-picker-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.context-kit-picker-button {
+  min-height: 72px;
+}
+
+.agent-handoff-warnings {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgb(245 158 11 / 30%);
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #92400e;
+  padding: 9px 10px;
+}
+
+.agent-handoff-warnings strong {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.agent-handoff-warnings ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.agent-handoff-preview {
+  max-height: min(44vh, 420px);
+  overflow: auto;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1f2937;
+  font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+  padding: 10px;
+  white-space: pre-wrap;
+}
+
+.agent-handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .history-dialog p {

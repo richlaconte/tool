@@ -10,7 +10,7 @@ The current product direction is strong, but the visible product language can st
 
 ## Status
 
-Created on 2026-06-29 as an active brand-positioning and product-surface spec.
+Completed on 2026-06-30. The MVP narrative is reflected in README copy, app empty/help/share surfaces, command palette entries, and source-level tests.
 
 ## Research Basis
 

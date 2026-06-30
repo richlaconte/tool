@@ -602,6 +602,9 @@ const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {
       ? { filePath: metadata.filePath }
       : {}),
     ...(typeof metadata.url === 'string' ? { url: metadata.url } : {}),
+    ...(Array.isArray(metadata.evidence)
+      ? { evidence: metadata.evidence as AreaMetadata['evidence'] }
+      : {}),
   })
 }
 

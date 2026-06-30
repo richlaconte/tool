@@ -21,6 +21,7 @@ import {
   type AgentClient,
   type AgentPatch,
 } from './agentInterface.ts'
+import { createAgentHandoffBrief } from './agentHandoff.ts'
 import {
   exportPageAsJsonCanvas,
   exportPageAsMarkdown,
@@ -879,6 +880,15 @@ const readResource = async (
     )
   }
 
+  if (parsedResource.kind === 'handoff') {
+    return resourceResponse(
+      id,
+      params.uri,
+      createAgentHandoffBrief(state).markdown,
+      MARKDOWN_MIME_TYPE
+    )
+  }
+
   if (parsedResource.kind === 'json-canvas') {
     return resourceResponse(
       id,
@@ -936,6 +946,12 @@ const createResourceDefinitions = (
       mimeType: MARKDOWN_MIME_TYPE,
     },
     {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/handoff`,
+      name: `${state.page.title} agent handoff`,
+      description: 'Structured agent handoff brief for this Cascadery page.',
+      mimeType: MARKDOWN_MIME_TYPE,
+    },
+    {
       uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/json-canvas`,
       name: `${state.page.title} JSON Canvas export`,
       description: 'JSON Canvas export for this Cascadery page.',
@@ -958,6 +974,7 @@ const parsePageResourceUri = (uri: string):
         | 'areas'
         | 'assets'
         | 'markdown'
+        | 'handoff'
         | 'json-canvas'
         | 'agent-actions'
     }
@@ -980,6 +997,7 @@ const parsePageResourceUri = (uri: string):
     suffix !== 'areas' &&
     suffix !== 'assets' &&
     suffix !== 'markdown' &&
+    suffix !== 'handoff' &&
     suffix !== 'json-canvas' &&
     suffix !== 'agent-actions'
   ) {

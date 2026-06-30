@@ -76,6 +76,15 @@ const areaMetadata = {
   tags: ['architecture', 'agent'],
   filePath: 'src/App.tsx',
   url: 'https://example.com/decision',
+  evidence: [
+    {
+      id: 'evidence-1',
+      kind: 'file' as const,
+      label: 'App.tsx',
+      target: 'src/App.tsx',
+      createdAt: now,
+    },
+  ],
 }
 const areaLink = {
   id: 'link-1',

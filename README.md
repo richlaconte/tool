@@ -1,8 +1,20 @@
 # Cascadery
 
-Cascadery is a CSS-native canvas for developer thinking.
+Cascadery is a CSS-native context canvas for developers and coding agents.
 
 It is a collaborative spatial workspace where implementation context lives as movable Areas: notes, sketches, decisions, risks, tasks, UI states, files, images, and architecture fragments. Cascadery assumes its users are comfortable with the web platform: an Area can be styled directly with CSS slash commands, arranged spatially, nested inside other Areas, shared with collaborators, and read or updated by AI agents through controlled, reviewable MCP workflows.
+
+## Who this is for
+
+- Developers planning features, refactors, bug hunts, UI states, and agent handoffs.
+- Teams that need implementation context to stay visible, spatial, portable, and reviewable.
+- People who prefer CSS-native controls over hidden visual inspectors.
+
+## What it is not
+
+- A generic meeting whiteboard.
+- A general-purpose notes app.
+- A replacement for Figma, Miro, Linear, GitHub, or a coding agent.
 
 ## Product Direction
 

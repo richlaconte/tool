@@ -9,8 +9,16 @@ import type { ReactNode } from 'react'
 
 import type { AreaState, AssetState } from '../App'
 import { getAreaShellZIndex } from '../areaLayering'
-import { getAreaMetadata } from '../areaMetadata'
+import {
+  getAreaMetadata,
+  type AreaEvidenceReference,
+} from '../areaMetadata'
 import { getVisibleAreaContentHeight } from '../areaResize'
+import {
+  findEvidenceSlashCommand,
+  getAreaEvidenceLabel,
+  type EvidenceSlashCommand,
+} from '../areaEvidence'
 import {
   findCssSlashCommand,
   type CssSlashCommand,
@@ -59,6 +67,11 @@ type AreaProps = {
     id: string,
     command: ImageSlashCommand
   ) => void
+  onCommitEvidenceCommand: (
+    id: string,
+    command: EvidenceSlashCommand
+  ) => void
+  onRemoveEvidence: (id: string, evidenceId: string) => void
   onReplaceImage: (id: string) => void
   onChangeImageAlt: (id: string, alt: string) => void
   onDeselect: () => void
@@ -82,6 +95,8 @@ const Area = ({
   onResize,
   onCommitCssCommand,
   onCommitImageCommand,
+  onCommitEvidenceCommand,
+  onRemoveEvidence,
   onReplaceImage,
   onChangeImageAlt,
   onDeselect,
@@ -114,6 +129,7 @@ const Area = ({
     metadata.kind !== 'note' || metadata.status
       ? [metadata.kind, metadata.status].filter(Boolean).join(' / ')
       : ''
+  const evidence = metadata.evidence ?? []
   const supportsThemedCssDeclaration = (
     property: string,
     value: string
@@ -129,8 +145,16 @@ const Area = ({
     isSelected && !isReadOnly && !isImageArea
       ? findImageSlashCommand(areaText, caretIndex)
       : null
-  const activeCommand =
+  const activeEvidenceCommand =
     isSelected && !isReadOnly && !isImageArea && !activeImageCommand
+      ? findEvidenceSlashCommand(areaText, caretIndex)
+      : null
+  const activeCommand =
+    isSelected &&
+    !isReadOnly &&
+    !isImageArea &&
+    !activeImageCommand &&
+    !activeEvidenceCommand
       ? findCssSlashCommand(
           areaText,
           caretIndex,
@@ -371,6 +395,12 @@ const Area = ({
       return
     }
 
+    if (e.key === 'Enter' && activeEvidenceCommand) {
+      e.preventDefault()
+      onCommitEvidenceCommand(area.id, activeEvidenceCommand)
+      return
+    }
+
     if (e.key !== 'Enter' || !activeCommand?.propertyIsValid) {
       return
     }
@@ -417,6 +447,15 @@ const Area = ({
       >
         {metadataLabel && (
           <span className="area-metadata-label">{metadataLabel}</span>
+        )}
+        {evidence.length > 0 && (
+          <EvidenceChips
+            areaId={area.id}
+            evidence={evidence}
+            isReadOnly={isReadOnly}
+            isSelected={isSelected}
+            onRemoveEvidence={onRemoveEvidence}
+          />
         )}
         {!isReadOnly && (
           <>
@@ -542,7 +581,9 @@ const Area = ({
               className="area-editable"
               contentEditable={isReadOnly ? false : 'plaintext-only'}
               data-placeholder={
-                isReadOnly ? '' : 'Type here, or use / to style'
+                isReadOnly
+                  ? ''
+                  : 'Start typing, or use /style and /ref'
               }
               role="textbox"
               suppressContentEditableWarning
@@ -564,6 +605,66 @@ const Area = ({
     </div>
   )
 }
+
+const EvidenceChips = ({
+  areaId,
+  evidence,
+  isReadOnly,
+  isSelected,
+  onRemoveEvidence,
+}: {
+  areaId: string
+  evidence: AreaEvidenceReference[]
+  isReadOnly: boolean
+  isSelected: boolean
+  onRemoveEvidence: (areaId: string, evidenceId: string) => void
+}) => (
+  <div className="area-evidence" aria-label="Area evidence">
+    {evidence.map((reference) => (
+      <span className="area-evidence-chip" key={reference.id}>
+        {reference.kind === 'url' ? (
+          <a
+            href={reference.target}
+            rel="noreferrer"
+            target="_blank"
+            title={reference.target}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {getAreaEvidenceLabel(reference)}
+          </a>
+        ) : (
+          <button
+            type="button"
+            title={reference.target}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void navigator.clipboard?.writeText(reference.target)
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {getAreaEvidenceLabel(reference)}
+          </button>
+        )}
+        {!isReadOnly && isSelected && (
+          <button
+            aria-label={`Remove evidence ${getAreaEvidenceLabel(reference)}`}
+            className="area-evidence-remove"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onRemoveEvidence(areaId, reference.id)
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            x
+          </button>
+        )}
+      </span>
+    ))}
+  </div>
+)
 
 const GripIcon = () => (
   <svg

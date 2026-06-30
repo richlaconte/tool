@@ -27,9 +27,31 @@ export const AREA_LINK_KINDS = [
   'references',
 ] as const
 
+export const AREA_EVIDENCE_KINDS = [
+  'file',
+  'symbol',
+  'url',
+  'issue',
+  'pull-request',
+  'commit',
+  'command',
+  'asset',
+  'note',
+] as const
+
 export type AreaKind = (typeof AREA_KINDS)[number]
 export type AreaStatus = (typeof AREA_STATUSES)[number]
 export type AreaLinkKind = (typeof AREA_LINK_KINDS)[number]
+export type AreaEvidenceKind = (typeof AREA_EVIDENCE_KINDS)[number]
+
+export type AreaEvidenceReference = {
+  id: string
+  kind: AreaEvidenceKind
+  label: string
+  target: string
+  createdAt: string
+  updatedAt?: string
+}
 
 export type AreaMetadata = {
   kind: AreaKind
@@ -37,6 +59,7 @@ export type AreaMetadata = {
   tags: string[]
   filePath?: string
   url?: string
+  evidence?: AreaEvidenceReference[]
 }
 
 type AreaWithMetadata = {
@@ -121,6 +144,9 @@ export const normalizeAreaMetadata = (
   ...(typeof metadata?.url === 'string' && metadata.url.trim()
     ? { url: metadata.url.trim() }
     : {}),
+  ...(Array.isArray(metadata?.evidence)
+    ? { evidence: normalizeEvidence(metadata.evidence) }
+    : {}),
 })
 
 export const isAreaKind = (value: unknown): value is AreaKind =>
@@ -135,6 +161,12 @@ export const isAreaLinkKind = (value: unknown): value is AreaLinkKind =>
   typeof value === 'string' &&
   AREA_LINK_KINDS.includes(value as AreaLinkKind)
 
+export const isAreaEvidenceKind = (
+  value: unknown
+): value is AreaEvidenceKind =>
+  typeof value === 'string' &&
+  AREA_EVIDENCE_KINDS.includes(value as AreaEvidenceKind)
+
 const normalizeTags = (tags: unknown) => {
   if (!Array.isArray(tags)) return []
 
@@ -147,3 +179,32 @@ const normalizeTags = (tags: unknown) => {
     )
   )
 }
+
+const normalizeEvidence = (evidence: unknown[]) =>
+  evidence
+    .filter((reference): reference is AreaEvidenceReference => {
+      if (typeof reference !== 'object' || reference === null) {
+        return false
+      }
+
+      const candidate = reference as Partial<AreaEvidenceReference>
+
+      return (
+        typeof candidate.id === 'string' &&
+        isAreaEvidenceKind(candidate.kind) &&
+        typeof candidate.label === 'string' &&
+        typeof candidate.target === 'string' &&
+        typeof candidate.createdAt === 'string' &&
+        (candidate.updatedAt === undefined ||
+          typeof candidate.updatedAt === 'string')
+      )
+    })
+    .map((reference) => ({
+      id: reference.id,
+      kind: reference.kind,
+      label: reference.label.trim() || reference.target.trim(),
+      target: reference.target.trim(),
+      createdAt: reference.createdAt,
+      ...(reference.updatedAt ? { updatedAt: reference.updatedAt } : {}),
+    }))
+    .filter((reference) => reference.target)

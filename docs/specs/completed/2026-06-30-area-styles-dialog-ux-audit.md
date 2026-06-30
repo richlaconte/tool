@@ -1,7 +1,7 @@
 # Area Styles Dialog UX Audit and Simplification Spec
 
 Created: 2026-06-30
-Status: Active foundational spec
+Status: Completed MVP spec
 
 ## Problem
 

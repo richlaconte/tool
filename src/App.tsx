@@ -1021,7 +1021,7 @@ function App({
     label: string | null
     pageId: string
   } | null>(null)
-  const [hasClickedCanvas, setHasClickedCanvas] = useState(false)
+  const [, setHasClickedCanvas] = useState(false)
   const [themeColorName, setThemeColorName] = useState('')
   const [themeColorToken, setThemeColorToken] = useState('')
   const [themeColorValue, setThemeColorValue] =
@@ -1479,7 +1479,11 @@ function App({
       selectedLinkId &&
       !links.some((link) => link.id === selectedLinkId)
     ) {
-      setSelectedLinkId(null)
+      const timeout = window.setTimeout(() => {
+        setSelectedLinkId(null)
+      }, 0)
+
+      return () => window.clearTimeout(timeout)
     }
   }, [links, selectedLinkId])
 
@@ -1511,12 +1515,15 @@ function App({
 
   useEffect(() => {
     if (!activeGifCommand || isViewOnly) {
-      setGifSearchState({
-        status: 'idle',
-        results: [],
-        selectedIndex: 0,
-      })
-      return
+      const timeout = window.setTimeout(() => {
+        setGifSearchState({
+          status: 'idle',
+          results: [],
+          selectedIndex: 0,
+        })
+      }, 0)
+
+      return () => window.clearTimeout(timeout)
     }
 
     const controller = new AbortController()

@@ -9,7 +9,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-- [Area Styles Dialog UX Audit and Simplification](2026-06-30-area-styles-dialog-ux-audit.md)
+No active foundational specs are outstanding.
 
 ## Completed MVP Specs
 
@@ -18,6 +18,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Area Duplicate Action](completed/2026-06-26-area-duplicate-action.md)
 - [Area Resize](completed/2026-06-26-area-resize.md)
 - [Area CSS Style Dialog](completed/2026-06-30-area-css-style-dialog.md)
+- [Area Styles Dialog UX Audit and Simplification](completed/2026-06-30-area-styles-dialog-ux-audit.md)
 - [Area Connector System](completed/2026-06-30-area-connector-system.md)
 - [Area Toolbar Delete](completed/2026-06-26-area-toolbar-delete.md)
 - [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)

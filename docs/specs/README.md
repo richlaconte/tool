@@ -12,6 +12,7 @@ This directory is split between active foundational specs and completed MVP spec
 - [Area Connector System](2026-06-30-area-connector-system.md)
 - [Cascadery Brand Leave Confirmation](2026-06-30-brand-leave-confirmation.md)
 - [Empty State Zoom Options](2026-06-30-empty-state-zoom-options.md)
+- [GIF Search and Insertion](2026-06-30-gif-search-insertion.md)
 - [Sprint Retro Context Kit](2026-06-30-sprint-retro-context-kit.md)
 
 ## Completed MVP Specs

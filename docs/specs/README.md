@@ -9,7 +9,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-No active foundational specs are outstanding.
+- [Area Styles Dialog UX Audit and Simplification](2026-06-30-area-styles-dialog-ux-audit.md)
 
 ## Completed MVP Specs
 

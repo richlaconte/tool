@@ -650,7 +650,6 @@ const Area = ({
                 aria-label={`Start connector from ${side} edge`}
                 className={`area-link-zone area-link-zone--${side}`}
                 key={side}
-                title="Connect"
                 onPointerCancel={handleLinkZonePointerCancel}
                 onPointerDown={handleLinkZonePointerDown(side)}
                 onPointerMove={handleLinkZonePointerMove}
@@ -661,7 +660,6 @@ const Area = ({
             <div
               aria-label="Move area"
               className="draggy"
-              title="Move"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerEnd}
@@ -676,7 +674,6 @@ const Area = ({
                   <button
                     aria-label="Replace image"
                     className="area-action-button"
-                    title="Replace image"
                     type="button"
                     onClick={(e) => {
                       e.preventDefault()
@@ -692,7 +689,6 @@ const Area = ({
                   <button
                     aria-label="Edit image alt text"
                     className="area-action-button"
-                    title="Edit alt text"
                     type="button"
                     onClick={(e) => {
                       e.preventDefault()
@@ -710,7 +706,6 @@ const Area = ({
               <button
                 aria-label="Open Area styles"
                 className="area-action-button"
-                title="Area styles"
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()
@@ -726,7 +721,6 @@ const Area = ({
               <button
                 aria-label="Connect area"
                 className="area-action-button"
-                title="Connect"
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()
@@ -742,7 +736,6 @@ const Area = ({
               <button
                 aria-label="Duplicate area"
                 className="area-action-button"
-                title="Duplicate"
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()
@@ -758,7 +751,6 @@ const Area = ({
               <button
                 aria-label="Delete area"
                 className="area-action-button area-action-button--danger"
-                title="Delete"
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()
@@ -776,7 +768,6 @@ const Area = ({
             <div
               aria-label="Resize area"
               className="area-resize-handle"
-              title="Resize"
               onPointerDown={handleResizePointerDown}
               onPointerMove={handleResizePointerMove}
               onPointerUp={handleResizePointerEnd}

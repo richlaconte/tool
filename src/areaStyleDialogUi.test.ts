@@ -10,7 +10,6 @@ test('area toolbar exposes an Area styles action', async () => {
 
   assert.match(source, /onOpenStyles/)
   assert.match(source, /aria-label="Open Area styles"/)
-  assert.match(source, /title="Area styles"/)
   assert.match(source, /<StyleSlidersIcon \/>/)
 })
 

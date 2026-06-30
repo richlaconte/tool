@@ -43,6 +43,25 @@ test('app renders area metadata controls and connector lines', async () => {
   assert.match(css, /\.area-link-line--selected/)
 })
 
+test('selected connector exposes explicit edit controls instead of auto-opening the flyout', async () => {
+  const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('./App.css', import.meta.url), 'utf8')
+
+  assert.match(source, /linkFlyoutLinkId/)
+  assert.match(source, /area-link-edit-button/)
+  assert.match(source, /aria-label="Edit connector"/)
+  assert.match(source, /aria-label="Close connector menu"/)
+  const flyoutIndex = source.indexOf('className="area-link-flyout"')
+  const flyoutGuard = source.slice(Math.max(0, flyoutIndex - 500), flyoutIndex)
+
+  assert.notEqual(flyoutIndex, -1)
+  assert.match(flyoutGuard, /linkFlyoutLinkId === selectedLink\.id/)
+  assert.match(flyoutGuard, /openDialogId === null/)
+  assert.match(css, /\.area-link-edit-button/)
+  assert.match(css, /\.area-link-flyout-header/)
+  assert.match(css, /\.area-link-flyout-close/)
+})
+
 test('app renders nesting preview states for child Area drops', async () => {
   const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
   const areaSource = await readFile(

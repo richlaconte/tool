@@ -50,6 +50,7 @@ type AreaProps = {
   isUnnestingSource: boolean
   isLinkTarget: boolean
   isReadOnly: boolean
+  nestingDepth: number
   canvasZoom: number
   onSelect: (id: string) => void
   onTextChange: (id: string, text: string) => void
@@ -115,6 +116,7 @@ const Area = ({
   isUnnestingSource,
   isLinkTarget,
   isReadOnly,
+  nestingDepth,
   canvasZoom,
   onSelect,
   onTextChange,
@@ -609,7 +611,7 @@ const Area = ({
         top: area.y,
         height: area.height,
         width: area.width,
-        zIndex: getAreaShellZIndex(isSelected),
+        zIndex: getAreaShellZIndex(isSelected, nestingDepth),
       }}
       onPointerDown={(e) => {
         e.stopPropagation()

@@ -119,6 +119,7 @@ import {
   getAreaAbsolutePosition,
   getAreaAbsoluteRect,
   getChildAreas,
+  getAreaDepth,
   getUnnestingSourceId,
   getRootAreas,
   nestAreaIfContained,
@@ -1101,6 +1102,9 @@ function App({
   const [selectedLinkId, setSelectedLinkId] = useState<
     string | null
   >(null)
+  const [linkFlyoutLinkId, setLinkFlyoutLinkId] = useState<
+    string | null
+  >(null)
   const [nestTargetAreaId, setNestTargetAreaId] = useState('')
   const [nestingPreview, setNestingPreview] =
     useState<NestingPreviewState>({
@@ -1241,6 +1245,7 @@ function App({
       setCommandPaletteQuery(null)
       setOpenDialogId(null)
       setStyleDialogAreaId(null)
+      setLinkFlyoutLinkId(null)
     })
 
     return () => cancelAnimationFrame(cleanupFrame)
@@ -1565,6 +1570,22 @@ function App({
       return () => window.clearTimeout(timeout)
     }
   }, [links, selectedLinkId])
+
+  useEffect(() => {
+    if (
+      linkFlyoutLinkId &&
+      (openDialogId !== null ||
+        !selectedLinkId ||
+        linkFlyoutLinkId !== selectedLinkId ||
+        !links.some((link) => link.id === linkFlyoutLinkId))
+    ) {
+      const timeout = window.setTimeout(() => {
+        setLinkFlyoutLinkId(null)
+      }, 0)
+
+      return () => window.clearTimeout(timeout)
+    }
+  }, [linkFlyoutLinkId, links, openDialogId, selectedLinkId])
 
   const handleGifCommandActive = useCallback(
     (areaId: string, command: GifSlashCommand | null) => {
@@ -2025,6 +2046,12 @@ function App({
       if (!target.classList.contains('canvas-world')) return
 
       e.preventDefault()
+
+      if (linkFlyoutLinkId) {
+        setLinkFlyoutLinkId(null)
+        return
+      }
+
       setHasClickedCanvas(true)
 
       const point = getCanvasPoint(e.clientX, e.clientY, canvasZoom)
@@ -2049,6 +2076,7 @@ function App({
       ])
       setSelectedAreaId(id)
       setSelectedLinkId(null)
+      setLinkFlyoutLinkId(null)
       setAutoFocusAreaId(id)
     }
 
@@ -2057,7 +2085,7 @@ function App({
     return () => {
       document.removeEventListener('pointerdown', handleClick)
     }
-  }, [canvasZoom, isViewOnly])
+  }, [canvasZoom, isViewOnly, linkFlyoutLinkId])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -2089,6 +2117,7 @@ function App({
       ) {
         if (e.key === 'Escape') {
           e.preventDefault()
+          setLinkFlyoutLinkId(null)
           setSelectedLinkId(null)
           return
         }
@@ -2098,13 +2127,14 @@ function App({
           setLinks((prev) =>
             prev.filter((link) => link.id !== selectedLinkId)
           )
+          setLinkFlyoutLinkId(null)
           setSelectedLinkId(null)
           return
         }
 
         if (e.key === 'Enter') {
           e.preventDefault()
-          setOpenDialogId('edit-area-link')
+          setLinkFlyoutLinkId(selectedLinkId)
           return
         }
       }
@@ -2615,6 +2645,7 @@ function App({
 
     setSelectedAreaId(areaId)
     setSelectedLinkId(null)
+    setLinkFlyoutLinkId(null)
     setOpenDialogId(null)
     setLinkDrag({
       sourceAreaId: areaId,
@@ -2678,6 +2709,7 @@ function App({
     setLinks((prev) => [...prev, link])
     setSelectedAreaId(null)
     setSelectedLinkId(link.id)
+    setLinkFlyoutLinkId(null)
     setLinkDrag(null)
   }
 
@@ -2733,6 +2765,7 @@ function App({
 
     setSelectedAreaId(null)
     setSelectedLinkId(link.id)
+    setLinkFlyoutLinkId(null)
     setEndpointDrag({
       linkId: link.id,
       endpointName,
@@ -2824,6 +2857,7 @@ function App({
 
     setSelectedAreaId(areaId)
     setSelectedLinkId(null)
+    setLinkFlyoutLinkId(null)
     setLinkTargetAreaId(
       areas.find((area) => area.id !== areaId)?.id ?? ''
     )
@@ -2859,6 +2893,7 @@ function App({
     nextAreaLinkId.current += 1
     setLinks((prev) => [...prev, link])
     setSelectedLinkId(link.id)
+    setLinkFlyoutLinkId(null)
     setLinkLabel('')
     setLinkFieldLabel('')
     setImportError(null)
@@ -2933,6 +2968,7 @@ function App({
     setLinks((prev) =>
       prev.filter((link) => link.id !== selectedLinkId)
     )
+    setLinkFlyoutLinkId(null)
     setSelectedLinkId(null)
     setOpenDialogId(null)
   }
@@ -4320,6 +4356,7 @@ function App({
     setCommandPaletteQuery(null)
     setSelectedAreaId(null)
     setSelectedLinkId(null)
+    setLinkFlyoutLinkId(null)
     setStyleDialogAreaId(null)
     setHasClickedCanvas(false)
 
@@ -4348,11 +4385,13 @@ function App({
         }
         isLinkTarget={area.id === linkDrag?.targetAreaId}
         isReadOnly={isViewOnly}
+        nestingDepth={getAreaDepth(areas, area.id)}
         canvasZoom={canvasZoom}
         onSelect={(areaId) => {
           if (!isViewOnly) {
             setSelectedAreaId(areaId)
             setSelectedLinkId(null)
+            setLinkFlyoutLinkId(null)
           }
         }}
         onTextChange={updateAreaText}
@@ -4370,6 +4409,7 @@ function App({
 
           setSelectedAreaId(areaId)
           setSelectedLinkId(null)
+          setLinkFlyoutLinkId(null)
           setStyleDialogAreaId(areaId)
         }}
         onOpenLinkDialog={openLinkDialogForArea}
@@ -4384,6 +4424,7 @@ function App({
         onDeselect={() => {
           setSelectedAreaId(null)
           setSelectedLinkId(null)
+          setLinkFlyoutLinkId(null)
         }}
       >
         {getChildAreas(areas, area.id).map(renderArea)}
@@ -4646,6 +4687,7 @@ function App({
 
                       setSelectedAreaId(null)
                       setSelectedLinkId(link.id)
+                      setLinkFlyoutLinkId(null)
                     }}
                     onDoubleClick={(e) => {
                       e.preventDefault()
@@ -4655,6 +4697,7 @@ function App({
 
                       setSelectedAreaId(null)
                       setSelectedLinkId(link.id)
+                      setLinkFlyoutLinkId(null)
                       setOpenDialogId('edit-area-link')
                     }}
                     onPointerDown={(e) => {
@@ -4809,11 +4852,39 @@ function App({
             )}
           </svg>
 
+          {shouldShowEditorChrome &&
+            selectedLink &&
+            selectedLinkLine &&
+            openDialogId === null && (
+              <button
+                aria-label="Edit connector"
+                className="area-link-edit-button"
+                style={{
+                  left: selectedLinkLine.labelX,
+                  top: selectedLinkLine.labelY - 10,
+                }}
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setLinkFlyoutLinkId((currentLinkId) =>
+                    currentLinkId === selectedLink.id
+                      ? null
+                      : selectedLink.id
+                  )
+                }}
+              >
+                Edit
+              </button>
+            )}
+
           {getRootAreas(areas).map(renderArea)}
 
           {shouldShowEditorChrome &&
             selectedLink &&
             selectedLinkLine &&
+            linkFlyoutLinkId === selectedLink.id &&
             openDialogId === null && (
               <div
                 className="area-link-flyout"
@@ -4823,6 +4894,17 @@ function App({
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
               >
+                <div className="area-link-flyout-header">
+                  <strong>{getAreaLinkLabel(selectedLink)}</strong>
+                  <button
+                    aria-label="Close connector menu"
+                    className="area-link-flyout-close"
+                    type="button"
+                    onClick={() => setLinkFlyoutLinkId(null)}
+                  >
+                    x
+                  </button>
+                </div>
                 <div className="area-link-flyout-row">
                   {AREA_LINK_KINDS.filter(
                     (kind) => kind !== 'contains'
@@ -4881,7 +4963,10 @@ function App({
                 <div className="area-link-flyout-actions">
                   <button
                     type="button"
-                    onClick={() => setOpenDialogId('edit-area-link')}
+                    onClick={() => {
+                      setLinkFlyoutLinkId(null)
+                      setOpenDialogId('edit-area-link')
+                    }}
                   >
                     More
                   </button>

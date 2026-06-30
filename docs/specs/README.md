@@ -9,7 +9,8 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-No active foundational specs are outstanding.
+- [Cascadery Logo and Favicon Integration](2026-06-30-cascadery-logo-favicon-integration.md)
+- [Offscreen Area Indicators](2026-06-30-offscreen-area-indicators.md)
 
 ## Completed MVP Specs
 

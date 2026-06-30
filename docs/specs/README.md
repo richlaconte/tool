@@ -9,11 +9,17 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-There are no active foundational specs right now. Future work called out inside
-completed specs can be promoted into new active specs when it becomes the next
-product priority.
+- [Brand Positioning and Narrative System](2026-06-29-brand-positioning-and-narrative.md)
+- [Context Kits and Guided Empty State](2026-06-29-context-kits-and-guided-empty-state.md)
+- [Evidence Anchors and Code References](2026-06-29-evidence-anchors-and-code-references.md)
+- [Agent Handoff Briefs](2026-06-29-agent-handoff-briefs.md)
 
-Recommended implementation order: none.
+Recommended implementation order:
+
+1. Brand Positioning and Narrative System.
+2. Context Kits and Guided Empty State.
+3. Evidence Anchors and Code References.
+4. Agent Handoff Briefs.
 
 ## Completed MVP Specs
 

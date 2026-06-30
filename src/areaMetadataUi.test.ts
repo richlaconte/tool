@@ -62,6 +62,24 @@ test('selected connector exposes explicit edit controls instead of auto-opening 
   assert.match(css, /\.area-link-flyout-close/)
 })
 
+test('selected connector endpoint handles render above Area edge link zones', async () => {
+  const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
+  const css = await readFile(new URL('./App.css', import.meta.url), 'utf8')
+  const areaCss = await readFile(
+    new URL('./components/area.css', import.meta.url),
+    'utf8'
+  )
+  const areaRenderIndex = source.indexOf('{getRootAreas(areas).map(renderArea)}')
+  const controlLayerIndex = source.indexOf('className="area-link-control-layer"')
+
+  assert.notEqual(areaRenderIndex, -1)
+  assert.notEqual(controlLayerIndex, -1)
+  assert.ok(controlLayerIndex > areaRenderIndex)
+  assert.match(css, /\.area-link-control-layer/)
+  assert.match(css, /\.area-link-control-layer[\s\S]*z-index: 62/)
+  assert.match(areaCss, /\.area-link-zone[\s\S]*z-index: 1/)
+})
+
 test('app renders nesting preview states for child Area drops', async () => {
   const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
   const areaSource = await readFile(

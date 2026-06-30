@@ -4743,100 +4743,6 @@ function App({
                       {getAreaLinkLabel(link)}
                     </text>
                   )}
-                  {isSelected && !isViewOnly && (
-                    <>
-                      <circle
-                        aria-label="Move connector start"
-                        className="area-link-endpoint-handle"
-                        cx={line.x1}
-                        cy={line.y1}
-                        r="6"
-                        role="button"
-                        tabIndex={0}
-                        onPointerDown={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          beginAreaLinkEndpointDrag(link, 'from', {
-                            x: line.x1,
-                            y: line.y1,
-                          })
-                          e.currentTarget.setPointerCapture(e.pointerId)
-                        }}
-                        onPointerMove={(e) => {
-                          updateAreaLinkEndpointDrag(
-                            e.clientX,
-                            e.clientY,
-                            e.altKey
-                          )
-                        }}
-                        onPointerUp={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          finishAreaLinkEndpointDrag()
-                          if (
-                            e.currentTarget.hasPointerCapture(e.pointerId)
-                          ) {
-                            e.currentTarget.releasePointerCapture(e.pointerId)
-                          }
-                        }}
-                        onPointerCancel={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          cancelAreaLinkEndpointDrag()
-                          if (
-                            e.currentTarget.hasPointerCapture(e.pointerId)
-                          ) {
-                            e.currentTarget.releasePointerCapture(e.pointerId)
-                          }
-                        }}
-                      />
-                      <circle
-                        aria-label="Move connector end"
-                        className="area-link-endpoint-handle"
-                        cx={line.x2}
-                        cy={line.y2}
-                        r="6"
-                        role="button"
-                        tabIndex={0}
-                        onPointerDown={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          beginAreaLinkEndpointDrag(link, 'to', {
-                            x: line.x2,
-                            y: line.y2,
-                          })
-                          e.currentTarget.setPointerCapture(e.pointerId)
-                        }}
-                        onPointerMove={(e) => {
-                          updateAreaLinkEndpointDrag(
-                            e.clientX,
-                            e.clientY,
-                            e.altKey
-                          )
-                        }}
-                        onPointerUp={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          finishAreaLinkEndpointDrag()
-                          if (
-                            e.currentTarget.hasPointerCapture(e.pointerId)
-                          ) {
-                            e.currentTarget.releasePointerCapture(e.pointerId)
-                          }
-                        }}
-                        onPointerCancel={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          cancelAreaLinkEndpointDrag()
-                          if (
-                            e.currentTarget.hasPointerCapture(e.pointerId)
-                          ) {
-                            e.currentTarget.releasePointerCapture(e.pointerId)
-                          }
-                        }}
-                      />
-                    </>
-                  )}
                 </g>
               )
             })}
@@ -4851,6 +4757,101 @@ function App({
               />
             )}
           </svg>
+
+          {getRootAreas(areas).map(renderArea)}
+
+          {shouldShowEditorChrome &&
+            selectedLink &&
+            selectedLinkLine &&
+            !isViewOnly && (
+              <svg
+                aria-label="Selected connector controls"
+                className="area-link-control-layer"
+              >
+                <circle
+                  aria-label="Move connector start"
+                  className="area-link-endpoint-handle"
+                  cx={selectedLinkLine.x1}
+                  cy={selectedLinkLine.y1}
+                  r="7"
+                  role="button"
+                  tabIndex={0}
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    beginAreaLinkEndpointDrag(selectedLink, 'from', {
+                      x: selectedLinkLine.x1,
+                      y: selectedLinkLine.y1,
+                    })
+                    e.currentTarget.setPointerCapture(e.pointerId)
+                  }}
+                  onPointerMove={(e) => {
+                    updateAreaLinkEndpointDrag(
+                      e.clientX,
+                      e.clientY,
+                      e.altKey
+                    )
+                  }}
+                  onPointerUp={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    finishAreaLinkEndpointDrag()
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                      e.currentTarget.releasePointerCapture(e.pointerId)
+                    }
+                  }}
+                  onPointerCancel={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    cancelAreaLinkEndpointDrag()
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                      e.currentTarget.releasePointerCapture(e.pointerId)
+                    }
+                  }}
+                />
+                <circle
+                  aria-label="Move connector end"
+                  className="area-link-endpoint-handle"
+                  cx={selectedLinkLine.x2}
+                  cy={selectedLinkLine.y2}
+                  r="7"
+                  role="button"
+                  tabIndex={0}
+                  onPointerDown={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    beginAreaLinkEndpointDrag(selectedLink, 'to', {
+                      x: selectedLinkLine.x2,
+                      y: selectedLinkLine.y2,
+                    })
+                    e.currentTarget.setPointerCapture(e.pointerId)
+                  }}
+                  onPointerMove={(e) => {
+                    updateAreaLinkEndpointDrag(
+                      e.clientX,
+                      e.clientY,
+                      e.altKey
+                    )
+                  }}
+                  onPointerUp={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    finishAreaLinkEndpointDrag()
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                      e.currentTarget.releasePointerCapture(e.pointerId)
+                    }
+                  }}
+                  onPointerCancel={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    cancelAreaLinkEndpointDrag()
+                    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                      e.currentTarget.releasePointerCapture(e.pointerId)
+                    }
+                  }}
+                />
+              </svg>
+            )}
 
           {shouldShowEditorChrome &&
             selectedLink &&
@@ -4878,8 +4879,6 @@ function App({
                 Edit
               </button>
             )}
-
-          {getRootAreas(areas).map(renderArea)}
 
           {shouldShowEditorChrome &&
             selectedLink &&

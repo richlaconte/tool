@@ -1,0 +1,54 @@
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import test from 'node:test'
+
+test('area toolbar exposes an Area styles action', async () => {
+  const source = await readFile(
+    new URL('./components/Area.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /onOpenStyles/)
+  assert.match(source, /aria-label="Open Area styles"/)
+  assert.match(source, /title="Area styles"/)
+  assert.match(source, /<StyleSlidersIcon \/>/)
+})
+
+test('App renders a guided Area styles dialog for the selected Area', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /AreaStyleDialog/)
+  assert.match(source, /styleDialogAreaId/)
+  assert.match(source, /onApplyStyle/)
+  assert.match(source, /onRemoveStyle/)
+  assert.match(source, /setStyleDialogAreaId\(areaId\)/)
+})
+
+test('AreaStyleDialog includes active styles, search, value suggestions, and validation controls', async () => {
+  const source = await readFile(
+    new URL('./components/AreaStyleDialog.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /Area styles/)
+  assert.match(source, /Active styles/)
+  assert.match(source, /Search CSS properties/)
+  assert.match(source, /role="listbox"/)
+  assert.match(source, /role="option"/)
+  assert.match(source, /getStyleValueSuggestions/)
+  assert.match(source, /validateStyleDeclaration/)
+  assert.match(source, /Remove/)
+})
+
+test('Area styles are hidden from view-only rendering', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /shouldShowEditorChrome && styleDialogArea/)
+  assert.match(source, /onOpenStyles=\{\(areaId\) =>/)
+})

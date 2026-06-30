@@ -2,7 +2,9 @@
 
 ## Status
 
-Created on 2026-06-30. Not implemented.
+Created on 2026-06-30.
+
+Completed on 2026-06-30 with the Area toolbar style button, guided Area styles dialog, CSS property catalog, value suggestions, validation, and tests for the core catalog and UI wiring.
 
 ## Idea
 

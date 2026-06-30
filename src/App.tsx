@@ -8,6 +8,7 @@ import {
 import type { CSSProperties, ChangeEvent } from 'react'
 
 import Area from './components/Area'
+import AreaStyleDialog from './components/AreaStyleDialog'
 import CommandPalette from './components/CommandPalette'
 import {
   deleteArea,
@@ -72,6 +73,7 @@ import {
 } from './agentInterface'
 import type { CssSlashCommand } from './cssSlashCommand'
 import { removeCssSlashCommand } from './cssSlashCommand'
+import { normalizeStyleValueInput } from './cssStyleCatalog'
 import {
   addAreaEvidenceReference,
   createAreaEvidenceReference,
@@ -698,6 +700,9 @@ function App({
   const [openDialogId, setOpenDialogId] = useState<string | null>(
     null
   )
+  const [styleDialogAreaId, setStyleDialogAreaId] = useState<
+    string | null
+  >(null)
   const [deletedAreaSnapshot, setDeletedAreaSnapshot] =
     useState<DeletedAreaSnapshot | null>(null)
   const [saveStatus, setSaveStatus] =
@@ -809,6 +814,9 @@ function App({
     () => getRecentPageHistoryEvents(pageHistory, page.id),
     [page.id, pageHistory]
   )
+  const styleDialogArea = styleDialogAreaId
+    ? areas.find((area) => area.id === styleDialogAreaId) ?? null
+    : null
 
   useEffect(() => {
     if (!isViewOnly) return
@@ -817,6 +825,7 @@ function App({
       setSelectedAreaId(null)
       setCommandPaletteQuery(null)
       setOpenDialogId(null)
+      setStyleDialogAreaId(null)
     })
 
     return () => cancelAnimationFrame(cleanupFrame)
@@ -1455,7 +1464,8 @@ function App({
         key: e.key,
         hasSelectedArea: selectedAreaId !== null,
         isCommandPaletteOpen: commandPaletteQuery !== null,
-        isDialogOpen: openDialogId !== null,
+        isDialogOpen:
+          openDialogId !== null || styleDialogArea !== null,
         isEditableTarget: isEditingTarget,
         isCommandPaletteTarget: isPaletteTarget,
         isReadOnly: isViewOnly,
@@ -1502,6 +1512,7 @@ function App({
     openDialogId,
     resetCanvasZoom,
     selectedAreaId,
+    styleDialogArea,
     zoomCanvasByDirection,
     zoomCanvasToFit,
     zoomCanvasToSelection,
@@ -1643,6 +1654,51 @@ function App({
   const removeThemeColor = (colorId: string) => {
     updateThemeColors((colors) =>
       colors.filter((color) => color.id !== colorId)
+    )
+  }
+
+  const applyAreaStyle = (
+    areaId: string,
+    property: string,
+    value: string
+  ) => {
+    if (isViewOnly) return
+
+    const normalizedValue = normalizeStyleValueInput(value)
+
+    setAreas((prev) =>
+      prev.map((area) =>
+        area.id === areaId
+          ? {
+              ...area,
+              styles: {
+                ...area.styles,
+                [property]: normalizedValue,
+              },
+            }
+          : area
+      )
+    )
+  }
+
+  const removeAreaStyle = (areaId: string, property: string) => {
+    if (isViewOnly) return
+
+    setAreas((prev) =>
+      prev.map((area) => {
+        if (area.id !== areaId) return area
+
+        const nextStyles = {
+          ...area.styles,
+        }
+
+        delete nextStyles[property]
+
+        return {
+          ...area,
+          styles: nextStyles,
+        }
+      })
     )
   }
 
@@ -2891,6 +2947,12 @@ function App({
         onMoveEnd={endAreaMove}
         onDuplicate={duplicateAreaById}
         onDelete={deleteAreaById}
+        onOpenStyles={(areaId) => {
+          if (isViewOnly) return
+
+          setSelectedAreaId(areaId)
+          setStyleDialogAreaId(areaId)
+        }}
         onResize={resizeAreaById}
         onCommitCssCommand={commitAreaCssCommand}
         onCommitImageCommand={commitAreaImageCommand}
@@ -3299,6 +3361,20 @@ function App({
             setOpenDialogId(option.id)
           }}
           onClose={() => setCommandPaletteQuery(null)}
+        />
+      )}
+
+      {shouldShowEditorChrome && styleDialogArea && (
+        <AreaStyleDialog
+          area={styleDialogArea}
+          themeColors={page.settings.theme.colors}
+          onApplyStyle={(property, value) =>
+            applyAreaStyle(styleDialogArea.id, property, value)
+          }
+          onRemoveStyle={(property) =>
+            removeAreaStyle(styleDialogArea.id, property)
+          }
+          onClose={() => setStyleDialogAreaId(null)}
         />
       )}
 

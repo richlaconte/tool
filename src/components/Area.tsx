@@ -53,6 +53,7 @@ type AreaProps = {
   onMoveEnd: (id: string) => void
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
+  onOpenStyles: (id: string) => void
   onResize: (
     id: string,
     width: number,
@@ -92,6 +93,7 @@ const Area = ({
   onMoveEnd,
   onDuplicate,
   onDelete,
+  onOpenStyles,
   onResize,
   onCommitCssCommand,
   onCommitImageCommand,
@@ -511,6 +513,22 @@ const Area = ({
                 </>
               )}
               <button
+                aria-label="Open Area styles"
+                className="area-action-button"
+                title="Area styles"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onOpenStyles(area.id)
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                }}
+              >
+                <StyleSlidersIcon />
+              </button>
+              <button
                 aria-label="Duplicate area"
                 className="area-action-button"
                 title="Duplicate"
@@ -736,6 +754,27 @@ const AltTextIcon = () => (
     <path d="M4.5 9.2H9" />
     <path d="M12 6.5v6" />
     <path d="M10.8 12.5h2.4" />
+  </svg>
+)
+
+const StyleSlidersIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="area-control-icon area-control-icon--stroke"
+    fill="none"
+    focusable="false"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="1.7"
+    viewBox="0 0 16 16"
+  >
+    <path d="M3 4.5h10" />
+    <path d="M3 11.5h10" />
+    <path d="M6 2.8v3.4" />
+    <path d="M10 9.8v3.4" />
+    <circle cx="6" cy="4.5" r="1.5" />
+    <circle cx="10" cy="11.5" r="1.5" />
   </svg>
 )
 

@@ -88,6 +88,27 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'area',
   },
   {
+    id: 'nest-selected-area',
+    title: 'Nest selected Area',
+    description: 'Move the selected Area inside another Area',
+    aliases: ['child area', 'parent area', 'container', 'group area'],
+    scope: 'area',
+  },
+  {
+    id: 'unnest-selected-area',
+    title: 'Unnest selected Area',
+    description: 'Move the selected Area back to the main canvas',
+    aliases: ['remove parent', 'top level', 'ungroup area'],
+    scope: 'area',
+  },
+  {
+    id: 'add-child-area',
+    title: 'Add child Area',
+    description: 'Create a new Area inside the selected Area',
+    aliases: ['new child', 'inside area', 'contained note'],
+    scope: 'area',
+  },
+  {
     id: 'add-evidence',
     title: 'Add evidence to selected Area',
     description: 'Attach a file, URL, issue, PR, commit, or command reference',

@@ -70,6 +70,18 @@ test('converts app page state into a Yjs document and back', () => {
         toAreaId: 'child',
         kind: 'references',
         label: 'references image',
+        from: {
+          areaId: 'parent',
+          side: 'right',
+          position: 0.4,
+          behavior: 'fixed',
+        },
+        to: {
+          areaId: 'child',
+          side: 'left',
+          position: 0.6,
+          behavior: 'fixed',
+        },
         createdAt: now,
         updatedAt: now,
       },
@@ -90,6 +102,18 @@ test('converts app page state into a Yjs document and back', () => {
       toAreaId: 'child',
       kind: 'references',
       label: 'references image',
+      from: {
+        areaId: 'parent',
+        side: 'right',
+        position: 0.4,
+        behavior: 'fixed',
+      },
+      to: {
+        areaId: 'child',
+        side: 'left',
+        position: 0.6,
+        behavior: 'fixed',
+      },
       visual: {
         mode: 'semantic',
         direction: 'forward',

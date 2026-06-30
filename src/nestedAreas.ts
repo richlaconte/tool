@@ -12,6 +12,19 @@ type Rect = Point & {
   height: number
 }
 
+export type NestingCandidateReason =
+  | 'valid'
+  | 'none'
+  | 'self'
+  | 'descendant'
+  | 'depth-limit'
+  | 'not-contained'
+
+export type NestingCandidateResult = {
+  parentId: string | null
+  reason: NestingCandidateReason
+}
+
 export const getAreaParentId = (area: AreaState) =>
   area.parentId ?? null
 
@@ -137,32 +150,104 @@ export const getContainingAreaId = (
   areas: AreaState[],
   areaId: string
 ) => {
+  return getCandidateParentId(areas, areaId)
+}
+
+export const getCandidateParentId = (
+  areas: AreaState[],
+  areaId: string
+) => getNestingCandidate(areas, areaId).parentId
+
+export const getNestingCandidate = (
+  areas: AreaState[],
+  areaId: string
+): NestingCandidateResult => {
   const area = areas.find((currentArea) => currentArea.id === areaId)
 
-  if (!area) return null
+  if (!area) {
+    return {
+      parentId: null,
+      reason: 'none',
+    }
+  }
 
   const areaRect = getAreaAbsoluteRect(areas, areaId)
   const descendants = getDescendantAreaIds(areas, areaId)
+  const candidates: AreaState[] = []
+  let hasDepthLimitedCandidate = false
+  let hasDescendantCandidate = false
+  let hasContainedCandidate = false
 
-  return areas
-    .filter((candidateArea) => {
-      if (candidateArea.id === areaId) return false
-      if (descendants.has(candidateArea.id)) return false
-      if (!isDepthAllowed(areas, areaId, candidateArea.id)) return false
+  areas.forEach((candidateArea) => {
+    if (candidateArea.id === areaId) return
 
-      return containsRect(
-        getAreaAbsoluteRect(areas, candidateArea.id),
-        areaRect
-      )
-    })
-    .sort(
-      (firstArea, secondArea) =>
-        getAreaDepth(areas, secondArea.id) -
-        getAreaDepth(areas, firstArea.id)
-    )[0]?.id ?? null
+    const candidateContainsArea = containsRect(
+      getAreaAbsoluteRect(areas, candidateArea.id),
+      areaRect
+    )
+
+    if (!candidateContainsArea) return
+
+    hasContainedCandidate = true
+
+    if (descendants.has(candidateArea.id)) {
+      hasDescendantCandidate = true
+      return
+    }
+
+    if (!isDepthAllowed(areas, areaId, candidateArea.id)) {
+      hasDepthLimitedCandidate = true
+      return
+    }
+
+    candidates.push(candidateArea)
+  })
+
+  const candidate = candidates.sort(
+    (firstArea, secondArea) =>
+      getAreaDepth(areas, secondArea.id) -
+        getAreaDepth(areas, firstArea.id) ||
+      getAreaArea(firstArea) - getAreaArea(secondArea) ||
+      areas.indexOf(secondArea) - areas.indexOf(firstArea)
+  )[0]
+
+  if (candidate) {
+    return {
+      parentId: candidate.id,
+      reason: 'valid',
+    }
+  }
+
+  return {
+    parentId: null,
+    reason: hasDepthLimitedCandidate
+      ? 'depth-limit'
+      : hasDescendantCandidate
+        ? 'descendant'
+        : hasContainedCandidate
+          ? 'not-contained'
+          : 'none',
+  }
 }
 
-const getAreaAbsoluteRect = (
+export const getUnnestingSourceId = (
+  areas: AreaState[],
+  areaId: string
+) => {
+  const area = areas.find((currentArea) => currentArea.id === areaId)
+  const parentId = area ? getAreaParentId(area) : null
+
+  if (!parentId) return null
+
+  const parentContainsArea = containsRect(
+    getAreaAbsoluteRect(areas, parentId),
+    getAreaAbsoluteRect(areas, areaId)
+  )
+
+  return parentContainsArea ? null : parentId
+}
+
+export const getAreaAbsoluteRect = (
   areas: AreaState[],
   areaId: string
 ): Rect => {
@@ -181,6 +266,8 @@ const containsRect = (parentRect: Rect, childRect: Rect) =>
   childRect.y >= parentRect.y &&
   childRect.x + childRect.width <= parentRect.x + parentRect.width &&
   childRect.y + childRect.height <= parentRect.y + parentRect.height
+
+const getAreaArea = (area: AreaState) => area.width * area.height
 
 const isAreaDescendantOf = (
   areas: AreaState[],

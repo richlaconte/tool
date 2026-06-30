@@ -120,10 +120,16 @@ const areaLink = {
   from: {
     areaId: 'area-1',
     anchor: 'right' as const,
+    side: 'right' as const,
+    position: 0.35,
+    behavior: 'fixed' as const,
   },
   to: {
     areaId: 'child-area',
     anchor: 'left' as const,
+    side: 'left' as const,
+    position: 0.65,
+    behavior: 'fixed' as const,
   },
   visual: {
     mode: 'schema' as const,

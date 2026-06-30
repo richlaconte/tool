@@ -9,8 +9,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-- [Child Area Drop Target Feedback](2026-06-30-child-area-drop-target-feedback.md)
-- [Linked Areas Direct Manipulation UX](2026-06-30-linked-areas-direct-manipulation-ux.md)
+No active specs are currently outstanding.
 
 ## Completed MVP Specs
 
@@ -29,6 +28,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Cascadery Brand Leave Confirmation](completed/2026-06-30-brand-leave-confirmation.md)
 - [Cascadery Logo and Favicon Integration](completed/2026-06-30-cascadery-logo-favicon-integration.md)
 - [Canvas Zoom](completed/2026-06-26-canvas-zoom.md)
+- [Child Area Drop Target Feedback](completed/2026-06-30-child-area-drop-target-feedback.md)
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
 - [Context Kits and Guided Empty State](completed/2026-06-29-context-kits-and-guided-empty-state.md)
 - [Evidence Anchors and Code References](completed/2026-06-29-evidence-anchors-and-code-references.md)
@@ -36,6 +36,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [GIF Search and Insertion](completed/2026-06-30-gif-search-insertion.md)
 - [Image Support](completed/2026-06-26-image-support.md)
 - [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
+- [Linked Areas Direct Manipulation UX](completed/2026-06-30-linked-areas-direct-manipulation-ux.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)
 - [Offscreen Area Indicators](completed/2026-06-30-offscreen-area-indicators.md)

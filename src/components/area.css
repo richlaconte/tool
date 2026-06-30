@@ -177,6 +177,59 @@
   cursor: default;
 }
 
+.area--is-dragging {
+  opacity: 0.92;
+}
+
+.area--nesting-target,
+.area--link-target {
+  box-shadow:
+    0 0 0 3px rgb(37 99 235 / 18%),
+    inset 0 0 0 1px rgb(37 99 235 / 35%);
+}
+
+.area--nesting-target::after,
+.area--link-target::after,
+.area--unnesting-source::after {
+  position: absolute;
+  inset: -4px;
+  z-index: 0;
+  border-radius: 8px;
+  content: "";
+  pointer-events: none;
+}
+
+.area--nesting-target::after {
+  border: 2px solid rgb(37 99 235 / 54%);
+  animation: area-nesting-target-pulse 720ms ease-out 2;
+}
+
+.area--link-target::after {
+  border: 2px solid rgb(14 165 233 / 46%);
+}
+
+.area--unnesting-source::after {
+  border: 2px dashed rgb(100 116 139 / 42%);
+}
+
+@keyframes area-nesting-target-pulse {
+  from {
+    opacity: 0.35;
+    transform: scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .area--nesting-target::after {
+    animation: none;
+  }
+}
+
 .area-toolbar-bridge {
   position: absolute;
   top: -34px;
@@ -210,6 +263,82 @@
   transform-origin: bottom left;
   user-select: none;
   touch-action: none;
+}
+
+.area-link-zone {
+  position: absolute;
+  z-index: 1;
+  display: none;
+  background: transparent;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.area-link-zone::after {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgb(37 99 235 / 72%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 16%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+.area-link-zone--top,
+.area-link-zone--bottom {
+  left: -12px;
+  right: -12px;
+  height: 24px;
+}
+
+.area-link-zone--top {
+  top: -12px;
+}
+
+.area-link-zone--bottom {
+  bottom: -12px;
+}
+
+.area-link-zone--left,
+.area-link-zone--right {
+  top: -12px;
+  bottom: -12px;
+  width: 24px;
+}
+
+.area-link-zone--left {
+  left: -12px;
+}
+
+.area-link-zone--right {
+  right: -12px;
+}
+
+.area-link-zone--top::after {
+  left: calc(50% - 4px);
+  top: 8px;
+}
+
+.area-link-zone--bottom::after {
+  bottom: 8px;
+  left: calc(50% - 4px);
+}
+
+.area-link-zone--left::after {
+  left: 8px;
+  top: calc(50% - 4px);
+}
+
+.area-link-zone--right::after {
+  right: 8px;
+  top: calc(50% - 4px);
+}
+
+.area-link-zone:hover::after {
+  opacity: 1;
 }
 
 .area-actions {
@@ -291,7 +420,10 @@
 .area:hover .draggy,
 .area:focus-within .draggy,
 .area:hover .area-actions,
-.area:focus-within .area-actions {
+.area:focus-within .area-actions,
+.area:hover .area-link-zone,
+.area:focus-within .area-link-zone,
+.area--selected .area-link-zone {
   display: grid;
 }
 

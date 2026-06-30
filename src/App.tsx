@@ -32,14 +32,15 @@ import {
   removeAreaLinksForDeletedAreas,
   setAreaMetadata,
   type AreaLink,
-  type AreaLinkAnchor,
   type AreaLinkCardinality,
   type AreaLinkDirection,
+  type AreaLinkEndpoint,
   type AreaLinkKind,
   type AreaLinkLabelVisibility,
   type AreaLinkOptionality,
   type AreaLinkRoute,
   type AreaLinkSchema,
+  type AreaLinkSide,
   type AreaLinkVisual,
   type AreaLinkVisualMode,
   type AreaMetadata,
@@ -114,11 +115,22 @@ import {
   type GifSlashCommand,
 } from './gifSearch'
 import {
+  getCandidateParentId,
   getAreaAbsolutePosition,
+  getAreaAbsoluteRect,
   getChildAreas,
+  getUnnestingSourceId,
   getRootAreas,
   nestAreaIfContained,
+  reparentArea,
 } from './nestedAreas'
+import {
+  getAreaBorderHit,
+  getAreaEndpointPoint,
+  moveSharedLinkEndpoint,
+  snapLinkEndpointToExisting,
+  type Point,
+} from './linkGeometry'
 import {
   getOffscreenAreaIndicators,
   getOffscreenIndicatorAriaLabel,
@@ -280,6 +292,31 @@ type GifSearchState = {
   message?: string
 }
 
+type NestingPreviewState = {
+  draggedAreaId: string | null
+  candidateParentId: string | null
+  unnestingFromParentId: string | null
+}
+
+type LinkDragState = {
+  sourceAreaId: string
+  sourceEndpoint: AreaLinkEndpoint
+  pointer: Point
+  targetAreaId: string | null
+  targetEndpoint: AreaLinkEndpoint | null
+}
+
+type LinkEndpointName = 'from' | 'to'
+
+type LinkEndpointDragState = {
+  linkId: string
+  endpointName: LinkEndpointName
+  originalLinks: AreaLink[]
+  originalEndpoint: AreaLinkEndpoint
+  currentEndpoint: AreaLinkEndpoint
+  targetEndpoint: AreaLinkEndpoint | null
+}
+
 type CollaborationMessage =
   | {
       type: 'presence'
@@ -326,6 +363,10 @@ const COMMAND_DIALOGS: Record<
   'edit-area-link': {
     title: 'Edit connector',
     body: 'Refine the relationship, visual treatment, and schema details for this connector.',
+  },
+  'nest-selected-area': {
+    title: 'Nest selected Area',
+    body: 'Move the selected Area inside another Area while preserving its canvas position.',
   },
   'agent-suggestions': {
     title: 'Agent proposal',
@@ -794,13 +835,13 @@ const getAreaLinkLine = (areas: AreaState[], link: AreaLink) => {
   const fromPoint = getAreaLinkAnchorPoint(
     fromArea,
     fromPosition,
-    link.from?.anchor,
+    link.from,
     toCenter
   )
   const toPoint = getAreaLinkAnchorPoint(
     toArea,
     toPosition,
-    link.to?.anchor,
+    link.to,
     fromCenter
   )
 
@@ -817,9 +858,21 @@ const getAreaLinkLine = (areas: AreaState[], link: AreaLink) => {
 const getAreaLinkAnchorPoint = (
   area: AreaState,
   position: { x: number; y: number },
-  anchor: AreaLinkAnchor | undefined,
+  endpoint: AreaLinkEndpoint | undefined,
   toward: { x: number; y: number }
 ) => {
+  if (endpoint?.side) {
+    return getAreaEndpointPoint(
+      {
+        ...position,
+        width: area.width,
+        height: area.height,
+      },
+      endpoint
+    )
+  }
+
+  const anchor = endpoint?.anchor
   const center = {
     x: position.x + area.width / 2,
     y: position.y + area.height / 2,
@@ -1048,6 +1101,18 @@ function App({
   const [selectedLinkId, setSelectedLinkId] = useState<
     string | null
   >(null)
+  const [nestTargetAreaId, setNestTargetAreaId] = useState('')
+  const [nestingPreview, setNestingPreview] =
+    useState<NestingPreviewState>({
+      draggedAreaId: null,
+      candidateParentId: null,
+      unnestingFromParentId: null,
+    })
+  const [linkDrag, setLinkDragState] = useState<LinkDragState | null>(
+    null
+  )
+  const [, setEndpointDragState] =
+    useState<LinkEndpointDragState | null>(null)
   const [activeGifCommand, setActiveGifCommand] =
     useState<ActiveGifCommand | null>(null)
   const [gifSearchState, setGifSearchState] =
@@ -1063,6 +1128,8 @@ function App({
   const nextThemeColorId = useRef(0)
   const nextAreaLinkId = useRef(0)
   const nextEvidenceId = useRef(0)
+  const linkDragRef = useRef<LinkDragState | null>(null)
+  const endpointDragRef = useRef<LinkEndpointDragState | null>(null)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
@@ -1078,6 +1145,18 @@ function App({
     null
   )
   const collaborationProfileRef = useRef(collaborationProfile)
+
+  const setLinkDrag = (nextState: LinkDragState | null) => {
+    linkDragRef.current = nextState
+    setLinkDragState(nextState)
+  }
+
+  const setEndpointDrag = (
+    nextState: LinkEndpointDragState | null
+  ) => {
+    endpointDragRef.current = nextState
+    setEndpointDragState(nextState)
+  }
   const selectedAreaIdRef = useRef<string | null>(null)
   const latestPageStateRef = useRef<PageAppState>({
     areas: initialPageState.areas,
@@ -1987,6 +2066,20 @@ function App({
       const hasSystemModifier = e.metaKey || e.ctrlKey
 
       if (
+        !isViewOnly &&
+        e.key === 'Escape' &&
+        (linkDragRef.current || endpointDragRef.current)
+      ) {
+        e.preventDefault()
+        setLinkDrag(null)
+        if (endpointDragRef.current) {
+          setLinks(endpointDragRef.current.originalLinks)
+        }
+        setEndpointDrag(null)
+        return
+      }
+
+      if (
         selectedLinkId &&
         !isViewOnly &&
         !isEditingTarget &&
@@ -2411,6 +2504,321 @@ function App({
         }
       : undefined
 
+  const getAreaEndpointAtCanvasPoint = (
+    point: Point,
+    {
+      ignoreAreaId,
+      snap = true,
+    }: {
+      ignoreAreaId?: string
+      snap?: boolean
+    } = {}
+  ) => {
+    for (let index = areas.length - 1; index >= 0; index -= 1) {
+      const area = areas[index]
+
+      if (!area || area.id === ignoreAreaId) continue
+
+      const rect = getAreaAbsoluteRect(areas, area.id)
+      const hit = getAreaBorderHit(rect, point, 12)
+
+      if (!hit) continue
+
+      const endpoint = snap
+        ? snapLinkEndpointToExisting({
+            area: rect,
+            areaId: area.id,
+            links,
+            maxDistance: 12,
+            side: hit.side,
+            position: hit.position,
+          })
+        : {
+            areaId: area.id,
+            side: hit.side,
+            position: hit.position,
+            behavior: 'fixed' as const,
+          }
+
+      return {
+        areaId: area.id,
+        endpoint,
+      }
+    }
+
+    return null
+  }
+
+  const getSourceEndpoint = (
+    areaId: string,
+    side: AreaLinkSide,
+    position: number
+  ): AreaLinkEndpoint => {
+    const rect = getAreaAbsoluteRect(areas, areaId)
+
+    return snapLinkEndpointToExisting({
+      area: rect,
+      areaId,
+      links,
+      maxDistance: 12,
+      side,
+      position,
+    })
+  }
+
+  const getEndpointCanvasPoint = (
+    endpoint: AreaLinkEndpoint
+  ): Point | null => {
+    if (!endpoint.side) return null
+
+    const area = areas.find(
+      (currentArea) => currentArea.id === endpoint.areaId
+    )
+
+    if (!area) return null
+
+    return getAreaEndpointPoint(
+      getAreaAbsoluteRect(areas, endpoint.areaId),
+      endpoint
+    )
+  }
+
+  const getLinkDragLine = (drag: LinkDragState) => {
+    const sourcePoint = getEndpointCanvasPoint(drag.sourceEndpoint)
+
+    if (!sourcePoint) return null
+
+    const targetPoint = drag.targetEndpoint
+      ? getEndpointCanvasPoint(drag.targetEndpoint)
+      : drag.pointer
+
+    if (!targetPoint) return null
+
+    return {
+      x1: sourcePoint.x,
+      y1: sourcePoint.y,
+      x2: targetPoint.x,
+      y2: targetPoint.y,
+    }
+  }
+
+  const beginAreaLinkDrag = (
+    areaId: string,
+    side: AreaLinkSide,
+    position: number,
+    clientX: number,
+    clientY: number
+  ) => {
+    if (isViewOnly) return
+
+    const pointer = getCanvasPoint(clientX, clientY, canvasZoom)
+
+    setSelectedAreaId(areaId)
+    setSelectedLinkId(null)
+    setOpenDialogId(null)
+    setLinkDrag({
+      sourceAreaId: areaId,
+      sourceEndpoint: getSourceEndpoint(areaId, side, position),
+      pointer,
+      targetAreaId: null,
+      targetEndpoint: null,
+    })
+  }
+
+  const updateAreaLinkDrag = (clientX: number, clientY: number) => {
+    const currentDrag = linkDragRef.current
+
+    if (!currentDrag || isViewOnly) return
+
+    const pointer = getCanvasPoint(clientX, clientY, canvasZoom)
+    const target = getAreaEndpointAtCanvasPoint(pointer, {
+      ignoreAreaId: currentDrag.sourceAreaId,
+    })
+
+    setLinkDrag({
+      ...currentDrag,
+      pointer,
+      targetAreaId: target?.areaId ?? null,
+      targetEndpoint: target?.endpoint ?? null,
+    })
+  }
+
+  const finishAreaLinkDrag = (clientX: number, clientY: number) => {
+    updateAreaLinkDrag(clientX, clientY)
+
+    const currentDrag = linkDragRef.current
+
+    if (
+      !currentDrag ||
+      !currentDrag.targetAreaId ||
+      !currentDrag.targetEndpoint ||
+      currentDrag.targetAreaId === currentDrag.sourceAreaId ||
+      isViewOnly
+    ) {
+      setLinkDrag(null)
+      return
+    }
+
+    const link = createAreaLink({
+      id: createAreaLinkId(nextAreaLinkId.current),
+      fromAreaId: currentDrag.sourceAreaId,
+      toAreaId: currentDrag.targetAreaId,
+      kind: 'relates-to',
+      from: currentDrag.sourceEndpoint,
+      to: currentDrag.targetEndpoint,
+      visual: {
+        mode: 'simple',
+        direction: 'forward',
+        route: 'straight',
+        labelVisibility: 'auto',
+      },
+    })
+
+    nextAreaLinkId.current += 1
+    setLinks((prev) => [...prev, link])
+    setSelectedAreaId(null)
+    setSelectedLinkId(link.id)
+    setLinkDrag(null)
+  }
+
+  const cancelAreaLinkDrag = () => {
+    setLinkDrag(null)
+  }
+
+  const getFixedEndpointFromRenderedPoint = (
+    link: AreaLink,
+    endpointName: LinkEndpointName,
+    point: Point
+  ): AreaLinkEndpoint => {
+    const endpoint = endpointName === 'from' ? link.from : link.to
+    const areaId =
+      endpoint?.areaId ??
+      (endpointName === 'from' ? link.fromAreaId : link.toAreaId)
+
+    if (endpoint?.side) {
+      return {
+        ...endpoint,
+        areaId,
+        position: endpoint.position ?? 0.5,
+        behavior: 'fixed',
+      }
+    }
+
+    const hit = getAreaBorderHit(
+      getAreaAbsoluteRect(areas, areaId),
+      point,
+      6
+    )
+
+    return {
+      areaId,
+      side: hit?.side ?? 'right',
+      position: hit?.position ?? 0.5,
+      behavior: 'fixed',
+    }
+  }
+
+  const beginAreaLinkEndpointDrag = (
+    link: AreaLink,
+    endpointName: LinkEndpointName,
+    point: Point
+  ) => {
+    if (isViewOnly) return
+
+    const fixedEndpoint = getFixedEndpointFromRenderedPoint(
+      link,
+      endpointName,
+      point
+    )
+
+    setSelectedAreaId(null)
+    setSelectedLinkId(link.id)
+    setEndpointDrag({
+      linkId: link.id,
+      endpointName,
+      originalLinks: links,
+      originalEndpoint: fixedEndpoint,
+      currentEndpoint: fixedEndpoint,
+      targetEndpoint: null,
+    })
+  }
+
+  const updateAreaLinkEndpointDrag = (
+    clientX: number,
+    clientY: number,
+    splitEndpoint = false
+  ) => {
+    const currentDrag = endpointDragRef.current
+
+    if (!currentDrag || isViewOnly) return
+
+    const pointer = getCanvasPoint(clientX, clientY, canvasZoom)
+    const target = getAreaEndpointAtCanvasPoint(pointer, {
+      snap: !splitEndpoint,
+    })
+
+    if (!target) {
+      setLinks(currentDrag.originalLinks)
+      setEndpointDrag({
+        ...currentDrag,
+        currentEndpoint: currentDrag.originalEndpoint,
+        targetEndpoint: null,
+      })
+      return
+    }
+
+    const nextEndpoint = target.endpoint
+
+    setLinks((prev) =>
+      splitEndpoint
+        ? prev.map((link) =>
+            link.id === currentDrag.linkId
+              ? normalizeAreaLink({
+                  ...link,
+                  [currentDrag.endpointName]: nextEndpoint,
+                  updatedAt: new Date().toISOString(),
+                })
+              : link
+          )
+        : moveSharedLinkEndpoint(prev, {
+            from: currentDrag.currentEndpoint,
+            to: nextEndpoint,
+          }).map((link) =>
+            link.id === currentDrag.linkId
+              ? normalizeAreaLink({
+                  ...link,
+                  updatedAt: new Date().toISOString(),
+                })
+              : link
+          )
+    )
+    setEndpointDrag({
+      ...currentDrag,
+      currentEndpoint: nextEndpoint,
+      targetEndpoint: nextEndpoint,
+    })
+  }
+
+  const finishAreaLinkEndpointDrag = () => {
+    const currentDrag = endpointDragRef.current
+
+    if (currentDrag && !currentDrag.targetEndpoint) {
+      setLinks(currentDrag.originalLinks)
+    }
+
+    setEndpointDrag(null)
+  }
+
+  const cancelAreaLinkEndpointDrag = () => {
+    const currentDrag = endpointDragRef.current
+
+    if (currentDrag) {
+      setLinks(currentDrag.originalLinks)
+    }
+
+    setEndpointDrag(null)
+  }
+
   const openLinkDialogForArea = (areaId: string) => {
     if (isViewOnly) return
 
@@ -2834,20 +3242,92 @@ function App({
   ) => {
     if (isViewOnly) return
 
-    setAreas((prev) =>
-      moveAreaWithSnapGrid(prev, id, x, y, {
+    setAreas((prev) => {
+      const nextAreas = moveAreaWithSnapGrid(prev, id, x, y, {
         snapGridSize: getActiveSnapGridSize(
           page.settings.snapGrid,
           bypassSnapGrid
         ),
       })
-    )
+
+      setNestingPreview({
+        draggedAreaId: id,
+        candidateParentId: getCandidateParentId(nextAreas, id),
+        unnestingFromParentId: getUnnestingSourceId(nextAreas, id),
+      })
+
+      return nextAreas
+    })
+  }
+
+  const beginAreaMove = (id: string) => {
+    if (isViewOnly) return
+
+    setNestingPreview({
+      draggedAreaId: id,
+      candidateParentId: null,
+      unnestingFromParentId: null,
+    })
   }
 
   const endAreaMove = (id: string) => {
     if (isViewOnly) return
 
     setAreas((prev) => nestAreaIfContained(prev, id))
+    setNestingPreview({
+      draggedAreaId: null,
+      candidateParentId: null,
+      unnestingFromParentId: null,
+    })
+  }
+
+  const unnestSelectedArea = () => {
+    if (isViewOnly || !selectedAreaId) return
+
+    setAreas((prev) => reparentArea(prev, selectedAreaId, null))
+    setOpenDialogId(null)
+  }
+
+  const nestSelectedAreaIntoTarget = () => {
+    if (isViewOnly || !selectedAreaId || !nestTargetAreaId) return
+
+    setAreas((prev) =>
+      reparentArea(prev, selectedAreaId, nestTargetAreaId)
+    )
+    setOpenDialogId(null)
+  }
+
+  const addChildAreaToSelectedArea = () => {
+    if (isViewOnly || !selectedAreaId) return
+
+    const parentArea = areas.find((area) => area.id === selectedAreaId)
+    if (!parentArea) return
+
+    const id = createAreaId(nextAreaId.current)
+    nextAreaId.current += 1
+    const createdAt = new Date().toISOString()
+
+    setAreas((prev) => [
+      ...prev,
+      {
+        id,
+        parentId: selectedAreaId,
+        x: 16,
+        y: 16,
+        height: DEFAULT_AREA_HEIGHT,
+        width: Math.min(
+          DEFAULT_AREA_WIDTH,
+          Math.max(120, parentArea.width - 32)
+        ),
+        text: '',
+        styles: {},
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ])
+    setSelectedAreaId(id)
+    setSelectedLinkId(null)
+    setAutoFocusAreaId(id)
   }
 
   const duplicateAreaById = (sourceAreaId: string) => {
@@ -3786,6 +4266,10 @@ function App({
   const selectedLink = selectedLinkId
     ? links.find((link) => link.id === selectedLinkId) ?? null
     : null
+  const selectedLinkLine = selectedLink
+    ? getAreaLinkLine(areas, selectedLink)
+    : null
+  const linkDragLine = linkDrag ? getLinkDragLine(linkDrag) : null
   const selectedLinkVisual = selectedLink?.visual ?? {
     mode: 'semantic' as const,
     direction: 'forward' as const,
@@ -3818,6 +4302,9 @@ function App({
     page,
   })
   const linkTargetAreas = selectedAreaId
+    ? areas.filter((area) => area.id !== selectedAreaId)
+    : []
+  const nestTargetAreas = selectedAreaId
     ? areas.filter((area) => area.id !== selectedAreaId)
     : []
   const handleBrandClick = () => {
@@ -3854,6 +4341,12 @@ function App({
         themeColors={page.settings.theme.colors}
         isNewest={area.id === autoFocusAreaId}
         isSelected={area.id === selectedAreaId}
+        isDragging={area.id === nestingPreview.draggedAreaId}
+        isNestingTarget={area.id === nestingPreview.candidateParentId}
+        isUnnestingSource={
+          area.id === nestingPreview.unnestingFromParentId
+        }
+        isLinkTarget={area.id === linkDrag?.targetAreaId}
         isReadOnly={isViewOnly}
         canvasZoom={canvasZoom}
         onSelect={(areaId) => {
@@ -3863,8 +4356,13 @@ function App({
           }
         }}
         onTextChange={updateAreaText}
+        onMoveStart={beginAreaMove}
         onMove={moveArea}
         onMoveEnd={endAreaMove}
+        onBeginLinkDrag={beginAreaLinkDrag}
+        onUpdateLinkDrag={updateAreaLinkDrag}
+        onEndLinkDrag={finishAreaLinkDrag}
+        onCancelLinkDrag={cancelAreaLinkDrag}
         onDuplicate={duplicateAreaById}
         onDelete={deleteAreaById}
         onOpenStyles={(areaId) => {
@@ -4202,12 +4700,201 @@ function App({
                       {getAreaLinkLabel(link)}
                     </text>
                   )}
+                  {isSelected && !isViewOnly && (
+                    <>
+                      <circle
+                        aria-label="Move connector start"
+                        className="area-link-endpoint-handle"
+                        cx={line.x1}
+                        cy={line.y1}
+                        r="6"
+                        role="button"
+                        tabIndex={0}
+                        onPointerDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          beginAreaLinkEndpointDrag(link, 'from', {
+                            x: line.x1,
+                            y: line.y1,
+                          })
+                          e.currentTarget.setPointerCapture(e.pointerId)
+                        }}
+                        onPointerMove={(e) => {
+                          updateAreaLinkEndpointDrag(
+                            e.clientX,
+                            e.clientY,
+                            e.altKey
+                          )
+                        }}
+                        onPointerUp={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          finishAreaLinkEndpointDrag()
+                          if (
+                            e.currentTarget.hasPointerCapture(e.pointerId)
+                          ) {
+                            e.currentTarget.releasePointerCapture(e.pointerId)
+                          }
+                        }}
+                        onPointerCancel={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          cancelAreaLinkEndpointDrag()
+                          if (
+                            e.currentTarget.hasPointerCapture(e.pointerId)
+                          ) {
+                            e.currentTarget.releasePointerCapture(e.pointerId)
+                          }
+                        }}
+                      />
+                      <circle
+                        aria-label="Move connector end"
+                        className="area-link-endpoint-handle"
+                        cx={line.x2}
+                        cy={line.y2}
+                        r="6"
+                        role="button"
+                        tabIndex={0}
+                        onPointerDown={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          beginAreaLinkEndpointDrag(link, 'to', {
+                            x: line.x2,
+                            y: line.y2,
+                          })
+                          e.currentTarget.setPointerCapture(e.pointerId)
+                        }}
+                        onPointerMove={(e) => {
+                          updateAreaLinkEndpointDrag(
+                            e.clientX,
+                            e.clientY,
+                            e.altKey
+                          )
+                        }}
+                        onPointerUp={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          finishAreaLinkEndpointDrag()
+                          if (
+                            e.currentTarget.hasPointerCapture(e.pointerId)
+                          ) {
+                            e.currentTarget.releasePointerCapture(e.pointerId)
+                          }
+                        }}
+                        onPointerCancel={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          cancelAreaLinkEndpointDrag()
+                          if (
+                            e.currentTarget.hasPointerCapture(e.pointerId)
+                          ) {
+                            e.currentTarget.releasePointerCapture(e.pointerId)
+                          }
+                        }}
+                      />
+                    </>
+                  )}
                 </g>
               )
             })}
+            {linkDragLine && (
+              <line
+                aria-hidden="true"
+                className="area-link-preview-line"
+                x1={linkDragLine.x1}
+                x2={linkDragLine.x2}
+                y1={linkDragLine.y1}
+                y2={linkDragLine.y2}
+              />
+            )}
           </svg>
 
           {getRootAreas(areas).map(renderArea)}
+
+          {shouldShowEditorChrome &&
+            selectedLink &&
+            selectedLinkLine &&
+            openDialogId === null && (
+              <div
+                className="area-link-flyout"
+                style={{
+                  left: selectedLinkLine.labelX,
+                  top: selectedLinkLine.labelY,
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <div className="area-link-flyout-row">
+                  {AREA_LINK_KINDS.filter(
+                    (kind) => kind !== 'contains'
+                  ).map((kind) => (
+                    <button
+                      className={`area-link-flyout-chip${
+                        selectedLink.kind === kind
+                          ? ' area-link-flyout-chip--selected'
+                          : ''
+                      }`}
+                      key={kind}
+                      type="button"
+                      onClick={() =>
+                        updateSelectedAreaLink({
+                          kind,
+                        })
+                      }
+                    >
+                      {AREA_LINK_KIND_LABELS[kind]}
+                    </button>
+                  ))}
+                </div>
+                <div className="area-link-flyout-row">
+                  {AREA_LINK_DIRECTIONS.map((direction) => (
+                    <button
+                      className={`area-link-flyout-chip${
+                        selectedLinkVisual.direction === direction
+                          ? ' area-link-flyout-chip--selected'
+                          : ''
+                      }`}
+                      key={direction}
+                      type="button"
+                      onClick={() =>
+                        updateSelectedAreaLinkVisual({
+                          direction,
+                        })
+                      }
+                    >
+                      {AREA_LINK_DIRECTION_LABELS[direction]}
+                    </button>
+                  ))}
+                </div>
+                <label className="area-link-flyout-label">
+                  <span>Label</span>
+                  <input
+                    aria-label="Connector label"
+                    type="text"
+                    value={selectedLink.label ?? ''}
+                    onChange={(e) =>
+                      updateSelectedAreaLink({
+                        label: e.currentTarget.value,
+                      })
+                    }
+                  />
+                </label>
+                <div className="area-link-flyout-actions">
+                  <button
+                    type="button"
+                    onClick={() => setOpenDialogId('edit-area-link')}
+                  >
+                    More
+                  </button>
+                  <button
+                    className="area-link-flyout-danger"
+                    type="button"
+                    onClick={deleteSelectedAreaLink}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
 
           {shouldShowEditorChrome &&
             activeGifCommand &&
@@ -4420,10 +5107,23 @@ function App({
             if (
               option.id === 'set-area-type' ||
               option.id === 'link-selected-area' ||
+              option.id === 'nest-selected-area' ||
+              option.id === 'unnest-selected-area' ||
+              option.id === 'add-child-area' ||
               option.id === 'add-evidence'
             ) {
               if (!selectedAreaId) {
                 setImportError('Select an Area first.')
+                return
+              }
+
+              if (option.id === 'unnest-selected-area') {
+                unnestSelectedArea()
+                return
+              }
+
+              if (option.id === 'add-child-area') {
+                addChildAreaToSelectedArea()
                 return
               }
 
@@ -4437,6 +5137,16 @@ function App({
                 !linkTargetAreaId
               ) {
                 setLinkTargetAreaId(
+                  areas.find((area) => area.id !== selectedAreaId)?.id ??
+                    ''
+                )
+              }
+
+              if (
+                option.id === 'nest-selected-area' &&
+                !nestTargetAreaId
+              ) {
+                setNestTargetAreaId(
                   areas.find((area) => area.id !== selectedAreaId)?.id ??
                     ''
                 )
@@ -4589,6 +5299,42 @@ function App({
                   </>
                 ) : (
                   <p>Select an Area first.</p>
+                )}
+              </div>
+            ) : openDialogId === 'nest-selected-area' ? (
+              <div className="area-link-controls">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {selectedArea && nestTargetAreas.length > 0 ? (
+                  <>
+                    <label className="page-style-control">
+                      <span>Parent Area</span>
+                      <select
+                        aria-label="Parent Area"
+                        value={nestTargetAreaId}
+                        onChange={(e) =>
+                          setNestTargetAreaId(e.currentTarget.value)
+                        }
+                      >
+                        {nestTargetAreas.map((area) => (
+                          <option key={area.id} value={area.id}>
+                            {area.type === 'image'
+                              ? area.alt || area.id
+                              : area.text.trim().split('\n')[0] ||
+                                area.id}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="area-link-create-button"
+                      type="button"
+                      onClick={nestSelectedAreaIntoTarget}
+                    >
+                      Nest Area
+                    </button>
+                  </>
+                ) : (
+                  <p>Add another Area before nesting.</p>
                 )}
               </div>
             ) : openDialogId === 'link-selected-area' ? (

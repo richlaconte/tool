@@ -5,6 +5,9 @@ import {
   getAreaAbsolutePosition,
   getAreaDepth,
   getChildAreas,
+  getCandidateParentId,
+  getNestingCandidate,
+  getUnnestingSourceId,
   getRootAreas,
   nestAreaIfContained,
   reparentArea,
@@ -148,4 +151,115 @@ test('unnests a child when it leaves its parent bounds', () => {
 test('reports nesting depth', () => {
   assert.equal(getAreaDepth(areas, 'parent'), 0)
   assert.equal(getAreaDepth(areas, 'child'), 1)
+})
+
+test('reports the deepest valid nesting candidate for live previews', () => {
+  const previewAreas = [
+    areas[0],
+    {
+      id: 'inner-parent',
+      parentId: 'parent',
+      x: 20,
+      y: 24,
+      width: 180,
+      height: 140,
+      text: 'Inner parent',
+      styles: {},
+    },
+    {
+      id: 'moving',
+      parentId: null,
+      x: 140,
+      y: 170,
+      width: 80,
+      height: 48,
+      text: 'Moving',
+      styles: {},
+    },
+  ]
+
+  assert.deepEqual(getNestingCandidate(previewAreas, 'moving'), {
+    parentId: 'inner-parent',
+    reason: 'valid',
+  })
+  assert.equal(getCandidateParentId(previewAreas, 'moving'), 'inner-parent')
+})
+
+test('live nesting candidates reject descendants and depth overflow', () => {
+  assert.deepEqual(getNestingCandidate(areas, 'parent'), {
+    parentId: null,
+    reason: 'none',
+  })
+
+  const tooDeepAreas = [
+    {
+      id: 'root',
+      parentId: null,
+      x: 0,
+      y: 0,
+      width: 40,
+      height: 40,
+      text: 'Root',
+      styles: {},
+    },
+    {
+      id: 'level-one',
+      parentId: 'root',
+      x: 300,
+      y: 300,
+      width: 40,
+      height: 40,
+      text: 'Level one',
+      styles: {},
+    },
+    {
+      id: 'level-two',
+      parentId: 'level-one',
+      x: 300,
+      y: 300,
+      width: 40,
+      height: 40,
+      text: 'Level two',
+      styles: {},
+    },
+    {
+      id: 'deep-container',
+      parentId: 'level-two',
+      x: 300,
+      y: 300,
+      width: 220,
+      height: 180,
+      text: 'Container',
+      styles: {},
+    },
+    {
+      id: 'moving',
+      parentId: null,
+      x: 920,
+      y: 920,
+      width: 80,
+      height: 48,
+      text: 'Moving',
+      styles: {},
+    },
+  ]
+
+  assert.deepEqual(getNestingCandidate(tooDeepAreas, 'moving'), {
+    parentId: null,
+    reason: 'depth-limit',
+  })
+})
+
+test('reports the current parent as an unnesting source while dragging out', () => {
+  const outsideAreas = [
+    areas[0],
+    {
+      ...areas[1],
+      x: 340,
+      y: 32,
+    },
+  ]
+
+  assert.equal(getUnnestingSourceId(outsideAreas, 'child'), 'parent')
+  assert.equal(getUnnestingSourceId(areas, 'child'), null)
 })

@@ -12,6 +12,7 @@ import { getAreaShellZIndex } from '../areaLayering'
 import {
   getAreaMetadata,
   type AreaEvidenceReference,
+  type AreaLinkSide,
 } from '../areaMetadata'
 import { getVisibleAreaContentHeight } from '../areaResize'
 import {
@@ -44,10 +45,15 @@ type AreaProps = {
   themeColors: ThemeColorToken[]
   isNewest: boolean
   isSelected: boolean
+  isDragging: boolean
+  isNestingTarget: boolean
+  isUnnestingSource: boolean
+  isLinkTarget: boolean
   isReadOnly: boolean
   canvasZoom: number
   onSelect: (id: string) => void
   onTextChange: (id: string, text: string) => void
+  onMoveStart: (id: string) => void
   onMove: (
     id: string,
     x: number,
@@ -55,6 +61,16 @@ type AreaProps = {
     bypassSnapGrid?: boolean
   ) => void
   onMoveEnd: (id: string) => void
+  onBeginLinkDrag: (
+    id: string,
+    side: AreaLinkSide,
+    position: number,
+    clientX: number,
+    clientY: number
+  ) => void
+  onUpdateLinkDrag: (clientX: number, clientY: number) => void
+  onEndLinkDrag: (clientX: number, clientY: number) => void
+  onCancelLinkDrag: () => void
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
   onOpenStyles: (id: string) => void
@@ -94,12 +110,21 @@ const Area = ({
   themeColors,
   isNewest,
   isSelected,
+  isDragging,
+  isNestingTarget,
+  isUnnestingSource,
+  isLinkTarget,
   isReadOnly,
   canvasZoom,
   onSelect,
   onTextChange,
+  onMoveStart,
   onMove,
   onMoveEnd,
+  onBeginLinkDrag,
+  onUpdateLinkDrag,
+  onEndLinkDrag,
+  onCancelLinkDrag,
   onDuplicate,
   onDelete,
   onOpenStyles,
@@ -128,7 +153,8 @@ const Area = ({
     height: area.height,
     width: area.width,
   })
-  const isDragging = useRef(false)
+  const isAreaDraggingRef = useRef(false)
+  const isLinkDragging = useRef(false)
   const isResizing = useRef(false)
   const [caretIndex, setCaretIndex] = useState(0)
   const [textLayerHeight, setTextLayerHeight] = useState(
@@ -339,8 +365,9 @@ const Area = ({
     e.preventDefault()
     e.stopPropagation()
     onSelect(area.id)
+    onMoveStart(area.id)
 
-    isDragging.current = true
+    isAreaDraggingRef.current = true
 
     const shellRect =
       shellRef.current?.getBoundingClientRect() ??
@@ -357,7 +384,7 @@ const Area = ({
   const handlePointerMove = (
     e: React.PointerEvent<HTMLDivElement>
   ) => {
-    if (!isDragging.current) return
+    if (!isAreaDraggingRef.current) return
 
     const offsetParent =
       shellRef.current?.offsetParent instanceof HTMLElement
@@ -377,8 +404,84 @@ const Area = ({
   const handlePointerEnd = (
     e: React.PointerEvent<HTMLDivElement>
   ) => {
-    isDragging.current = false
+    isAreaDraggingRef.current = false
     onMoveEnd(area.id)
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+  }
+
+  const getLinkZonePosition = (
+    side: AreaLinkSide,
+    clientX: number,
+    clientY: number
+  ) => {
+    const rect = areaRef.current?.getBoundingClientRect()
+
+    if (!rect) return 0.5
+
+    const value =
+      side === 'top' || side === 'bottom'
+        ? (clientX - rect.left) / rect.width
+        : (clientY - rect.top) / rect.height
+
+    if (!Number.isFinite(value)) return 0.5
+
+    return Math.max(0, Math.min(1, value))
+  }
+
+  const handleLinkZonePointerDown =
+    (side: AreaLinkSide) =>
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      onSelect(area.id)
+      isLinkDragging.current = true
+      onBeginLinkDrag(
+        area.id,
+        side,
+        getLinkZonePosition(side, e.clientX, e.clientY),
+        e.clientX,
+        e.clientY
+      )
+      e.currentTarget.setPointerCapture(e.pointerId)
+    }
+
+  const handleLinkZonePointerMove = (
+    e: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (!isLinkDragging.current) return
+
+    e.preventDefault()
+    e.stopPropagation()
+    onUpdateLinkDrag(e.clientX, e.clientY)
+  }
+
+  const handleLinkZonePointerEnd = (
+    e: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (!isLinkDragging.current) return
+
+    e.preventDefault()
+    e.stopPropagation()
+    isLinkDragging.current = false
+    onEndLinkDrag(e.clientX, e.clientY)
+
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+  }
+
+  const handleLinkZonePointerCancel = (
+    e: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (!isLinkDragging.current) return
+
+    e.preventDefault()
+    e.stopPropagation()
+    isLinkDragging.current = false
+    onCancelLinkDrag()
 
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId)
@@ -517,6 +620,10 @@ const Area = ({
         ref={areaRef}
         className={`area${isSelected ? ' area--selected' : ''}${
           isReadOnly ? ' area--read-only' : ''
+        }${isDragging ? ' area--is-dragging' : ''}${
+          isNestingTarget ? ' area--nesting-target' : ''
+        }${isUnnestingSource ? ' area--unnesting-source' : ''}${
+          isLinkTarget ? ' area--link-target' : ''
         }`}
       >
         {metadataLabel && (
@@ -534,6 +641,20 @@ const Area = ({
         {!isReadOnly && (
           <>
             <div className="area-toolbar-bridge" aria-hidden="true" />
+            {(
+              ['top', 'right', 'bottom', 'left'] as AreaLinkSide[]
+            ).map((side) => (
+              <div
+                aria-label={`Start connector from ${side} edge`}
+                className={`area-link-zone area-link-zone--${side}`}
+                key={side}
+                title="Connect"
+                onPointerCancel={handleLinkZonePointerCancel}
+                onPointerDown={handleLinkZonePointerDown(side)}
+                onPointerMove={handleLinkZonePointerMove}
+                onPointerUp={handleLinkZonePointerEnd}
+              />
+            ))}
 
             <div
               aria-label="Move area"

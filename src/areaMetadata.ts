@@ -37,6 +37,18 @@ export const AREA_LINK_ANCHORS = [
   'center',
 ] as const
 
+export const AREA_LINK_SIDES = [
+  'top',
+  'right',
+  'bottom',
+  'left',
+] as const
+
+export const AREA_LINK_ENDPOINT_BEHAVIORS = [
+  'auto',
+  'fixed',
+] as const
+
 export const AREA_LINK_VISUAL_MODES = [
   'simple',
   'semantic',
@@ -86,6 +98,9 @@ export type AreaKind = (typeof AREA_KINDS)[number]
 export type AreaStatus = (typeof AREA_STATUSES)[number]
 export type AreaLinkKind = (typeof AREA_LINK_KINDS)[number]
 export type AreaLinkAnchor = (typeof AREA_LINK_ANCHORS)[number]
+export type AreaLinkSide = (typeof AREA_LINK_SIDES)[number]
+export type AreaLinkEndpointBehavior =
+  (typeof AREA_LINK_ENDPOINT_BEHAVIORS)[number]
 export type AreaLinkVisualMode =
   (typeof AREA_LINK_VISUAL_MODES)[number]
 export type AreaLinkDirection =
@@ -124,6 +139,9 @@ type AreaWithMetadata = {
 export type AreaLinkEndpoint = {
   areaId: string
   anchor?: AreaLinkAnchor
+  side?: AreaLinkSide
+  position?: number
+  behavior?: AreaLinkEndpointBehavior
 }
 
 export type AreaLinkVisual = {
@@ -279,6 +297,20 @@ export const isAreaLinkAnchor = (
   typeof value === 'string' &&
   AREA_LINK_ANCHORS.includes(value as AreaLinkAnchor)
 
+export const isAreaLinkSide = (
+  value: unknown
+): value is AreaLinkSide =>
+  typeof value === 'string' &&
+  AREA_LINK_SIDES.includes(value as AreaLinkSide)
+
+export const isAreaLinkEndpointBehavior = (
+  value: unknown
+): value is AreaLinkEndpointBehavior =>
+  typeof value === 'string' &&
+  AREA_LINK_ENDPOINT_BEHAVIORS.includes(
+    value as AreaLinkEndpointBehavior
+  )
+
 export const isAreaLinkVisualMode = (
   value: unknown
 ): value is AreaLinkVisualMode =>
@@ -346,13 +378,31 @@ const normalizeAreaLinkEndpoint = (
     typeof endpoint.areaId === 'string' && endpoint.areaId.trim()
       ? endpoint.areaId.trim()
       : fallbackAreaId
+  const side = isAreaLinkSide(endpoint.side)
+    ? endpoint.side
+    : undefined
+  const position =
+    side && typeof endpoint.position === 'number'
+      ? clampUnit(endpoint.position)
+      : undefined
 
   return {
     areaId,
     ...(isAreaLinkAnchor(endpoint.anchor)
       ? { anchor: endpoint.anchor }
       : {}),
+    ...(side ? { side } : {}),
+    ...(position !== undefined ? { position } : {}),
+    ...(isAreaLinkEndpointBehavior(endpoint.behavior)
+      ? { behavior: endpoint.behavior }
+      : {}),
   }
+}
+
+const clampUnit = (value: number) => {
+  if (!Number.isFinite(value)) return 0
+
+  return Math.max(0, Math.min(1, value))
 }
 
 const normalizeAreaLinkVisual = (

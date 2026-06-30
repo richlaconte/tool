@@ -167,6 +167,39 @@ test('normalizes connector visual and schema metadata with migration defaults', 
   )
 })
 
+test('normalizes fixed connector endpoint side positions', () => {
+  assert.deepEqual(
+    normalizeAreaLink({
+      id: 'fixed-link',
+      fromAreaId: 'area-1',
+      toAreaId: 'area-2',
+      kind: 'relates-to',
+      from: {
+        areaId: 'area-1',
+        anchor: 'right',
+        side: 'right',
+        position: 1.4,
+        behavior: 'fixed',
+      },
+      to: {
+        areaId: 'area-2',
+        side: 'left',
+        position: -0.5,
+        behavior: 'auto',
+      },
+      createdAt: now,
+      updatedAt: now,
+    }).from,
+    {
+      areaId: 'area-1',
+      anchor: 'right',
+      side: 'right',
+      position: 1,
+      behavior: 'fixed',
+    }
+  )
+})
+
 test('removes links attached to deleted areas', () => {
   const links = [
     createAreaLink({

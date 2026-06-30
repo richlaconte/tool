@@ -23,14 +23,48 @@ test('app renders area metadata controls and connector lines', async () => {
   assert.match(source, /openDialogId === 'set-area-type'/)
   assert.match(source, /openDialogId === 'link-selected-area'/)
   assert.match(source, /openDialogId === 'edit-area-link'/)
+  assert.match(source, /className="area-link-flyout"/)
   assert.match(source, /className="area-link-layer"/)
   assert.match(source, /className="area-link-hit-target"/)
+  assert.match(source, /className="area-link-preview-line"/)
+  assert.match(source, /className="area-link-endpoint-handle"/)
   assert.match(source, /Schema details/)
   assert.match(source, /Delete connector/)
   assert.match(areaSource, /className="area-metadata-label"/)
   assert.match(areaSource, /aria-label="Connect area"/)
+  assert.match(areaSource, /area-link-zone/)
+  assert.match(areaSource, /onBeginLinkDrag/)
   assert.match(css, /\.area-metadata-label/)
+  assert.match(css, /\.area-link-flyout/)
+  assert.match(css, /\.area-link-preview-line/)
+  assert.match(css, /\.area-link-endpoint-handle/)
   assert.match(css, /\.area-link-layer/)
   assert.match(css, /\.area-link-hit-target/)
   assert.match(css, /\.area-link-line--selected/)
+})
+
+test('app renders nesting preview states for child Area drops', async () => {
+  const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
+  const areaSource = await readFile(
+    new URL('./components/Area.tsx', import.meta.url),
+    'utf8'
+  )
+  const css = await readFile(
+    new URL('./components/area.css', import.meta.url),
+    'utf8'
+  )
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /nestingPreview/)
+  assert.match(source, /getCandidateParentId/)
+  assert.match(areaSource, /area--nesting-target/)
+  assert.match(areaSource, /area--unnesting-source/)
+  assert.match(css, /\.area--nesting-target/)
+  assert.match(css, /prefers-reduced-motion: reduce/)
+  assert.match(commandSource, /id: 'nest-selected-area'/)
+  assert.match(commandSource, /id: 'unnest-selected-area'/)
+  assert.match(commandSource, /id: 'add-child-area'/)
 })

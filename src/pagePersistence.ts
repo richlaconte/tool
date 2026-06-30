@@ -5,6 +5,7 @@ import {
   isAreaLinkKind,
   isAreaStatus,
   normalizeAreaMetadata,
+  normalizeAreaLink,
   type AreaLink,
   type AreaEvidenceReference,
   type AreaMetadata,
@@ -620,6 +621,8 @@ const parseAssets = (value: unknown): AssetState[] | null => {
   const assets: AssetState[] = []
 
   for (const asset of value) {
+    const source = isRecord(asset) ? parseGifAssetSource(asset.source) : undefined
+
     if (
       !isRecord(asset) ||
       asset.kind !== 'image' ||
@@ -628,7 +631,8 @@ const parseAssets = (value: unknown): AssetState[] | null => {
       typeof asset.width !== 'number' ||
       typeof asset.height !== 'number' ||
       typeof asset.storageKey !== 'string' ||
-      typeof asset.createdAt !== 'string'
+      typeof asset.createdAt !== 'string' ||
+      source === null
     ) {
       return null
     }
@@ -641,6 +645,7 @@ const parseAssets = (value: unknown): AssetState[] | null => {
       height: asset.height,
       storageKey: asset.storageKey,
       createdAt: asset.createdAt,
+      ...(source ? { source } : {}),
     })
   }
 
@@ -663,17 +668,66 @@ const parseStyles = (
   return styles
 }
 
+const parseGifAssetSource = (value: unknown) => {
+  if (value === undefined) return undefined
+  if (!isRecord(value)) return null
+
+  if (
+    value.provider !== 'giphy' ||
+    typeof value.providerAssetId !== 'string' ||
+    typeof value.providerUrl !== 'string' ||
+    typeof value.title !== 'string' ||
+    typeof value.rendition !== 'string' ||
+    typeof value.animatedUrl !== 'string' ||
+    value.attributionLabel !== 'Powered by GIPHY' ||
+    (value.rating !== undefined && typeof value.rating !== 'string') ||
+    (value.stillUrl !== undefined && typeof value.stillUrl !== 'string')
+  ) {
+    return null
+  }
+
+  const analytics = parseGifAnalytics(value.analytics)
+
+  if (analytics === null) return null
+
+  return {
+    provider: 'giphy' as const,
+    providerAssetId: value.providerAssetId,
+    providerUrl: value.providerUrl,
+    title: value.title,
+    ...(value.rating ? { rating: value.rating } : {}),
+    rendition: value.rendition,
+    ...(value.stillUrl ? { stillUrl: value.stillUrl } : {}),
+    animatedUrl: value.animatedUrl,
+    attributionLabel: 'Powered by GIPHY' as const,
+    ...(analytics ? { analytics } : {}),
+  }
+}
+
+const parseGifAnalytics = (value: unknown) => {
+  if (value === undefined) return undefined
+  if (!isRecord(value)) return null
+
+  if (
+    (value.onload !== undefined && typeof value.onload !== 'string') ||
+    (value.onclick !== undefined && typeof value.onclick !== 'string') ||
+    (value.onsent !== undefined && typeof value.onsent !== 'string')
+  ) {
+    return null
+  }
+
+  return {
+    ...(value.onload ? { onload: value.onload } : {}),
+    ...(value.onclick ? { onclick: value.onclick } : {}),
+    ...(value.onsent ? { onsent: value.onsent } : {}),
+  }
+}
+
 const isValidParentId = (value: unknown) =>
   value === undefined || value === null || typeof value === 'string'
 
 const cloneAreaLink = (link: AreaLink): AreaLink => ({
-  id: link.id,
-  fromAreaId: link.fromAreaId,
-  toAreaId: link.toAreaId,
-  kind: link.kind,
-  ...(link.label ? { label: link.label } : {}),
-  createdAt: link.createdAt,
-  updatedAt: link.updatedAt,
+  ...normalizeAreaLink(link),
 })
 
 const isRecord = (

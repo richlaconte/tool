@@ -40,6 +40,31 @@ const imageAsset = {
   storageKey: 'data:image/png;base64,abc',
   createdAt: now,
 }
+const gifAsset = {
+  id: 'gif-asset-1',
+  kind: 'image' as const,
+  mimeType: 'image/gif',
+  width: 200,
+  height: 160,
+  storageKey: 'https://media.giphy.com/full.gif',
+  createdAt: now,
+  source: {
+    provider: 'giphy' as const,
+    providerAssetId: 'gif-1',
+    providerUrl: 'https://giphy.com/gifs/gif-1',
+    title: 'Ship it',
+    rating: 'pg',
+    rendition: 'fixed_width',
+    stillUrl: 'https://media.giphy.com/still.gif',
+    animatedUrl: 'https://media.giphy.com/full.gif',
+    attributionLabel: 'Powered by GIPHY' as const,
+    analytics: {
+      onload: 'https://analytics.giphy.com/onload',
+      onclick: 'https://analytics.giphy.com/click',
+      onsent: 'https://analytics.giphy.com/send',
+    },
+  },
+}
 const imageArea = {
   id: 'image-area-1',
   type: 'image' as const,
@@ -92,6 +117,26 @@ const areaLink = {
   toAreaId: 'child-area',
   kind: 'relates-to' as const,
   label: 'supports',
+  from: {
+    areaId: 'area-1',
+    anchor: 'right' as const,
+  },
+  to: {
+    areaId: 'child-area',
+    anchor: 'left' as const,
+  },
+  visual: {
+    mode: 'schema' as const,
+    direction: 'forward' as const,
+    route: 'orthogonal' as const,
+    labelVisibility: 'always' as const,
+  },
+  schema: {
+    fromCardinality: 'one' as const,
+    toCardinality: 'many' as const,
+    optionality: 'required' as const,
+    fieldLabel: 'parent_id',
+  },
   createdAt: now,
   updatedAt: now,
 }
@@ -194,6 +239,23 @@ test('serializes and parses image areas with image assets', () => {
   assert.equal(result.ok, true)
   assert.deepEqual(result.ok ? result.state.areas : [], [imageArea])
   assert.deepEqual(result.ok ? result.state.assets : [], [imageAsset])
+})
+
+test('serializes and parses gif source metadata on image assets', () => {
+  const page = createDefaultPageState({
+    id: 'page-1',
+    now,
+  })
+  const snapshot = serializePageState({
+    areas: [],
+    assets: [gifAsset],
+    page,
+  })
+  const result = parsePageJson(JSON.stringify(snapshot))
+
+  assert.deepEqual(snapshot.assets, [gifAsset])
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.ok ? result.state.assets : [], [gifAsset])
 })
 
 test('serializes and parses theme color tokens', () => {
@@ -371,6 +433,63 @@ test('serializes and parses area metadata and links', () => {
     areaMetadata
   )
   assert.deepEqual(result.ok ? result.state.links : [], [areaLink])
+})
+
+test('restores legacy links with connector visual defaults', () => {
+  const page = createDefaultPageState({
+    id: 'page-1',
+    now,
+  })
+  const snapshot = serializePageState(
+    {
+      areas,
+      assets: [],
+      links: [
+        {
+          id: 'legacy-link',
+          fromAreaId: 'area-1',
+          toAreaId: 'child-area',
+          kind: 'depends-on',
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+      page,
+    },
+    now
+  )
+  const legacyJson = JSON.stringify({
+    ...snapshot,
+    links: [
+      {
+        id: 'legacy-link',
+        fromAreaId: 'area-1',
+        toAreaId: 'child-area',
+        kind: 'depends-on',
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  })
+  const result = parsePageJson(legacyJson)
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.ok ? result.state.links : [], [
+    {
+      id: 'legacy-link',
+      fromAreaId: 'area-1',
+      toAreaId: 'child-area',
+      kind: 'depends-on',
+      visual: {
+        mode: 'semantic',
+        direction: 'forward',
+        route: 'auto',
+        labelVisibility: 'auto',
+      },
+      createdAt: now,
+      updatedAt: now,
+    },
+  ])
 })
 
 test('clamps persisted snap grid size while saving and restoring', () => {

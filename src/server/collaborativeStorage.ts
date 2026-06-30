@@ -6,9 +6,11 @@ import {
   isAreaLinkKind,
   isAreaStatus,
   normalizeAreaMetadata,
+  normalizeAreaLink,
   type AreaLink,
   type AreaMetadata,
 } from '../areaMetadata.ts'
+import type { GifAssetSource } from '../gifSearch.ts'
 
 export type StoredPageState = {
   page: {
@@ -71,6 +73,7 @@ export type StoredPageState = {
     height: number
     storageKey: string
     createdAt: string
+    source?: GifAssetSource
   }>
   links: AreaLink[]
 }
@@ -201,6 +204,8 @@ const readAssetsMap = (assetsMap: Y.Map<Y.Map<unknown>>) => {
   const assets: StoredPageState['assets'] = []
 
   assetsMap.forEach((assetMap) => {
+    const source = readGifAssetSource(assetMap.get('source'))
+
     assets.push({
       id: readString(assetMap.get('id'), ''),
       kind: 'image',
@@ -209,6 +214,7 @@ const readAssetsMap = (assetsMap: Y.Map<Y.Map<unknown>>) => {
       height: readNumber(assetMap.get('height'), 0),
       storageKey: readString(assetMap.get('storageKey'), ''),
       createdAt: readString(assetMap.get('createdAt'), ''),
+      ...(source ? { source } : {}),
     })
   })
 
@@ -221,17 +227,45 @@ const readLinksMap = (linksMap: Y.Map<Y.Map<unknown>>) => {
   linksMap.forEach((linkMap) => {
     const kind = readString(linkMap.get('kind'), 'relates-to')
 
-    links.push({
-      id: readString(linkMap.get('id'), ''),
-      fromAreaId: readString(linkMap.get('fromAreaId'), ''),
-      toAreaId: readString(linkMap.get('toAreaId'), ''),
-      kind: isAreaLinkKind(kind) ? kind : 'relates-to',
-      ...(typeof linkMap.get('label') === 'string'
-        ? { label: readString(linkMap.get('label'), '') }
-        : {}),
-      createdAt: readString(linkMap.get('createdAt'), ''),
-      updatedAt: readString(linkMap.get('updatedAt'), ''),
-    })
+    links.push(
+      normalizeAreaLink({
+        id: readString(linkMap.get('id'), ''),
+        fromAreaId: readString(linkMap.get('fromAreaId'), ''),
+        toAreaId: readString(linkMap.get('toAreaId'), ''),
+        kind: isAreaLinkKind(kind) ? kind : 'relates-to',
+        ...(typeof linkMap.get('label') === 'string'
+          ? { label: readString(linkMap.get('label'), '') }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('from'))).length > 0
+          ? {
+              from: readRecord(
+                linkMap.get('from')
+              ) as AreaLink['from'],
+            }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('to'))).length > 0
+          ? {
+              to: readRecord(linkMap.get('to')) as AreaLink['to'],
+            }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('visual'))).length > 0
+          ? {
+              visual: readRecord(
+                linkMap.get('visual')
+              ) as AreaLink['visual'],
+            }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('schema'))).length > 0
+          ? {
+              schema: readRecord(
+                linkMap.get('schema')
+              ) as AreaLink['schema'],
+            }
+          : {}),
+        createdAt: readString(linkMap.get('createdAt'), ''),
+        updatedAt: readString(linkMap.get('updatedAt'), ''),
+      })
+    )
   })
 
   return links
@@ -249,6 +283,55 @@ const readStylesMap = (value: unknown) => {
   })
 
   return styles
+}
+
+const readGifAssetSource = (value: unknown): GifAssetSource | undefined => {
+  const source = readRecord(value)
+
+  if (
+    source.provider !== 'giphy' ||
+    typeof source.providerAssetId !== 'string' ||
+    typeof source.providerUrl !== 'string' ||
+    typeof source.title !== 'string' ||
+    typeof source.rendition !== 'string' ||
+    typeof source.animatedUrl !== 'string' ||
+    source.attributionLabel !== 'Powered by GIPHY'
+  ) {
+    return undefined
+  }
+
+  const analytics = readRecord(source.analytics)
+
+  return {
+    provider: 'giphy',
+    providerAssetId: source.providerAssetId,
+    providerUrl: source.providerUrl,
+    title: source.title,
+    ...(typeof source.rating === 'string'
+      ? { rating: source.rating }
+      : {}),
+    rendition: source.rendition,
+    ...(typeof source.stillUrl === 'string'
+      ? { stillUrl: source.stillUrl }
+      : {}),
+    animatedUrl: source.animatedUrl,
+    attributionLabel: 'Powered by GIPHY',
+    ...(Object.keys(analytics).length > 0
+      ? {
+          analytics: {
+            ...(typeof analytics.onload === 'string'
+              ? { onload: analytics.onload }
+              : {}),
+            ...(typeof analytics.onclick === 'string'
+              ? { onclick: analytics.onclick }
+              : {}),
+            ...(typeof analytics.onsent === 'string'
+              ? { onsent: analytics.onsent }
+              : {}),
+          },
+        }
+      : {}),
+  }
 }
 
 const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {

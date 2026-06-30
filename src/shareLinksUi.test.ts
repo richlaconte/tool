@@ -71,7 +71,7 @@ test('view-only presentation hides editor chrome and exposes create-own action',
   )
   assert.match(
     appSource,
-    /\{shouldShowEditorChrome && \(\s*<CanvasZoomControls/
+    /\{shouldEnableCanvasZoom && \(\s*<CanvasZoomControls/
   )
   assert.match(
     appSource,

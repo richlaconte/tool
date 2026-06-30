@@ -25,12 +25,183 @@
   pointer-events: none;
 }
 
+.area-link-layer marker path {
+  fill: #475569;
+}
+
+.area-link-group {
+  pointer-events: none;
+}
+
 .area-link-line {
   stroke: rgb(71 85 105 / 48%);
-  stroke-dasharray: 5 5;
   stroke-linecap: round;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
+}
+
+.area-link-line--loose {
+  stroke-dasharray: 5 5;
+}
+
+.area-link-line--schema {
+  stroke: rgb(37 99 235 / 54%);
+}
+
+.area-link-line--selected {
+  stroke: #334155;
+  stroke-dasharray: none;
+  stroke-width: 2.4;
+}
+
+.area-link-hit-target {
+  cursor: pointer;
+  pointer-events: stroke;
+  stroke: transparent;
+  stroke-linecap: round;
+  stroke-width: 18;
+  vector-effect: non-scaling-stroke;
+}
+
+.area-link-hit-target:focus-visible + .area-link-line {
+  stroke: #334155;
+  stroke-dasharray: none;
+  stroke-width: 2.4;
+  outline: none;
+}
+
+.area-link-endpoint-mark {
+  fill: white;
+  pointer-events: none;
+  stroke: rgb(37 99 235 / 62%);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.area-link-label {
+  paint-order: stroke fill;
+  fill: #334155;
+  font: 11px/1 ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  pointer-events: none;
+  stroke: rgb(255 255 255 / 92%);
+  stroke-linejoin: round;
+  stroke-width: 5;
+  user-select: none;
+}
+
+.gif-search-flyout {
+  position: absolute;
+  z-index: 12;
+  display: grid;
+  width: 292px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  gap: 10px;
+  border: 1px solid rgb(148 163 184 / 36%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 98%);
+  box-shadow:
+    0 18px 50px rgb(15 23 42 / 18%),
+    0 2px 8px rgb(15 23 42 / 10%);
+  color: #111827;
+  font: 12px/1.3 ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 10px;
+  pointer-events: auto;
+  transform: scale(var(--canvas-ui-scale));
+  transform-origin: top left;
+  user-select: none;
+}
+
+.gif-search-header,
+.gif-search-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gif-search-header strong,
+.gif-search-header span,
+.gif-search-footer span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gif-search-header strong {
+  display: block;
+  font-size: 12px;
+}
+
+.gif-search-header span,
+.gif-search-footer {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.gif-search-close {
+  display: grid;
+  flex: 0 0 auto;
+  height: 24px;
+  width: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.gif-search-close:hover,
+.gif-search-close:focus-visible {
+  background: #f1f5f9;
+  outline: 2px solid rgb(37 99 235 / 18%);
+  outline-offset: 1px;
+}
+
+.gif-search-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  overflow: hidden;
+}
+
+.gif-search-result {
+  display: block;
+  aspect-ratio: 1.25;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background: #e5e7eb;
+  cursor: pointer;
+  padding: 0;
+}
+
+.gif-search-result img {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.gif-search-result--selected,
+.gif-search-result:focus-visible {
+  border-color: #2563eb;
+  outline: none;
+}
+
+.gif-search-message {
+  margin: 0;
+  border: 1px solid rgb(148 163 184 / 28%);
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 10px;
 }
 
 .area-metadata-label {
@@ -513,6 +684,13 @@ button.mcp-status-badge:focus-visible {
   color: #475569;
 }
 
+.command-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .area-style-dialog {
   width: min(760px, calc(100vw - 40px));
   padding: 18px;
@@ -752,6 +930,26 @@ button.mcp-status-badge:focus-visible {
   display: grid;
   gap: 14px;
   margin: 0 0 18px;
+}
+
+.area-link-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.area-link-schema-fields {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid rgb(148 163 184 / 22%);
+  padding-top: 14px;
+}
+
+.area-link-schema-fields h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.2;
 }
 
 .settings-controls p,
@@ -1338,9 +1536,26 @@ button.mcp-status-badge:focus-visible {
   padding: 8px 12px;
 }
 
+.command-dialog-button--secondary {
+  border: 1px solid rgb(148 163 184 / 40%);
+  background: white;
+  color: #334155;
+}
+
+.command-dialog-button--danger {
+  background: #b91c1c;
+  color: white;
+}
+
 .command-dialog-button:focus-visible {
   outline: 2px solid rgb(37 99 235 / 35%);
   outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .area-link-field-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .undo-toast {

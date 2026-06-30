@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   createAreaLink,
   getAreaMetadata,
+  normalizeAreaLink,
   removeAreaLinksForDeletedAreas,
   setAreaMetadata,
 } from './areaMetadata.ts'
@@ -66,6 +67,100 @@ test('creates directional links between stable area ids', () => {
       toAreaId: 'area-2',
       kind: 'blocks',
       label: 'blocks launch',
+      visual: {
+        mode: 'semantic',
+        direction: 'forward',
+        route: 'auto',
+        labelVisibility: 'auto',
+      },
+      createdAt: now,
+      updatedAt: now,
+    }
+  )
+})
+
+test('normalizes connector visual and schema metadata with migration defaults', () => {
+  assert.deepEqual(
+    normalizeAreaLink({
+      id: 'link-1',
+      fromAreaId: 'area-1',
+      toAreaId: 'area-2',
+      kind: 'references',
+      label: ' user_id ',
+      from: {
+        areaId: 'area-1',
+        anchor: 'left',
+      },
+      to: {
+        areaId: 'area-2',
+        anchor: 'right',
+      },
+      visual: {
+        mode: 'schema',
+        direction: 'both',
+        route: 'orthogonal',
+        labelVisibility: 'always',
+      },
+      schema: {
+        fromCardinality: 'many',
+        toCardinality: 'one',
+        optionality: 'required',
+        fieldLabel: ' user_id ',
+      },
+      createdAt: now,
+      updatedAt: now,
+    }),
+    {
+      id: 'link-1',
+      fromAreaId: 'area-1',
+      toAreaId: 'area-2',
+      kind: 'references',
+      label: 'user_id',
+      from: {
+        areaId: 'area-1',
+        anchor: 'left',
+      },
+      to: {
+        areaId: 'area-2',
+        anchor: 'right',
+      },
+      visual: {
+        mode: 'schema',
+        direction: 'both',
+        route: 'orthogonal',
+        labelVisibility: 'always',
+      },
+      schema: {
+        fromCardinality: 'many',
+        toCardinality: 'one',
+        optionality: 'required',
+        fieldLabel: 'user_id',
+      },
+      createdAt: now,
+      updatedAt: now,
+    }
+  )
+
+  assert.deepEqual(
+    normalizeAreaLink({
+      id: 'legacy-link',
+      fromAreaId: 'area-1',
+      toAreaId: 'area-2',
+      kind: 'relates-to',
+      createdAt: now,
+      updatedAt: now,
+    }),
+    {
+      id: 'legacy-link',
+      fromAreaId: 'area-1',
+      toAreaId: 'area-2',
+      kind: 'relates-to',
+      visual: {
+        mode: 'semantic',
+        direction: 'forward',
+        route: 'auto',
+        labelVisibility: 'auto',
+      },
       createdAt: now,
       updatedAt: now,
     }

@@ -102,16 +102,11 @@ export const exportPageAsMarkdown = (state: PageAppState) => {
   }
 
   if ((state.links ?? []).length > 0) {
-    lines.push('## Links', '')
+    lines.push('## Relationships', '')
 
     for (const link of state.links ?? []) {
       lines.push(
-        `- \`${link.fromAreaId}\` -> \`${link.toAreaId}\` (${[
-          link.kind,
-          link.label,
-        ]
-          .filter(Boolean)
-          .join(', ')})`
+        `- \`${link.fromAreaId}\` -> \`${link.toAreaId}\` (${renderRelationshipDetails(link)})`
       )
     }
 
@@ -133,6 +128,8 @@ export const exportPageAsJsonCanvas = (
     ...(link.label ? { label: link.label } : {}),
     cascadery: {
       kind: link.kind,
+      ...(link.visual ? { visual: link.visual } : {}),
+      ...(link.schema ? { schema: link.schema } : {}),
       createdAt: link.createdAt,
       updatedAt: link.updatedAt,
     },
@@ -146,6 +143,32 @@ export const exportPageAsJsonCanvas = (
 
 export const stringifyPageAsJsonCanvas = (state: PageAppState) =>
   `${JSON.stringify(exportPageAsJsonCanvas(state), null, 2)}\n`
+
+const renderRelationshipDetails = (
+  link: NonNullable<PageAppState['links']>[number]
+) => {
+  const details = [link.kind, link.label]
+
+  if (link.visual?.mode && link.visual.mode !== 'semantic') {
+    details.push(link.visual.mode)
+  }
+
+  if (link.schema?.fromCardinality && link.schema.toCardinality) {
+    details.push(
+      `${link.schema.fromCardinality}-to-${link.schema.toCardinality}`
+    )
+  }
+
+  if (link.schema?.optionality) {
+    details.push(link.schema.optionality)
+  }
+
+  if (link.schema?.fieldLabel) {
+    details.push(`field: ${link.schema.fieldLabel}`)
+  }
+
+  return details.filter(Boolean).join(', ')
+}
 
 const renderAreaMarkdown = (
   area: AreaState,
@@ -180,6 +203,10 @@ const renderAreaMarkdown = (
     const asset = assets.find((candidate) => candidate.id === area.assetId)
     if (asset && isSafeRemoteUrl(asset.storageKey)) {
       lines.push(`Image URL: ${asset.storageKey}`)
+    }
+    if (asset?.source?.provider === 'giphy') {
+      lines.push(`GIF: ${asset.source.title}`)
+      lines.push(`Provider URL: ${asset.source.providerUrl}`)
     }
 
     return lines
@@ -260,6 +287,11 @@ const redactAsset = (asset: AssetState) => ({
   width: asset.width,
   height: asset.height,
   createdAt: asset.createdAt,
+  ...(asset.source
+    ? {
+        source: asset.source,
+      }
+    : {}),
   ...(isSafeRemoteUrl(asset.storageKey)
     ? {
         sourceUrl: asset.storageKey,

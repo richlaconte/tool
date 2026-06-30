@@ -54,3 +54,49 @@ test('context kit insertion creates normal areas with fresh ids and links', () =
   assert.ok(result.links.every((link) => link.fromAreaId.startsWith('area-')))
   assert.ok(result.links.every((link) => link.toAreaId.startsWith('area-')))
 })
+
+test('sprint retro kit creates a linked retrospective board', () => {
+  const kit = getContextKitById('sprint-retro')
+  assert.ok(kit)
+  assert.equal(kit!.title, 'Sprint Retro')
+  assert.equal(kit!.description, 'Reflect on the sprint and choose next actions.')
+  assert.equal(kit!.areas.length, 6)
+  assert.deepEqual(
+    kit!.areas.map((area) => area.id),
+    [
+      'sprint-context',
+      'went-well',
+      'needs-attention',
+      'learned',
+      'try-next-sprint',
+      'follow-up-owners',
+    ]
+  )
+  assert.deepEqual(
+    kit!.areas.map((area) => area.kind),
+    ['note', 'note', 'risk', 'question', 'task', 'task']
+  )
+  assert.ok(kit!.areas.every((area) => area.tags?.includes('retro')))
+  assert.ok(
+    kit!.areas
+      .filter((area) =>
+        ['try-next-sprint', 'follow-up-owners'].includes(area.id)
+      )
+      .every((area) => area.tags?.includes('action'))
+  )
+  assert.equal(kit!.links?.length, 5)
+  assert.deepEqual(
+    kit!.links?.map((link) => [
+      link.fromAreaId,
+      link.toAreaId,
+      link.kind,
+    ]),
+    [
+      ['sprint-context', 'went-well', 'relates-to'],
+      ['sprint-context', 'needs-attention', 'relates-to'],
+      ['needs-attention', 'try-next-sprint', 'depends-on'],
+      ['learned', 'try-next-sprint', 'implements'],
+      ['try-next-sprint', 'follow-up-owners', 'depends-on'],
+    ]
+  )
+})

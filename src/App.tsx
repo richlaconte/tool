@@ -18,14 +18,30 @@ import {
 } from './areaActions'
 import {
   AREA_KINDS,
+  AREA_LINK_CARDINALITIES,
+  AREA_LINK_DIRECTIONS,
   AREA_LINK_KINDS,
+  AREA_LINK_LABEL_VISIBILITIES,
+  AREA_LINK_OPTIONALITIES,
+  AREA_LINK_ROUTES,
+  AREA_LINK_VISUAL_MODES,
   AREA_STATUSES,
   createAreaLink,
   getAreaMetadata,
+  normalizeAreaLink,
   removeAreaLinksForDeletedAreas,
   setAreaMetadata,
   type AreaLink,
+  type AreaLinkAnchor,
+  type AreaLinkCardinality,
+  type AreaLinkDirection,
   type AreaLinkKind,
+  type AreaLinkLabelVisibility,
+  type AreaLinkOptionality,
+  type AreaLinkRoute,
+  type AreaLinkSchema,
+  type AreaLinkVisual,
+  type AreaLinkVisualMode,
   type AreaMetadata,
   type AreaStatus,
 } from './areaMetadata'
@@ -88,6 +104,15 @@ import {
   getImageUrlValidationError,
   removeImageSlashCommand,
 } from './imageSupport'
+import {
+  GifSearchConfigurationError,
+  createGiphySearchProvider,
+  removeGifSlashCommand,
+  toGifAssetSource,
+  type GifAssetSource,
+  type GifSearchResult,
+  type GifSlashCommand,
+} from './gifSearch'
 import {
   getAreaAbsolutePosition,
   getChildAreas,
@@ -188,6 +213,7 @@ export type AssetState = {
   height: number
   storageKey: string
   createdAt: string
+  source?: GifAssetSource
 }
 
 type SaveStatus = 'saved' | 'saving' | 'offline-changes'
@@ -207,6 +233,34 @@ type PendingImageInsert =
       kind: 'replace'
       areaId: string
     }
+type RemovableSlashCommand = {
+  start: number
+  end: number
+  raw: string
+}
+type RemoveSlashCommand = (
+  text: string,
+  command: Pick<RemovableSlashCommand, 'start' | 'end'>
+) => {
+  text: string
+  caretIndex: number
+}
+type ActiveGifCommand = {
+  areaId: string
+  command: GifSlashCommand
+}
+type GifSearchState = {
+  status:
+    | 'idle'
+    | 'missing-key'
+    | 'loading'
+    | 'ready'
+    | 'empty'
+    | 'error'
+  results: GifSearchResult[]
+  selectedIndex: number
+  message?: string
+}
 
 type CollaborationMessage =
   | {
@@ -251,6 +305,10 @@ const COMMAND_DIALOGS: Record<
     title: 'Link selected Area',
     body: 'Create a visible relationship from the selected Area to another Area.',
   },
+  'edit-area-link': {
+    title: 'Edit connector',
+    body: 'Refine the relationship, visual treatment, and schema details for this connector.',
+  },
   'agent-suggestions': {
     title: 'Agent proposal',
     body: 'Review suggested agent changes before applying them to the canvas.',
@@ -275,6 +333,80 @@ const COMMAND_DIALOGS: Record<
     title: 'History',
     body: 'Recent recoverable page changes live here.',
   },
+  'leave-canvas': {
+    title: 'Are you sure you want to leave?',
+    body: 'You will return to the Cascadery start screen. Your canvas URL will still open this page.',
+  },
+}
+
+const ZOOM_COMMAND_OPTION_IDS = new Set([
+  'zoom-in',
+  'zoom-out',
+  'reset-zoom',
+  'zoom-to-fit',
+  'zoom-to-selection',
+])
+
+const isZoomCommandOption = (option: { id: string }) =>
+  ZOOM_COMMAND_OPTION_IDS.has(option.id)
+
+const AREA_LINK_KIND_LABELS: Record<AreaLinkKind, string> = {
+  'relates-to': 'Relates to',
+  'depends-on': 'Depends on',
+  implements: 'Implements',
+  blocks: 'Blocks',
+  answers: 'Answers',
+  references: 'References',
+  contains: 'Contains',
+}
+
+const AREA_LINK_VISUAL_MODE_LABELS: Record<
+  AreaLinkVisualMode,
+  string
+> = {
+  simple: 'Simple',
+  semantic: 'Developer semantic',
+  schema: 'Schema',
+}
+
+const AREA_LINK_DIRECTION_LABELS: Record<AreaLinkDirection, string> =
+  {
+    none: 'No arrow',
+    forward: 'Forward',
+    backward: 'Backward',
+    both: 'Both directions',
+  }
+
+const AREA_LINK_ROUTE_LABELS: Record<AreaLinkRoute, string> = {
+  auto: 'Auto',
+  straight: 'Straight',
+  orthogonal: 'Orthogonal',
+}
+
+const AREA_LINK_LABEL_VISIBILITY_LABELS: Record<
+  AreaLinkLabelVisibility,
+  string
+> = {
+  auto: 'Auto',
+  always: 'Always',
+  selected: 'Selected only',
+}
+
+const AREA_LINK_CARDINALITY_LABELS: Record<
+  AreaLinkCardinality,
+  string
+> = {
+  one: 'One',
+  many: 'Many',
+}
+
+const AREA_LINK_OPTIONALITY_LABELS: Record<
+  AreaLinkOptionality,
+  string
+> = {
+  optional: 'Optional',
+  required: 'Required',
+  mixed: 'Mixed',
 }
 
 const LOCAL_AGENT_CLIENT: AgentClient = {
@@ -596,13 +728,114 @@ const getAreaLinkLine = (areas: AreaState[], link: AreaLink) => {
 
   const fromPosition = getAreaAbsolutePosition(areas, fromArea.id)
   const toPosition = getAreaAbsolutePosition(areas, toArea.id)
+  const fromCenter = {
+    x: fromPosition.x + fromArea.width / 2,
+    y: fromPosition.y + fromArea.height / 2,
+  }
+  const toCenter = {
+    x: toPosition.x + toArea.width / 2,
+    y: toPosition.y + toArea.height / 2,
+  }
+  const fromPoint = getAreaLinkAnchorPoint(
+    fromArea,
+    fromPosition,
+    link.from?.anchor,
+    toCenter
+  )
+  const toPoint = getAreaLinkAnchorPoint(
+    toArea,
+    toPosition,
+    link.to?.anchor,
+    fromCenter
+  )
 
   return {
-    x1: fromPosition.x + fromArea.width / 2,
-    y1: fromPosition.y + fromArea.height / 2,
-    x2: toPosition.x + toArea.width / 2,
-    y2: toPosition.y + toArea.height / 2,
+    x1: fromPoint.x,
+    y1: fromPoint.y,
+    x2: toPoint.x,
+    y2: toPoint.y,
+    labelX: (fromPoint.x + toPoint.x) / 2,
+    labelY: (fromPoint.y + toPoint.y) / 2,
   }
+}
+
+const getAreaLinkAnchorPoint = (
+  area: AreaState,
+  position: { x: number; y: number },
+  anchor: AreaLinkAnchor | undefined,
+  toward: { x: number; y: number }
+) => {
+  const center = {
+    x: position.x + area.width / 2,
+    y: position.y + area.height / 2,
+  }
+  const resolvedAnchor =
+    !anchor || anchor === 'auto'
+      ? Math.abs(toward.x - center.x) >= Math.abs(toward.y - center.y)
+        ? toward.x >= center.x
+          ? 'right'
+          : 'left'
+        : toward.y >= center.y
+          ? 'bottom'
+          : 'top'
+      : anchor
+
+  if (resolvedAnchor === 'left') {
+    return {
+      x: position.x,
+      y: center.y,
+    }
+  }
+
+  if (resolvedAnchor === 'right') {
+    return {
+      x: position.x + area.width,
+      y: center.y,
+    }
+  }
+
+  if (resolvedAnchor === 'top') {
+    return {
+      x: center.x,
+      y: position.y,
+    }
+  }
+
+  if (resolvedAnchor === 'bottom') {
+    return {
+      x: center.x,
+      y: position.y + area.height,
+    }
+  }
+
+  return center
+}
+
+const getAreaLinkLabel = (link: AreaLink) =>
+  link.label?.trim() ||
+  link.schema?.fieldLabel?.trim() ||
+  AREA_LINK_KIND_LABELS[link.kind]
+
+const shouldShowAreaLinkLabel = (link: AreaLink, isSelected: boolean) =>
+  link.visual?.labelVisibility === 'always' ||
+  isSelected ||
+  Boolean(link.label?.trim())
+
+const getAreaLinkMarkerUrl = (
+  link: AreaLink,
+  direction: 'start' | 'end'
+) => {
+  const linkDirection = link.visual?.direction ?? 'forward'
+
+  if (direction === 'start') {
+    return linkDirection === 'backward' || linkDirection === 'both'
+      ? 'url(#area-link-arrow)'
+      : undefined
+  }
+
+  return linkDirection === 'forward' || linkDirection === 'both'
+    ? 'url(#area-link-arrow)'
+    : undefined
 }
 
 const getFileAltText = (fileName: string) =>
@@ -650,6 +883,14 @@ const getUrlAltText = (url: string) => {
 
 const requestImageAltText = (defaultAlt: string) =>
   window.prompt('Image description', defaultAlt) ?? defaultAlt
+
+const readGiphyApiKey = () => {
+  const meta = import.meta as ImportMeta & {
+    env?: Record<string, string | undefined>
+  }
+
+  return meta.env?.VITE_GIPHY_API_KEY ?? ''
+}
 
 const getFirstImageFile = (files: FileList | File[]) =>
   Array.from(files).find((file) => file.type.startsWith('image/')) ?? null
@@ -731,6 +972,32 @@ function App({
   const [linkKind, setLinkKind] =
     useState<AreaLinkKind>('relates-to')
   const [linkLabel, setLinkLabel] = useState('')
+  const [linkVisualMode, setLinkVisualMode] =
+    useState<AreaLinkVisualMode>('simple')
+  const [linkDirection, setLinkDirection] =
+    useState<AreaLinkDirection>('forward')
+  const [linkRoute, setLinkRoute] =
+    useState<AreaLinkRoute>('auto')
+  const [linkLabelVisibility, setLinkLabelVisibility] =
+    useState<AreaLinkLabelVisibility>('auto')
+  const [linkFromCardinality, setLinkFromCardinality] =
+    useState<AreaLinkCardinality>('one')
+  const [linkToCardinality, setLinkToCardinality] =
+    useState<AreaLinkCardinality>('many')
+  const [linkOptionality, setLinkOptionality] =
+    useState<AreaLinkOptionality>('required')
+  const [linkFieldLabel, setLinkFieldLabel] = useState('')
+  const [selectedLinkId, setSelectedLinkId] = useState<
+    string | null
+  >(null)
+  const [activeGifCommand, setActiveGifCommand] =
+    useState<ActiveGifCommand | null>(null)
+  const [gifSearchState, setGifSearchState] =
+    useState<GifSearchState>({
+      status: 'idle',
+      results: [],
+      selectedIndex: 0,
+    })
   const [copiedShareMode, setCopiedShareMode] =
     useState<ShareAccessMode | null>(null)
   const nextAreaId = useRef(0)
@@ -764,6 +1031,13 @@ function App({
   const hasMountedForSave = useRef(false)
   const hasMountedForCollaborationSync = useRef(false)
   const pendingImageInsert = useRef<PendingImageInsert | null>(null)
+  const gifSearchProvider = useMemo(
+    () =>
+      createGiphySearchProvider({
+        apiKey: readGiphyApiKey(),
+      }),
+    []
+  )
   const shareAccessMode =
     serverAccessMode ??
     getShareAccessMode(
@@ -772,6 +1046,9 @@ function App({
     )
   const isViewOnly = shareAccessMode === 'view'
   const shouldShowEditorChrome = !isViewOnly
+  const shouldShowEmptyState =
+    shouldShowEditorChrome && areas.length === 0
+  const shouldEnableCanvasZoom = shouldShowEditorChrome && !shouldShowEmptyState
   const isServerCollaborationEnabled = Boolean(pageId)
   const collaborativePageState = useMemo(
     () => ({
@@ -1055,6 +1332,139 @@ function App({
 
   useEffect(() => {
     if (
+      selectedLinkId &&
+      !links.some((link) => link.id === selectedLinkId)
+    ) {
+      setSelectedLinkId(null)
+    }
+  }, [links, selectedLinkId])
+
+  const handleGifCommandActive = useCallback(
+    (areaId: string, command: GifSlashCommand | null) => {
+      setActiveGifCommand((current) => {
+        if (!command) {
+          return current?.areaId === areaId ? null : current
+        }
+
+        if (
+          current?.areaId === areaId &&
+          current.command.raw === command.raw &&
+          current.command.start === command.start &&
+          current.command.end === command.end &&
+          current.command.query === command.query
+        ) {
+          return current
+        }
+
+        return {
+          areaId,
+          command,
+        }
+      })
+    },
+    []
+  )
+
+  useEffect(() => {
+    if (!activeGifCommand || isViewOnly) {
+      setGifSearchState({
+        status: 'idle',
+        results: [],
+        selectedIndex: 0,
+      })
+      return
+    }
+
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => {
+      setGifSearchState((current) => ({
+        status: 'loading',
+        results: current.results,
+        selectedIndex: 0,
+      }))
+
+      const request = activeGifCommand.command.query
+        ? gifSearchProvider.search(activeGifCommand.command.query, {
+            limit: 6,
+            rating: 'pg',
+            signal: controller.signal,
+          })
+        : gifSearchProvider.trending({
+            limit: 6,
+            rating: 'pg',
+            signal: controller.signal,
+          })
+
+      void request
+        .then((results) => {
+          if (controller.signal.aborted) return
+
+          setGifSearchState({
+            status: results.length > 0 ? 'ready' : 'empty',
+            results,
+            selectedIndex: 0,
+            message:
+              results.length > 0
+                ? undefined
+                : activeGifCommand.command.query
+                  ? `No GIFs found for "${activeGifCommand.command.query}".`
+                  : 'No trending GIFs found.',
+          })
+
+          if (results[0]) {
+            void gifSearchProvider.registerEvent?.(results[0], 'view')
+          }
+        })
+        .catch((error) => {
+          if (controller.signal.aborted) return
+
+          setGifSearchState({
+            status:
+              error instanceof GifSearchConfigurationError
+                ? 'missing-key'
+                : 'error',
+            results: [],
+            selectedIndex: 0,
+            message:
+              error instanceof GifSearchConfigurationError
+                ? 'GIF search is not configured.'
+                : 'GIF search is temporarily unavailable. Try again in a moment.',
+          })
+        })
+    }, 250)
+
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [activeGifCommand, gifSearchProvider, isViewOnly])
+
+  useEffect(() => {
+    if (!activeGifCommand) return
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target =
+        event.target instanceof HTMLElement ? event.target : null
+
+      if (
+        target?.closest('.gif-search-flyout') ||
+        target?.closest('.area-shell')
+      ) {
+        return
+      }
+
+      setActiveGifCommand(null)
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [activeGifCommand])
+
+  useEffect(() => {
+    if (
       !page.settings.mcp.enabled ||
       !pageId ||
       typeof fetch === 'undefined'
@@ -1272,6 +1682,7 @@ function App({
   useEffect(() => {
     const canvas = canvasRef.current
 
+    if (!shouldEnableCanvasZoom) return
     if (!canvas) return
 
     const handleWheel = (event: WheelEvent) => {
@@ -1299,7 +1710,7 @@ function App({
     return () => {
       canvas.removeEventListener('wheel', handleWheel)
     }
-  }, [zoomCanvasContinuously])
+  }, [shouldEnableCanvasZoom, zoomCanvasContinuously])
 
   useEffect(() => {
     collaborationChannelRef.current?.postMessage({
@@ -1407,6 +1818,7 @@ function App({
         },
       ])
       setSelectedAreaId(id)
+      setSelectedLinkId(null)
       setAutoFocusAreaId(id)
     }
 
@@ -1424,10 +1836,41 @@ function App({
       const hasSystemModifier = e.metaKey || e.ctrlKey
 
       if (
+        selectedLinkId &&
+        !isViewOnly &&
+        !isEditingTarget &&
+        commandPaletteQuery === null &&
+        openDialogId === null &&
+        styleDialogArea === null
+      ) {
+        if (e.key === 'Escape') {
+          e.preventDefault()
+          setSelectedLinkId(null)
+          return
+        }
+
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault()
+          setLinks((prev) =>
+            prev.filter((link) => link.id !== selectedLinkId)
+          )
+          setSelectedLinkId(null)
+          return
+        }
+
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          setOpenDialogId('edit-area-link')
+          return
+        }
+      }
+
+      if (
         openDialogId === null &&
         commandPaletteQuery === null &&
         !isEditingTarget &&
-        !isPaletteTarget
+        !isPaletteTarget &&
+        !shouldShowEmptyState
       ) {
         if (hasSystemModifier && (e.key === '+' || e.key === '=')) {
           e.preventDefault()
@@ -1512,6 +1955,8 @@ function App({
     openDialogId,
     resetCanvasZoom,
     selectedAreaId,
+    selectedLinkId,
+    shouldShowEmptyState,
     styleDialogArea,
     zoomCanvasByDirection,
     zoomCanvasToFit,
@@ -1796,6 +2241,36 @@ function App({
     )
   }
 
+  const getCreateLinkVisual = (): AreaLinkVisual => ({
+    mode: linkVisualMode,
+    direction: linkDirection,
+    route: linkRoute,
+    labelVisibility: linkLabelVisibility,
+  })
+
+  const getCreateLinkSchema = (): AreaLinkSchema | undefined =>
+    linkVisualMode === 'schema'
+      ? {
+          fromCardinality: linkFromCardinality,
+          toCardinality: linkToCardinality,
+          optionality: linkOptionality,
+          ...(linkFieldLabel.trim()
+            ? { fieldLabel: linkFieldLabel.trim() }
+            : {}),
+        }
+      : undefined
+
+  const openLinkDialogForArea = (areaId: string) => {
+    if (isViewOnly) return
+
+    setSelectedAreaId(areaId)
+    setSelectedLinkId(null)
+    setLinkTargetAreaId(
+      areas.find((area) => area.id !== areaId)?.id ?? ''
+    )
+    setOpenDialogId('link-selected-area')
+  }
+
   const createSelectedAreaLink = () => {
     if (isViewOnly || !selectedAreaId) return
 
@@ -1810,12 +2285,96 @@ function App({
       toAreaId: linkTargetAreaId,
       kind: linkKind,
       label: linkLabel,
+      from: {
+        areaId: selectedAreaId,
+        anchor: 'auto',
+      },
+      to: {
+        areaId: linkTargetAreaId,
+        anchor: 'auto',
+      },
+      visual: getCreateLinkVisual(),
+      schema: getCreateLinkSchema(),
     })
 
     nextAreaLinkId.current += 1
     setLinks((prev) => [...prev, link])
+    setSelectedLinkId(link.id)
     setLinkLabel('')
+    setLinkFieldLabel('')
     setImportError(null)
+    setOpenDialogId(null)
+  }
+
+  const updateSelectedAreaLink = (
+    patch: Partial<Omit<AreaLink, 'id' | 'createdAt'>>
+  ) => {
+    if (isViewOnly || !selectedLinkId) return
+
+    const now = new Date().toISOString()
+
+    setLinks((prev) =>
+      prev.map((link) =>
+        link.id === selectedLinkId
+          ? normalizeAreaLink({
+              ...link,
+              ...patch,
+              updatedAt: now,
+            })
+          : link
+      )
+    )
+  }
+
+  const updateSelectedAreaLinkVisual = (
+    visualPatch: Partial<AreaLinkVisual>
+  ) => {
+    const selectedLink = links.find(
+      (link) => link.id === selectedLinkId
+    )
+
+    if (!selectedLink) return
+
+    updateSelectedAreaLink({
+      visual: {
+        mode: selectedLink.visual?.mode ?? 'semantic',
+        direction: selectedLink.visual?.direction ?? 'forward',
+        route: selectedLink.visual?.route ?? 'auto',
+        labelVisibility:
+          selectedLink.visual?.labelVisibility ?? 'auto',
+        ...visualPatch,
+      },
+    })
+  }
+
+  const updateSelectedAreaLinkSchema = (
+    schemaPatch: Partial<AreaLinkSchema>
+  ) => {
+    const selectedLink = links.find(
+      (link) => link.id === selectedLinkId
+    )
+
+    if (!selectedLink) return
+
+    updateSelectedAreaLink({
+      schema: {
+        fromCardinality:
+          selectedLink.schema?.fromCardinality ?? 'one',
+        toCardinality: selectedLink.schema?.toCardinality ?? 'many',
+        optionality: selectedLink.schema?.optionality ?? 'required',
+        ...selectedLink.schema,
+        ...schemaPatch,
+      },
+    })
+  }
+
+  const deleteSelectedAreaLink = () => {
+    if (isViewOnly || !selectedLinkId) return
+
+    setLinks((prev) =>
+      prev.filter((link) => link.id !== selectedLinkId)
+    )
+    setSelectedLinkId(null)
     setOpenDialogId(null)
   }
 
@@ -2278,6 +2837,8 @@ function App({
     command,
     height,
     mimeType,
+    removeCommand = removeImageSlashCommand,
+    source,
     sourceAreaId,
     src,
     width,
@@ -2286,9 +2847,11 @@ function App({
     replaceAreaId,
   }: {
     alt: string
-    command?: ImageSlashCommand
+    command?: RemovableSlashCommand
     height: number
     mimeType: string
+    removeCommand?: RemoveSlashCommand
+    source?: GifAssetSource
     sourceAreaId?: string
     src: string
     width: number
@@ -2321,6 +2884,7 @@ function App({
       height,
       storageKey: src,
       createdAt,
+      ...(source ? { source } : {}),
     }
     const imageArea: ImageAreaState = {
       id: areaId,
@@ -2385,7 +2949,7 @@ function App({
               return area
             }
 
-            const result = removeImageSlashCommand(area.text, command)
+            const result = removeCommand(area.text, command)
 
             return {
               ...area,
@@ -2399,8 +2963,115 @@ function App({
       return [...prev, imageArea]
     })
     setSelectedAreaId(areaId)
+    setSelectedLinkId(null)
     setAutoFocusAreaId(areaId)
   }
+
+  const insertGifResult = (result: GifSearchResult) => {
+    if (isViewOnly || !activeGifCommand) return
+
+    const sourceArea = areas.find(
+      (area) => area.id === activeGifCommand.areaId
+    )
+    const fallbackPoint = getViewportCenterPoint(canvasZoom)
+    const sourceAreaUsesOnlyCommand =
+      sourceArea?.type !== 'image' &&
+      sourceArea?.text.trim() === activeGifCommand.command.raw.trim()
+
+    insertImageAsset({
+      alt: result.title,
+      command: activeGifCommand.command,
+      height: result.height,
+      mimeType: 'image/gif',
+      removeCommand: removeGifSlashCommand,
+      source: toGifAssetSource(result),
+      sourceAreaId: activeGifCommand.areaId,
+      src: result.animatedUrl,
+      width: result.width,
+      x: sourceArea ? sourceArea.x : fallbackPoint.x,
+      y: sourceArea
+        ? sourceAreaUsesOnlyCommand
+          ? sourceArea.y
+          : sourceArea.y + sourceArea.height + 16
+        : fallbackPoint.y,
+    })
+    void gifSearchProvider.registerEvent?.(result, 'send')
+    setActiveGifCommand(null)
+    setGifSearchState({
+      status: 'idle',
+      results: [],
+      selectedIndex: 0,
+    })
+  }
+
+  const moveGifSelection = (delta: number) => {
+    setGifSearchState((current) => {
+      if (current.results.length === 0) return current
+
+      const nextIndex =
+        (current.selectedIndex + delta + current.results.length) %
+        current.results.length
+
+      return {
+        ...current,
+        selectedIndex: nextIndex,
+      }
+    })
+  }
+
+  useEffect(() => {
+    if (!activeGifCommand) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setActiveGifCommand(null)
+        return
+      }
+
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        moveGifSelection(1)
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        moveGifSelection(-1)
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveGifSelection(3)
+        return
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveGifSelection(-3)
+        return
+      }
+
+      if (event.key === 'Enter') {
+        const result =
+          gifSearchState.results[gifSearchState.selectedIndex]
+
+        if (!result) return
+
+        event.preventDefault()
+        insertGifResult(result)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeGifCommand, gifSearchState])
 
   const insertImageFromSource = async ({
     alt,
@@ -2889,7 +3560,11 @@ function App({
     page.settings.theme.colors.length > 0 &&
     (openDialogId === 'page-styles' || selectedAreaId !== null)
   const commandPaletteOptions = shouldShowEditorChrome
-    ? COMMAND_PALETTE_OPTIONS
+    ? shouldShowEmptyState
+      ? COMMAND_PALETTE_OPTIONS.filter(
+          (option) => !isZoomCommandOption(option)
+        )
+      : COMMAND_PALETTE_OPTIONS
     : []
   const currentUrl =
     typeof window === 'undefined'
@@ -2912,6 +3587,31 @@ function App({
   const selectedArea = selectedAreaId
     ? areas.find((area) => area.id === selectedAreaId) ?? null
     : null
+  const selectedLink = selectedLinkId
+    ? links.find((link) => link.id === selectedLinkId) ?? null
+    : null
+  const selectedLinkVisual = selectedLink?.visual ?? {
+    mode: 'semantic' as const,
+    direction: 'forward' as const,
+    route: 'auto' as const,
+    labelVisibility: 'auto' as const,
+  }
+  const selectedLinkSchema = selectedLink?.schema ?? {}
+  const activeGifArea = activeGifCommand
+    ? areas.find((area) => area.id === activeGifCommand.areaId) ?? null
+    : null
+  const activeGifAreaPosition = activeGifArea
+    ? getAreaAbsolutePosition(areas, activeGifArea.id)
+    : null
+  const gifFlyoutStyle = activeGifAreaPosition
+    ? ({
+        left: activeGifAreaPosition.x,
+        top:
+          activeGifAreaPosition.y +
+          (activeGifArea?.height ?? DEFAULT_AREA_HEIGHT) +
+          10,
+      } as CSSProperties)
+    : undefined
   const selectedAreaMetadata = selectedArea
     ? getAreaMetadata(selectedArea)
     : null
@@ -2924,6 +3624,27 @@ function App({
   const linkTargetAreas = selectedAreaId
     ? areas.filter((area) => area.id !== selectedAreaId)
     : []
+  const handleBrandClick = () => {
+    if (shouldShowEmptyState) {
+      setCommandPaletteQuery('')
+      return
+    }
+
+    setOpenDialogId('leave-canvas')
+  }
+  const leaveCanvasForStart = () => {
+    setOpenDialogId(null)
+    setCommandPaletteQuery(null)
+    setSelectedAreaId(null)
+    setSelectedLinkId(null)
+    setStyleDialogAreaId(null)
+    setHasClickedCanvas(false)
+
+    if (typeof window !== 'undefined') {
+      window.history.pushState({}, '', '/')
+      window.location.assign('/')
+    }
+  }
   function renderArea(area: AreaState) {
     return (
       <Area
@@ -2940,7 +3661,10 @@ function App({
         isReadOnly={isViewOnly}
         canvasZoom={canvasZoom}
         onSelect={(areaId) => {
-          if (!isViewOnly) setSelectedAreaId(areaId)
+          if (!isViewOnly) {
+            setSelectedAreaId(areaId)
+            setSelectedLinkId(null)
+          }
         }}
         onTextChange={updateAreaText}
         onMove={moveArea}
@@ -2951,16 +3675,22 @@ function App({
           if (isViewOnly) return
 
           setSelectedAreaId(areaId)
+          setSelectedLinkId(null)
           setStyleDialogAreaId(areaId)
         }}
+        onOpenLinkDialog={openLinkDialogForArea}
         onResize={resizeAreaById}
         onCommitCssCommand={commitAreaCssCommand}
         onCommitImageCommand={commitAreaImageCommand}
+        onGifCommandActive={handleGifCommandActive}
         onCommitEvidenceCommand={commitAreaEvidenceCommand}
         onRemoveEvidence={removeEvidenceFromArea}
         onReplaceImage={replaceImageById}
         onChangeImageAlt={updateImageAlt}
-        onDeselect={() => setSelectedAreaId(null)}
+        onDeselect={() => {
+          setSelectedAreaId(null)
+          setSelectedLinkId(null)
+        }}
       >
         {getChildAreas(areas, area.id).map(renderArea)}
       </Area>
@@ -2979,8 +3709,8 @@ function App({
         <button
           className="site-brand"
           type="button"
-          aria-label="Open command palette"
-          onClick={() => setCommandPaletteQuery('')}
+          aria-label="Open Cascadery menu"
+          onClick={handleBrandClick}
         >
           <img
             alt=""
@@ -3118,7 +3848,7 @@ function App({
         </div>
       )}
 
-      {shouldShowEditorChrome && !hasClickedCanvas && areas.length === 0 && (
+      {shouldShowEmptyState && (
         <div className="canvas-hint">
           <strong>Map implementation context.</strong>
           <span>Click anywhere to start, or choose a context kit.</span>
@@ -3164,26 +3894,143 @@ function App({
               : ''
           }`}
         >
-          <svg className="area-link-layer" aria-hidden="true">
+          <svg
+            aria-label="Area connectors"
+            className="area-link-layer"
+          >
+            <defs>
+              <marker
+                id="area-link-arrow"
+                markerHeight="8"
+                markerWidth="8"
+                orient="auto-start-reverse"
+                refX="7"
+                refY="4"
+                viewBox="0 0 8 8"
+              >
+                <path d="M1 1 7 4 1 7z" />
+              </marker>
+            </defs>
             {links.map((link) => {
               const line = getAreaLinkLine(areas, link)
+              const isSelected = link.id === selectedLinkId
+              const lineClassName = [
+                'area-link-line',
+                isSelected ? 'area-link-line--selected' : '',
+                link.visual?.mode === 'schema'
+                  ? 'area-link-line--schema'
+                  : '',
+                link.kind === 'references' ||
+                link.kind === 'relates-to'
+                  ? 'area-link-line--loose'
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ')
 
               if (!line) return null
 
               return (
-                <line
-                  className="area-link-line"
+                <g
+                  aria-label={`Connector ${getAreaLinkLabel(link)}`}
+                  className="area-link-group"
                   key={link.id}
-                  x1={line.x1}
-                  y1={line.y1}
-                  x2={line.x2}
-                  y2={line.y2}
-                />
+                >
+                  <line
+                    className="area-link-hit-target"
+                    role="button"
+                    tabIndex={isViewOnly ? -1 : 0}
+                    x1={line.x1}
+                    x2={line.x2}
+                    y1={line.y1}
+                    y2={line.y2}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+
+                      if (isViewOnly) return
+
+                      setSelectedAreaId(null)
+                      setSelectedLinkId(link.id)
+                    }}
+                    onDoubleClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+
+                      if (isViewOnly) return
+
+                      setSelectedAreaId(null)
+                      setSelectedLinkId(link.id)
+                      setOpenDialogId('edit-area-link')
+                    }}
+                    onPointerDown={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                    }}
+                  />
+                  <line
+                    className={lineClassName}
+                    markerEnd={getAreaLinkMarkerUrl(link, 'end')}
+                    markerStart={getAreaLinkMarkerUrl(link, 'start')}
+                    x1={line.x1}
+                    x2={line.x2}
+                    y1={line.y1}
+                    y2={line.y2}
+                  />
+                  {link.visual?.mode === 'schema' && (
+                    <>
+                      <circle
+                        aria-hidden="true"
+                        className="area-link-endpoint-mark"
+                        cx={line.x1}
+                        cy={line.y1}
+                        r="3"
+                      />
+                      <circle
+                        aria-hidden="true"
+                        className="area-link-endpoint-mark"
+                        cx={line.x2}
+                        cy={line.y2}
+                        r="3"
+                      />
+                    </>
+                  )}
+                  {shouldShowAreaLinkLabel(link, isSelected) && (
+                    <text
+                      className="area-link-label"
+                      dominantBaseline="middle"
+                      textAnchor="middle"
+                      x={line.labelX}
+                      y={line.labelY - 10}
+                    >
+                      {getAreaLinkLabel(link)}
+                    </text>
+                  )}
+                </g>
               )
             })}
           </svg>
 
           {getRootAreas(areas).map(renderArea)}
+
+          {shouldShowEditorChrome &&
+            activeGifCommand &&
+            gifFlyoutStyle && (
+              <GifSearchFlyout
+                query={activeGifCommand.command.query}
+                selectedIndex={gifSearchState.selectedIndex}
+                state={gifSearchState}
+                style={gifFlyoutStyle}
+                onClose={() => setActiveGifCommand(null)}
+                onSelectIndex={(selectedIndex) =>
+                  setGifSearchState((current) => ({
+                    ...current,
+                    selectedIndex,
+                  }))
+                }
+                onInsert={insertGifResult}
+              />
+            )}
 
           {shouldShowEditorChrome && (
             <div
@@ -3245,7 +4092,7 @@ function App({
         </div>
       </div>
 
-      {shouldShowEditorChrome && (
+      {shouldEnableCanvasZoom && (
         <CanvasZoomControls
           zoom={canvasZoom}
           onFit={zoomCanvasToFit}
@@ -3296,6 +4143,47 @@ function App({
                 ...getViewportCenterPoint(canvasZoom),
               }
               imageInputRef.current?.click()
+              return
+            }
+            if (option.id === 'insert-gif') {
+              const point = selectedArea
+                ? {
+                    x: selectedArea.x,
+                    y: selectedArea.y + selectedArea.height + 16,
+                  }
+                : getViewportCenterPoint(canvasZoom)
+              const id = createAreaId(nextAreaId.current)
+              nextAreaId.current += 1
+              const createdAt = new Date().toISOString()
+
+              setAreas((prev) => [
+                ...prev,
+                {
+                  id,
+                  parentId: null,
+                  x: point.x,
+                  y: point.y,
+                  height: DEFAULT_AREA_HEIGHT,
+                  width: DEFAULT_AREA_WIDTH,
+                  text: '/gif ',
+                  styles: {},
+                  createdAt,
+                  updatedAt: createdAt,
+                },
+              ])
+              setSelectedAreaId(id)
+              setSelectedLinkId(null)
+              setAutoFocusAreaId(id)
+              setHasClickedCanvas(true)
+              setActiveGifCommand({
+                areaId: id,
+                command: {
+                  start: 0,
+                  end: 5,
+                  raw: '/gif ',
+                  query: '',
+                },
+              })
               return
             }
             if (option.id === 'insert-context-kit') {
@@ -3351,6 +4239,7 @@ function App({
                 )
               }
 
+              setSelectedLinkId(null)
               setOpenDialogId(option.id)
               return
             }
@@ -3393,7 +4282,27 @@ function App({
               aria-label={COMMAND_DIALOGS[openDialogId].title}
             >
               <h2>{COMMAND_DIALOGS[openDialogId].title}</h2>
-              {openDialogId === 'share' ? (
+              {openDialogId === 'leave-canvas' ? (
+                <div className="leave-canvas-confirmation">
+                  <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                  <div className="command-dialog-actions">
+                    <button
+                      className="command-dialog-button"
+                      type="button"
+                      onClick={() => setOpenDialogId(null)}
+                    >
+                      No, stay
+                    </button>
+                    <button
+                      className="command-dialog-button command-dialog-button--danger"
+                      type="button"
+                      onClick={leaveCanvasForStart}
+                    >
+                      Yes, leave
+                    </button>
+                  </div>
+                </div>
+              ) : openDialogId === 'share' ? (
                 <div className="share-link-controls">
                 <p>
                   Anyone with an edit link can change this context canvas.
@@ -3516,11 +4425,97 @@ function App({
                       >
                         {AREA_LINK_KINDS.map((kind) => (
                           <option key={kind} value={kind}>
-                            {kind}
+                            {AREA_LINK_KIND_LABELS[kind]}
                           </option>
                         ))}
                       </select>
                     </label>
+                    <label className="page-style-control">
+                      <span>Visual mode</span>
+                      <select
+                        aria-label="Connector visual mode"
+                        value={linkVisualMode}
+                        onChange={(e) =>
+                          setLinkVisualMode(
+                            e.currentTarget
+                              .value as AreaLinkVisualMode
+                          )
+                        }
+                      >
+                        {AREA_LINK_VISUAL_MODES.map((mode) => (
+                          <option key={mode} value={mode}>
+                            {AREA_LINK_VISUAL_MODE_LABELS[mode]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="area-link-field-grid">
+                      <label className="page-style-control">
+                        <span>Direction</span>
+                        <select
+                          aria-label="Connector direction"
+                          value={linkDirection}
+                          onChange={(e) =>
+                            setLinkDirection(
+                              e.currentTarget
+                                .value as AreaLinkDirection
+                            )
+                          }
+                        >
+                          {AREA_LINK_DIRECTIONS.map((direction) => (
+                            <option key={direction} value={direction}>
+                              {AREA_LINK_DIRECTION_LABELS[direction]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="page-style-control">
+                        <span>Route</span>
+                        <select
+                          aria-label="Connector route"
+                          value={linkRoute}
+                          onChange={(e) =>
+                            setLinkRoute(
+                              e.currentTarget.value as AreaLinkRoute
+                            )
+                          }
+                        >
+                          {AREA_LINK_ROUTES.map((route) => (
+                            <option key={route} value={route}>
+                              {AREA_LINK_ROUTE_LABELS[route]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="page-style-control">
+                        <span>Label visibility</span>
+                        <select
+                          aria-label="Connector label visibility"
+                          value={linkLabelVisibility}
+                          onChange={(e) =>
+                            setLinkLabelVisibility(
+                              e.currentTarget
+                                .value as AreaLinkLabelVisibility
+                            )
+                          }
+                        >
+                          {AREA_LINK_LABEL_VISIBILITIES.map(
+                            (visibility) => (
+                              <option
+                                key={visibility}
+                                value={visibility}
+                              >
+                                {
+                                  AREA_LINK_LABEL_VISIBILITY_LABELS[
+                                    visibility
+                                  ]
+                                }
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    </div>
                     <label className="page-style-control">
                       <span>Label</span>
                       <input
@@ -3532,6 +4527,110 @@ function App({
                         }
                       />
                     </label>
+                    {linkVisualMode === 'schema' && (
+                      <section className="area-link-schema-fields">
+                        <h3>Schema details</h3>
+                        <div className="area-link-field-grid">
+                          <label className="page-style-control">
+                            <span>From cardinality</span>
+                            <select
+                              aria-label="From cardinality"
+                              value={linkFromCardinality}
+                              onChange={(e) =>
+                                setLinkFromCardinality(
+                                  e.currentTarget
+                                    .value as AreaLinkCardinality
+                                )
+                              }
+                            >
+                              {AREA_LINK_CARDINALITIES.map(
+                                (cardinality) => (
+                                  <option
+                                    key={cardinality}
+                                    value={cardinality}
+                                  >
+                                    {
+                                      AREA_LINK_CARDINALITY_LABELS[
+                                        cardinality
+                                      ]
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+                          <label className="page-style-control">
+                            <span>To cardinality</span>
+                            <select
+                              aria-label="To cardinality"
+                              value={linkToCardinality}
+                              onChange={(e) =>
+                                setLinkToCardinality(
+                                  e.currentTarget
+                                    .value as AreaLinkCardinality
+                                )
+                              }
+                            >
+                              {AREA_LINK_CARDINALITIES.map(
+                                (cardinality) => (
+                                  <option
+                                    key={cardinality}
+                                    value={cardinality}
+                                  >
+                                    {
+                                      AREA_LINK_CARDINALITY_LABELS[
+                                        cardinality
+                                      ]
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+                          <label className="page-style-control">
+                            <span>Optionality</span>
+                            <select
+                              aria-label="Connector optionality"
+                              value={linkOptionality}
+                              onChange={(e) =>
+                                setLinkOptionality(
+                                  e.currentTarget
+                                    .value as AreaLinkOptionality
+                                )
+                              }
+                            >
+                              {AREA_LINK_OPTIONALITIES.map(
+                                (optionality) => (
+                                  <option
+                                    key={optionality}
+                                    value={optionality}
+                                  >
+                                    {
+                                      AREA_LINK_OPTIONALITY_LABELS[
+                                        optionality
+                                      ]
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+                        </div>
+                        <label className="page-style-control">
+                          <span>Field label</span>
+                          <input
+                            aria-label="Schema field label"
+                            type="text"
+                            value={linkFieldLabel}
+                            onChange={(e) =>
+                              setLinkFieldLabel(
+                                e.currentTarget.value
+                              )
+                            }
+                          />
+                        </label>
+                      </section>
+                    )}
                     <button
                       className="area-link-create-button"
                       type="button"
@@ -3542,6 +4641,270 @@ function App({
                   </>
                 ) : (
                   <p>Add another Area before creating a link.</p>
+                )}
+              </div>
+            ) : openDialogId === 'edit-area-link' ? (
+              <div className="area-link-controls">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {selectedLink ? (
+                  <>
+                    <label className="page-style-control">
+                      <span>Relationship</span>
+                      <select
+                        aria-label="Edit connector relationship"
+                        value={selectedLink.kind}
+                        onChange={(e) =>
+                          updateSelectedAreaLink({
+                            kind: e.currentTarget
+                              .value as AreaLinkKind,
+                          })
+                        }
+                      >
+                        {AREA_LINK_KINDS.map((kind) => (
+                          <option key={kind} value={kind}>
+                            {AREA_LINK_KIND_LABELS[kind]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="page-style-control">
+                      <span>Label</span>
+                      <input
+                        aria-label="Edit connector label"
+                        type="text"
+                        value={selectedLink.label ?? ''}
+                        onChange={(e) =>
+                          updateSelectedAreaLink({
+                            label: e.currentTarget.value,
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="page-style-control">
+                      <span>Visual mode</span>
+                      <select
+                        aria-label="Edit connector visual mode"
+                        value={selectedLinkVisual.mode}
+                        onChange={(e) => {
+                          const nextMode = e.currentTarget
+                            .value as AreaLinkVisualMode
+
+                          updateSelectedAreaLinkVisual({
+                            mode: nextMode,
+                          })
+
+                          if (nextMode === 'schema') {
+                            updateSelectedAreaLinkSchema({})
+                          }
+                        }}
+                      >
+                        {AREA_LINK_VISUAL_MODES.map((mode) => (
+                          <option key={mode} value={mode}>
+                            {AREA_LINK_VISUAL_MODE_LABELS[mode]}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="area-link-field-grid">
+                      <label className="page-style-control">
+                        <span>Direction</span>
+                        <select
+                          aria-label="Edit connector direction"
+                          value={selectedLinkVisual.direction}
+                          onChange={(e) =>
+                            updateSelectedAreaLinkVisual({
+                              direction: e.currentTarget
+                                .value as AreaLinkDirection,
+                            })
+                          }
+                        >
+                          {AREA_LINK_DIRECTIONS.map((direction) => (
+                            <option key={direction} value={direction}>
+                              {AREA_LINK_DIRECTION_LABELS[direction]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="page-style-control">
+                        <span>Route</span>
+                        <select
+                          aria-label="Edit connector route"
+                          value={selectedLinkVisual.route}
+                          onChange={(e) =>
+                            updateSelectedAreaLinkVisual({
+                              route: e.currentTarget
+                                .value as AreaLinkRoute,
+                            })
+                          }
+                        >
+                          {AREA_LINK_ROUTES.map((route) => (
+                            <option key={route} value={route}>
+                              {AREA_LINK_ROUTE_LABELS[route]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="page-style-control">
+                        <span>Label visibility</span>
+                        <select
+                          aria-label="Edit connector label visibility"
+                          value={selectedLinkVisual.labelVisibility}
+                          onChange={(e) =>
+                            updateSelectedAreaLinkVisual({
+                              labelVisibility: e.currentTarget
+                                .value as AreaLinkLabelVisibility,
+                            })
+                          }
+                        >
+                          {AREA_LINK_LABEL_VISIBILITIES.map(
+                            (visibility) => (
+                              <option
+                                key={visibility}
+                                value={visibility}
+                              >
+                                {
+                                  AREA_LINK_LABEL_VISIBILITY_LABELS[
+                                    visibility
+                                  ]
+                                }
+                              </option>
+                            )
+                          )}
+                        </select>
+                      </label>
+                    </div>
+                    {selectedLinkVisual.mode === 'schema' && (
+                      <section className="area-link-schema-fields">
+                        <h3>Schema details</h3>
+                        <div className="area-link-field-grid">
+                          <label className="page-style-control">
+                            <span>From cardinality</span>
+                            <select
+                              aria-label="Edit from cardinality"
+                              value={
+                                selectedLinkSchema.fromCardinality ??
+                                'one'
+                              }
+                              onChange={(e) =>
+                                updateSelectedAreaLinkSchema({
+                                  fromCardinality: e.currentTarget
+                                    .value as AreaLinkCardinality,
+                                })
+                              }
+                            >
+                              {AREA_LINK_CARDINALITIES.map(
+                                (cardinality) => (
+                                  <option
+                                    key={cardinality}
+                                    value={cardinality}
+                                  >
+                                    {
+                                      AREA_LINK_CARDINALITY_LABELS[
+                                        cardinality
+                                      ]
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+                          <label className="page-style-control">
+                            <span>To cardinality</span>
+                            <select
+                              aria-label="Edit to cardinality"
+                              value={
+                                selectedLinkSchema.toCardinality ??
+                                'many'
+                              }
+                              onChange={(e) =>
+                                updateSelectedAreaLinkSchema({
+                                  toCardinality: e.currentTarget
+                                    .value as AreaLinkCardinality,
+                                })
+                              }
+                            >
+                              {AREA_LINK_CARDINALITIES.map(
+                                (cardinality) => (
+                                  <option
+                                    key={cardinality}
+                                    value={cardinality}
+                                  >
+                                    {
+                                      AREA_LINK_CARDINALITY_LABELS[
+                                        cardinality
+                                      ]
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+                          <label className="page-style-control">
+                            <span>Optionality</span>
+                            <select
+                              aria-label="Edit connector optionality"
+                              value={
+                                selectedLinkSchema.optionality ??
+                                'required'
+                              }
+                              onChange={(e) =>
+                                updateSelectedAreaLinkSchema({
+                                  optionality: e.currentTarget
+                                    .value as AreaLinkOptionality,
+                                })
+                              }
+                            >
+                              {AREA_LINK_OPTIONALITIES.map(
+                                (optionality) => (
+                                  <option
+                                    key={optionality}
+                                    value={optionality}
+                                  >
+                                    {
+                                      AREA_LINK_OPTIONALITY_LABELS[
+                                        optionality
+                                      ]
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+                        </div>
+                        <label className="page-style-control">
+                          <span>Field label</span>
+                          <input
+                            aria-label="Edit schema field label"
+                            type="text"
+                            value={selectedLinkSchema.fieldLabel ?? ''}
+                            onChange={(e) =>
+                              updateSelectedAreaLinkSchema({
+                                fieldLabel: e.currentTarget.value,
+                              })
+                            }
+                          />
+                        </label>
+                      </section>
+                    )}
+                    <div className="command-dialog-actions">
+                      <button
+                        className="command-dialog-button command-dialog-button--secondary"
+                        type="button"
+                        onClick={() => setOpenDialogId(null)}
+                      >
+                        Done
+                      </button>
+                      <button
+                        className="command-dialog-button command-dialog-button--danger"
+                        type="button"
+                        onClick={deleteSelectedAreaLink}
+                      >
+                        Delete connector
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p>Select a connector first.</p>
                 )}
               </div>
             ) : openDialogId === 'agent-suggestions' ? (
@@ -3902,13 +5265,15 @@ function App({
             ) : (
               <p>{COMMAND_DIALOGS[openDialogId].body}</p>
             )}
-            <button
-              className="command-dialog-button"
-              type="button"
-              onClick={() => setOpenDialogId(null)}
-            >
-              Close
-            </button>
+            {openDialogId !== 'leave-canvas' && (
+              <button
+                className="command-dialog-button"
+                type="button"
+                onClick={() => setOpenDialogId(null)}
+              >
+                Close
+              </button>
+            )}
           </section>
         </div>
       )}
@@ -3993,6 +5358,87 @@ const ShareLinkRow = ({
       </button>
     </div>
   </div>
+)
+
+const GifSearchFlyout = ({
+  query,
+  selectedIndex,
+  state,
+  style,
+  onClose,
+  onInsert,
+  onSelectIndex,
+}: {
+  query: string
+  selectedIndex: number
+  state: GifSearchState
+  style: CSSProperties
+  onClose: () => void
+  onInsert: (result: GifSearchResult) => void
+  onSelectIndex: (index: number) => void
+}) => (
+  <section
+    aria-label="GIF search results"
+    className="gif-search-flyout"
+    style={style}
+    onPointerDown={(event) => event.stopPropagation()}
+  >
+    <div className="gif-search-header">
+      <div>
+        <strong>{query ? `GIFs for "${query}"` : 'Trending GIFs'}</strong>
+        <span>
+          {state.status === 'loading'
+            ? 'Searching...'
+            : 'Choose a result to insert'}
+        </span>
+      </div>
+      <button
+        aria-label="Close GIF search"
+        className="gif-search-close"
+        type="button"
+        onClick={onClose}
+      >
+        x
+      </button>
+    </div>
+    {state.status === 'missing-key' || state.status === 'error' ? (
+      <p className="gif-search-message" role="status">
+        {state.message}
+      </p>
+    ) : state.status === 'empty' ? (
+      <p className="gif-search-message" role="status">
+        {state.message}
+      </p>
+    ) : (
+      <div className="gif-search-grid" role="listbox">
+        {state.results.map((result, index) => (
+          <button
+            aria-label={`Insert ${result.title}`}
+            aria-selected={index === selectedIndex}
+            className={`gif-search-result${
+              index === selectedIndex
+                ? ' gif-search-result--selected'
+                : ''
+            }`}
+            key={result.providerAssetId}
+            role="option"
+            type="button"
+            onClick={() => onInsert(result)}
+            onMouseEnter={() => onSelectIndex(index)}
+          >
+            <img
+              alt={result.title}
+              draggable="false"
+              src={result.stillUrl ?? result.previewUrl}
+            />
+          </button>
+        ))}
+      </div>
+    )}
+    <div className="gif-search-footer">
+      <span>Powered by GIPHY</span>
+    </div>
+  </section>
 )
 
 const CanvasZoomControls = ({

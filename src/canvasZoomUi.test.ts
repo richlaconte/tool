@@ -68,3 +68,20 @@ test('modifier wheel zoom uses a continuous animation-frame path', async () => {
   assert.doesNotMatch(wheelBlock, /zoomCanvasByDirection/)
   assert.match(source, /requestAnimationFrame/)
 })
+
+test('empty start state hides and disables zoom controls and commands', async () => {
+  const source = await readProjectFile('src/App.tsx')
+
+  assert.match(source, /const shouldShowEmptyState =/)
+  assert.match(
+    source,
+    /const shouldEnableCanvasZoom = shouldShowEditorChrome && !shouldShowEmptyState/
+  )
+  assert.match(source, /shouldEnableCanvasZoom && \(/)
+  assert.match(
+    source,
+    /COMMAND_PALETTE_OPTIONS\.filter\(\s*\(option\) =>\s*!isZoomCommandOption\(option\)/
+  )
+  assert.match(source, /!shouldShowEmptyState/)
+  assert.match(source, /if \(!shouldEnableCanvasZoom\) return/)
+})

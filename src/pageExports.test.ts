@@ -139,6 +139,18 @@ const state: PageAppState = {
       toAreaId: 'task-1',
       kind: 'depends-on',
       label: 'drives',
+      visual: {
+        mode: 'schema',
+        direction: 'forward',
+        route: 'orthogonal',
+        labelVisibility: 'always',
+      },
+      schema: {
+        fromCardinality: 'one',
+        toCardinality: 'many',
+        optionality: 'required',
+        fieldLabel: 'decision_id',
+      },
       createdAt: now,
       updatedAt: now,
     },
@@ -166,7 +178,7 @@ test('Markdown export groups typed Areas and preserves text', () => {
   assert.match(markdown, /Asset: `asset-1`/)
   assert.match(
     markdown,
-    /## Links\n\n- `decision-1` -> `task-1` \(depends-on, drives\)/
+    /## Relationships\n\n- `decision-1` -> `task-1` \(depends-on, drives, schema, one-to-many, required, field: decision_id\)/
   )
 })
 
@@ -243,6 +255,18 @@ test('JSON Canvas export maps Areas and links without leaking raw assets', () =>
     label: 'drives',
     cascadery: {
       kind: 'depends-on',
+      visual: {
+        mode: 'schema',
+        direction: 'forward',
+        route: 'orthogonal',
+        labelVisibility: 'always',
+      },
+      schema: {
+        fromCardinality: 'one',
+        toCardinality: 'many',
+        optionality: 'required',
+        fieldLabel: 'decision_id',
+      },
       createdAt: now,
       updatedAt: now,
     },

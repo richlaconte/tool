@@ -3,8 +3,10 @@ import * as Y from 'yjs'
 import type { AreaState, AssetState, ImageAreaState, TextAreaState } from './App'
 import {
   isAreaKind,
+  isAreaLinkKind,
   isAreaStatus,
   normalizeAreaMetadata,
+  normalizeAreaLink,
   type AreaLink,
   type AreaMetadata,
 } from './areaMetadata.ts'
@@ -411,6 +413,8 @@ const readAssetsMap = (assetsMap: Y.Map<Y.Map<unknown>>) => {
   const assets: AssetState[] = []
 
   assetsMap.forEach((assetMap) => {
+    const source = readGifAssetSource(assetMap.get('source'))
+
     assets.push({
       id: String(assetMap.get('id') ?? ''),
       kind: 'image',
@@ -419,6 +423,7 @@ const readAssetsMap = (assetsMap: Y.Map<Y.Map<unknown>>) => {
       height: Number(assetMap.get('height') ?? 0),
       storageKey: String(assetMap.get('storageKey') ?? ''),
       createdAt: String(assetMap.get('createdAt') ?? ''),
+      ...(source ? { source } : {}),
     })
   })
 
@@ -431,17 +436,45 @@ const readLinksMap = (linksMap: Y.Map<Y.Map<unknown>>) => {
   linksMap.forEach((linkMap) => {
     const kind = String(linkMap.get('kind') ?? 'relates-to')
 
-    links.push({
-      id: String(linkMap.get('id') ?? ''),
-      fromAreaId: String(linkMap.get('fromAreaId') ?? ''),
-      toAreaId: String(linkMap.get('toAreaId') ?? ''),
-      kind: isKnownAreaLinkKind(kind) ? kind : 'relates-to',
-      ...(typeof linkMap.get('label') === 'string'
-        ? { label: String(linkMap.get('label')) }
-        : {}),
-      createdAt: String(linkMap.get('createdAt') ?? ''),
-      updatedAt: String(linkMap.get('updatedAt') ?? ''),
-    })
+    links.push(
+      normalizeAreaLink({
+        id: String(linkMap.get('id') ?? ''),
+        fromAreaId: String(linkMap.get('fromAreaId') ?? ''),
+        toAreaId: String(linkMap.get('toAreaId') ?? ''),
+        kind: isAreaLinkKind(kind) ? kind : 'relates-to',
+        ...(typeof linkMap.get('label') === 'string'
+          ? { label: String(linkMap.get('label')) }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('from'))).length > 0
+          ? {
+              from: readRecord(
+                linkMap.get('from')
+              ) as AreaLink['from'],
+            }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('to'))).length > 0
+          ? {
+              to: readRecord(linkMap.get('to')) as AreaLink['to'],
+            }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('visual'))).length > 0
+          ? {
+              visual: readRecord(
+                linkMap.get('visual')
+              ) as AreaLink['visual'],
+            }
+          : {}),
+        ...(Object.keys(readRecord(linkMap.get('schema'))).length > 0
+          ? {
+              schema: readRecord(
+                linkMap.get('schema')
+              ) as AreaLink['schema'],
+            }
+          : {}),
+        createdAt: String(linkMap.get('createdAt') ?? ''),
+        updatedAt: String(linkMap.get('updatedAt') ?? ''),
+      })
+    )
   })
 
   return links
@@ -586,6 +619,55 @@ const getAreaTextMapValue = (areaMap: Y.Map<unknown>) => {
 const readStylesMap = (stylesMap: Y.Map<string>) =>
   Object.fromEntries(stylesMap.entries())
 
+const readGifAssetSource = (value: unknown): AssetState['source'] => {
+  const source = readRecord(cloneJsonValue(value))
+
+  if (
+    source.provider !== 'giphy' ||
+    typeof source.providerAssetId !== 'string' ||
+    typeof source.providerUrl !== 'string' ||
+    typeof source.title !== 'string' ||
+    typeof source.rendition !== 'string' ||
+    typeof source.animatedUrl !== 'string' ||
+    source.attributionLabel !== 'Powered by GIPHY'
+  ) {
+    return undefined
+  }
+
+  const analytics = readRecord(source.analytics)
+
+  return {
+    provider: 'giphy',
+    providerAssetId: source.providerAssetId,
+    providerUrl: source.providerUrl,
+    title: source.title,
+    ...(typeof source.rating === 'string'
+      ? { rating: source.rating }
+      : {}),
+    rendition: source.rendition,
+    ...(typeof source.stillUrl === 'string'
+      ? { stillUrl: source.stillUrl }
+      : {}),
+    animatedUrl: source.animatedUrl,
+    attributionLabel: 'Powered by GIPHY',
+    ...(Object.keys(analytics).length > 0
+      ? {
+          analytics: {
+            ...(typeof analytics.onload === 'string'
+              ? { onload: analytics.onload }
+              : {}),
+            ...(typeof analytics.onclick === 'string'
+              ? { onclick: analytics.onclick }
+              : {}),
+            ...(typeof analytics.onsent === 'string'
+              ? { onsent: analytics.onsent }
+              : {}),
+          },
+        }
+      : {}),
+  }
+}
+
 const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {
   const metadata = readRecord(cloneJsonValue(value))
 
@@ -607,16 +689,6 @@ const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {
       : {}),
   })
 }
-
-const isKnownAreaLinkKind = (kind: string): kind is AreaLink['kind'] =>
-  [
-    'relates-to',
-    'depends-on',
-    'implements',
-    'blocks',
-    'answers',
-    'references',
-  ].includes(kind)
 
 const getPageMap = (doc: Y.Doc) => doc.getMap<unknown>(PAGE_MAP)
 

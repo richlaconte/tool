@@ -76,7 +76,15 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     id: 'link-selected-area',
     title: 'Link selected Area',
     description: 'Connect the selected Area to another Area',
-    aliases: ['link area', 'relationship', 'connect', 'reference'],
+    aliases: [
+      'link area',
+      'relationship',
+      'connect',
+      'reference',
+      'arrow',
+      'schema',
+      'foreign key',
+    ],
     scope: 'area',
   },
   {
@@ -98,6 +106,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     title: 'Insert image',
     description: 'Add a movable image to the page',
     aliases: ['image', 'photo', 'picture', 'upload image'],
+    scope: 'page',
+  },
+  {
+    id: 'insert-gif',
+    title: 'Insert GIF',
+    description: 'Search GIPHY and insert a GIF image Area',
+    aliases: ['gif', 'giphy', 'reaction', 'media'],
     scope: 'page',
   },
   {

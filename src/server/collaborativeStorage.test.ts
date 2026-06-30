@@ -50,6 +50,12 @@ test('collaborative storage reads current page state from a Yjs document row', (
         toAreaId: 'area-1',
         kind: 'references',
         label: 'self reference',
+        visual: {
+          mode: 'semantic',
+          direction: 'forward',
+          route: 'auto',
+          labelVisibility: 'auto',
+        },
         createdAt: now,
         updatedAt: now,
       },

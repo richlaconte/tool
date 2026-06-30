@@ -27,6 +27,10 @@ import {
   findImageSlashCommand,
   type ImageSlashCommand,
 } from '../imageSupport'
+import {
+  findGifSlashCommand,
+  type GifSlashCommand,
+} from '../gifSearch'
 import { resizeWithPreservedAspectRatio } from '../imageResize'
 import {
   resolveThemeColorTokens,
@@ -54,6 +58,7 @@ type AreaProps = {
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
   onOpenStyles: (id: string) => void
+  onOpenLinkDialog: (id: string) => void
   onResize: (
     id: string,
     width: number,
@@ -67,6 +72,10 @@ type AreaProps = {
   onCommitImageCommand: (
     id: string,
     command: ImageSlashCommand
+  ) => void
+  onGifCommandActive: (
+    id: string,
+    command: GifSlashCommand | null
   ) => void
   onCommitEvidenceCommand: (
     id: string,
@@ -94,9 +103,11 @@ const Area = ({
   onDuplicate,
   onDelete,
   onOpenStyles,
+  onOpenLinkDialog,
   onResize,
   onCommitCssCommand,
   onCommitImageCommand,
+  onGifCommandActive,
   onCommitEvidenceCommand,
   onRemoveEvidence,
   onReplaceImage,
@@ -123,8 +134,18 @@ const Area = ({
   const [textLayerHeight, setTextLayerHeight] = useState(
     area.height
   )
+  const [prefersReducedMotion, setPrefersReducedMotion] =
+    useState(false)
+  const [gifPlaybackOverride, setGifPlaybackOverride] = useState<
+    'play' | 'pause' | null
+  >(null)
 
   const isImageArea = area.type === 'image'
+  const isGifArea = isImageArea && asset?.source?.provider === 'giphy'
+  const shouldShowGifStill =
+    isGifArea &&
+    (gifPlaybackOverride === 'pause' ||
+      (gifPlaybackOverride === null && prefersReducedMotion))
   const areaText = isImageArea ? '' : area.text
   const metadata = getAreaMetadata(area)
   const metadataLabel =
@@ -143,18 +164,27 @@ const Area = ({
       resolveThemeColorTokens(value, themeColors)
     )
   }
-  const activeImageCommand =
+  const activeGifCommand =
     isSelected && !isReadOnly && !isImageArea
+      ? findGifSlashCommand(areaText, caretIndex)
+      : null
+  const activeImageCommand =
+    isSelected && !isReadOnly && !isImageArea && !activeGifCommand
       ? findImageSlashCommand(areaText, caretIndex)
       : null
   const activeEvidenceCommand =
-    isSelected && !isReadOnly && !isImageArea && !activeImageCommand
+    isSelected &&
+    !isReadOnly &&
+    !isImageArea &&
+    !activeGifCommand &&
+    !activeImageCommand
       ? findEvidenceSlashCommand(areaText, caretIndex)
       : null
   const activeCommand =
     isSelected &&
     !isReadOnly &&
     !isImageArea &&
+    !activeGifCommand &&
     !activeImageCommand &&
     !activeEvidenceCommand
       ? findCssSlashCommand(
@@ -166,20 +196,36 @@ const Area = ({
   const highlightCommandCaretIndex = isSelected
     ? caretIndex
     : areaText.length
-  const commandForHighlight = !isImageArea
+  const gifCommandForHighlight = !isImageArea
+    ? findGifSlashCommand(areaText, highlightCommandCaretIndex)
+    : null
+  const cssCommandForHighlight = !isImageArea
     ? findCssSlashCommand(
         areaText,
         highlightCommandCaretIndex,
         supportsThemedCssDeclaration
       )
     : null
-  const highlightedCommand = commandForHighlight?.propertyIsValid
-    ? commandForHighlight
-    : null
+  const highlightedCommand =
+    gifCommandForHighlight ??
+    (cssCommandForHighlight?.propertyIsValid
+      ? cssCommandForHighlight
+      : null)
+  const highlightedCommandIsInvalid =
+    !gifCommandForHighlight &&
+    Boolean(
+      cssCommandForHighlight &&
+        cssCommandForHighlight.value.length > 0 &&
+        !cssCommandForHighlight.declarationIsValid
+    )
 
   const canEditText = !isImageArea
 
   const imageAltText = isImageArea ? area.alt : ''
+  const imageSource =
+    isGifArea && shouldShowGifStill
+      ? asset?.source?.stillUrl ?? asset?.storageKey ?? ''
+      : asset?.storageKey ?? ''
 
   const editImageAltText = () => {
     if (!isImageArea) return
@@ -188,6 +234,32 @@ const Area = ({
 
     if (nextAlt !== null) onChangeImageAlt(area.id, nextAlt)
   }
+
+  useEffect(() => {
+    if (typeof matchMedia === 'undefined') return
+
+    const mediaQuery = matchMedia('(prefers-reduced-motion: reduce)')
+    const updatePreference = () =>
+      setPrefersReducedMotion(mediaQuery.matches)
+
+    updatePreference()
+    mediaQuery.addEventListener('change', updatePreference)
+
+    return () => {
+      mediaQuery.removeEventListener('change', updatePreference)
+    }
+  }, [])
+
+  useEffect(() => {
+    onGifCommandActive(area.id, activeGifCommand)
+  }, [
+    activeGifCommand?.end,
+    activeGifCommand?.query,
+    activeGifCommand?.raw,
+    activeGifCommand?.start,
+    area.id,
+    onGifCommandActive,
+  ])
 
   useEffect(() => {
     if (!isNewest || !canEditText) return
@@ -529,6 +601,22 @@ const Area = ({
                 <StyleSlidersIcon />
               </button>
               <button
+                aria-label="Connect area"
+                className="area-action-button"
+                title="Connect"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onOpenLinkDialog(area.id)
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                }}
+              >
+                <LinkIcon />
+              </button>
+              <button
                 aria-label="Duplicate area"
                 className="area-action-button"
                 title="Duplicate"
@@ -580,8 +668,24 @@ const Area = ({
               alt={area.alt}
               className="area-image"
               draggable="false"
-              src={asset?.storageKey ?? ''}
+              src={imageSource}
             />
+            {isGifArea && isSelected && !isReadOnly && (
+              <button
+                className="area-gif-toggle"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setGifPlaybackOverride(
+                    shouldShowGifStill ? 'play' : 'pause'
+                  )
+                }}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {shouldShowGifStill ? 'Play GIF' : 'Pause GIF'}
+              </button>
+            )}
           </div>
         ) : (
           <div
@@ -589,7 +693,11 @@ const Area = ({
             style={{ height: textLayerHeight }}
           >
             <div className="area-highlight" aria-hidden="true">
-              {renderHighlightedText(area.text, highlightedCommand)}
+              {renderHighlightedText(
+                area.text,
+                highlightedCommand,
+                highlightedCommandIsInvalid
+              )}
             </div>
 
             <div
@@ -778,6 +886,24 @@ const StyleSlidersIcon = () => (
   </svg>
 )
 
+const LinkIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="area-control-icon area-control-icon--stroke"
+    fill="none"
+    focusable="false"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="1.7"
+    viewBox="0 0 16 16"
+  >
+    <path d="M6.7 5.3 5.4 4A2.4 2.4 0 0 0 2 7.4l1.3 1.3" />
+    <path d="M9.3 10.7 10.6 12A2.4 2.4 0 0 0 14 8.6l-1.3-1.3" />
+    <path d="M5.8 10.2 10.2 5.8" />
+  </svg>
+)
+
 const TrashIcon = () => (
   <svg
     aria-hidden="true"
@@ -863,13 +989,15 @@ const setEditableCaretIndex = (
 
 const renderHighlightedText = (
   text: string,
-  command: CssSlashCommand | null
+  command:
+    | Pick<CssSlashCommand, 'start' | 'end'>
+    | Pick<GifSlashCommand, 'start' | 'end'>
+    | null,
+  isInvalid = false
 ): ReactNode => {
   if (!command) return text || '\u200b'
   const highlightClassName = `area-command-highlight${
-    command.value.length > 0 && !command.declarationIsValid
-      ? ' area-command-highlight--invalid'
-      : ''
+    isInvalid ? ' area-command-highlight--invalid' : ''
   }`
 
   return (

@@ -149,6 +149,75 @@ export const CONTEXT_KITS: ContextKit[] = [
       link('files-review', 'files', 'review', 'references'),
     ],
   },
+  {
+    id: 'sprint-retro',
+    icon: 'cycle',
+    title: 'Sprint Retro',
+    description: 'Reflect on the sprint and choose next actions.',
+    areas: [
+      area(
+        'sprint-context',
+        'Sprint context\n\nGoal:\nShipped:\nSurprises:',
+        120,
+        120,
+        'note',
+        ['retro']
+      ),
+      area('went-well', 'Went well\n\n- ', 500, 120, 'note', [
+        'retro',
+      ]),
+      area(
+        'needs-attention',
+        'Needs attention\n\n- ',
+        120,
+        320,
+        'risk',
+        ['retro', 'process']
+      ),
+      area('learned', 'Learned\n\n- ', 500, 320, 'question', [
+        'retro',
+        'process',
+      ]),
+      area(
+        'try-next-sprint',
+        'Try next sprint\n\n- [ ] ',
+        120,
+        520,
+        'task',
+        ['retro', 'action']
+      ),
+      area(
+        'follow-up-owners',
+        'Follow-up owners\n\n- ',
+        500,
+        520,
+        'task',
+        ['retro', 'action']
+      ),
+    ],
+    links: [
+      link('retro-context-went-well', 'sprint-context', 'went-well', 'relates-to'),
+      link(
+        'retro-context-needs-attention',
+        'sprint-context',
+        'needs-attention',
+        'relates-to'
+      ),
+      link(
+        'retro-needs-action',
+        'needs-attention',
+        'try-next-sprint',
+        'depends-on'
+      ),
+      link('retro-learned-action', 'learned', 'try-next-sprint', 'implements'),
+      link(
+        'retro-action-owners',
+        'try-next-sprint',
+        'follow-up-owners',
+        'depends-on'
+      ),
+    ],
+  },
 ]
 
 export const getContextKitById = (kitId: string) =>

@@ -90,6 +90,12 @@ test('converts app page state into a Yjs document and back', () => {
       toAreaId: 'child',
       kind: 'references',
       label: 'references image',
+      visual: {
+        mode: 'semantic',
+        direction: 'forward',
+        route: 'auto',
+        labelVisibility: 'auto',
+      },
       createdAt: now,
       updatedAt: now,
     },

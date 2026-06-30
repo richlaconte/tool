@@ -5,13 +5,19 @@ import test from 'node:test'
 const readProjectFile = (path: string) =>
   readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('site metadata points browsers to the custom favicon and logo', async () => {
+test('site metadata points browsers to the Cascadery favicon, logo, and manifest', async () => {
   const layout = await readProjectFile('app/layout.tsx')
+  const index = await readProjectFile('index.html')
 
+  assert.match(layout, /title:\s*'Cascadery'/)
+  assert.match(layout, /applicationName:\s*'Cascadery'/)
+  assert.match(layout, /manifest:\s*'\/manifest\.webmanifest'/)
   assert.match(layout, /icons:/)
   assert.match(layout, /icon:\s*'\/favicon\.svg'/)
   assert.match(layout, /shortcut:\s*'\/favicon\.svg'/)
   assert.match(layout, /apple:\s*'\/logo\.svg'/)
+  assert.match(index, /<title>Cascadery<\/title>/)
+  assert.match(index, /rel="manifest"/)
 })
 
 test('editor renders a lightweight site brand mark from the logo asset', async () => {
@@ -40,12 +46,19 @@ test('brand click confirmation can return the user to the empty start screen', a
   assert.match(appSource, /setHasClickedCanvas\(false\)/)
 })
 
-test('favicon and logo are custom Tool canvas marks', async () => {
+test('favicon, logo, and manifest use the Cascadery brand assets', async () => {
   const favicon = await readProjectFile('public/favicon.svg')
   const logo = await readProjectFile('public/logo.svg')
+  const manifest = await readProjectFile('public/manifest.webmanifest')
+  const mark = await readProjectFile('public/brand/cascadery-mark.svg')
+  const wordmark = await readProjectFile('public/brand/cascadery-wordmark.svg')
 
-  assert.match(favicon, /<title>Tool favicon<\/title>/)
-  assert.match(logo, /<title>Tool logo<\/title>/)
-  assert.match(favicon, /slash-cursor/)
-  assert.match(logo, /slash-cursor/)
+  assert.match(favicon, /aria-label="Cascadery"/)
+  assert.match(logo, /aria-label="Cascadery"/)
+  assert.match(favicon, /#4F46E5/)
+  assert.match(logo, /#06B6D4/)
+  assert.match(manifest, /"name":\s*"Cascadery"/)
+  assert.match(manifest, /"src":\s*"\/logo\.svg"/)
+  assert.match(mark, /aria-label="Cascadery"/)
+  assert.match(wordmark, /aria-label="Cascadery"/)
 })

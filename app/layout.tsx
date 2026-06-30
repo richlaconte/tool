@@ -7,8 +7,11 @@ import '../src/components/area.css'
 import '../src/components/commandPalette.css'
 
 export const metadata: Metadata = {
-  title: 'Tool',
-  description: 'Collaborative canvas editor',
+  title: 'Cascadery',
+  applicationName: 'Cascadery',
+  description:
+    'A collaborative spatial canvas for shaping ideas with text, style, images, and structure.',
+  manifest: '/manifest.webmanifest',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',

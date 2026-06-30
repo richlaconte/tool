@@ -1,0 +1,8 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cascadery">
+  <rect x="22" y="34" width="62" height="13" rx="6.5" fill="#4F46E5"/>
+  <rect x="40" y="58" width="58" height="13" rx="6.5" fill="#3B82F6"/>
+  <rect x="58" y="82" width="48" height="13" rx="6.5" fill="#06B6D4"/>
+  <circle cx="16" cy="40.5" r="4.5" fill="#4F46E5"/>
+  <circle cx="34" cy="64.5" r="4.5" fill="#3B82F6"/>
+  <circle cx="52" cy="88.5" r="4.5" fill="#06B6D4"/>
+</svg>

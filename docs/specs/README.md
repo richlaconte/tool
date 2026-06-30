@@ -9,8 +9,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-- [Cascadery Logo and Favicon Integration](2026-06-30-cascadery-logo-favicon-integration.md)
-- [Offscreen Area Indicators](2026-06-30-offscreen-area-indicators.md)
+No active foundational specs are outstanding.
 
 ## Completed MVP Specs
 
@@ -26,6 +25,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Agent Handoff Briefs](completed/2026-06-29-agent-handoff-briefs.md)
 - [Brand Positioning and Narrative System](completed/2026-06-29-brand-positioning-and-narrative.md)
 - [Cascadery Brand Leave Confirmation](completed/2026-06-30-brand-leave-confirmation.md)
+- [Cascadery Logo and Favicon Integration](completed/2026-06-30-cascadery-logo-favicon-integration.md)
 - [Canvas Zoom](completed/2026-06-26-canvas-zoom.md)
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
 - [Context Kits and Guided Empty State](completed/2026-06-29-context-kits-and-guided-empty-state.md)
@@ -36,6 +36,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)
+- [Offscreen Area Indicators](completed/2026-06-30-offscreen-area-indicators.md)
 - [Page JSON Persistence](completed/2026-06-26-page-json-persistence.md)
 - [Security and Privacy Baseline](completed/2026-06-26-cascadery-security-privacy.md)
 - [Share Links](completed/2026-06-26-share-links.md)

@@ -1,7 +1,7 @@
 # Offscreen Area Indicators Spec
 
 Created: 2026-06-30
-Status: Active foundational spec
+Status: Completed MVP spec
 
 ## Problem
 

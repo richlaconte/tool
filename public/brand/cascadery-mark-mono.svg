@@ -1,0 +1,6 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cascadery">
+  <rect x="12" y="12" width="64" height="64" rx="17" fill="none" stroke="#0F172A" stroke-width="5"/>
+  <rect x="32" y="32" width="64" height="64" rx="17" fill="#FFFFFF" stroke="#0F172A" stroke-width="5"/>
+  <rect x="52" y="52" width="64" height="64" rx="17" fill="#FFFFFF" stroke="#0F172A" stroke-width="5"/>
+  <path d="M75 97 L93 71" stroke="#0F172A" stroke-width="6" stroke-linecap="round"/>
+</svg>

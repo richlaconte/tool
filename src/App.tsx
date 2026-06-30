@@ -120,6 +120,11 @@ import {
   nestAreaIfContained,
 } from './nestedAreas'
 import {
+  getOffscreenAreaIndicators,
+  getOffscreenIndicatorAriaLabel,
+  type OffscreenIndicator,
+} from './offscreenAreaIndicators'
+import {
   createDefaultPageState,
   PAGE_STORAGE_KEY,
   parsePageJson,
@@ -220,6 +225,19 @@ type SaveStatus = 'saved' | 'saving' | 'offline-changes'
 type CollaborationStatus = 'connected' | 'offline'
 type PresenceCssProperties = CSSProperties & {
   '--presence-color': string
+}
+type OffscreenIndicatorCssProperties = CSSProperties & {
+  '--offscreen-indicator-x': string
+  '--offscreen-indicator-y': string
+  '--offscreen-indicator-rotation': string
+}
+type CanvasViewportSnapshot = {
+  x: number
+  y: number
+  width: number
+  height: number
+  pixelWidth: number
+  pixelHeight: number
 }
 type PendingImageInsert =
   | {
@@ -679,6 +697,43 @@ const getViewportCenterPoint = (zoom = 1) =>
     zoom
   )
 
+const getInitialCanvasViewportSnapshot = (): CanvasViewportSnapshot => {
+  const width = typeof window === 'undefined' ? 1440 : window.innerWidth
+  const height = typeof window === 'undefined' ? 900 : window.innerHeight
+
+  return {
+    x: 0,
+    y: 0,
+    width,
+    height,
+    pixelWidth: width,
+    pixelHeight: height,
+  }
+}
+
+const getCanvasViewportSnapshot = (
+  canvas: HTMLDivElement,
+  zoom: number
+): CanvasViewportSnapshot => ({
+  x: canvas.scrollLeft / zoom,
+  y: canvas.scrollTop / zoom,
+  width: canvas.clientWidth / zoom,
+  height: canvas.clientHeight / zoom,
+  pixelWidth: canvas.clientWidth,
+  pixelHeight: canvas.clientHeight,
+})
+
+const areCanvasViewportSnapshotsEqual = (
+  first: CanvasViewportSnapshot,
+  second: CanvasViewportSnapshot
+) =>
+  first.x === second.x &&
+  first.y === second.y &&
+  first.width === second.width &&
+  first.height === second.height &&
+  first.pixelWidth === second.pixelWidth &&
+  first.pixelHeight === second.pixelHeight
+
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -938,6 +993,9 @@ function App({
     string | null
   >(null)
   const [canvasZoom, setCanvasZoom] = useState(1)
+  const [canvasViewport, setCanvasViewport] = useState(
+    getInitialCanvasViewportSnapshot
+  )
   const [openDialogId, setOpenDialogId] = useState<string | null>(
     null
   )
@@ -1015,6 +1073,7 @@ function App({
     clientY: number
   } | null>(null)
   const wheelZoomFrameRef = useRef<number | null>(null)
+  const canvasViewportFrameRef = useRef<number | null>(null)
   const collaborationChannelRef = useRef<BroadcastChannel | null>(
     null
   )
@@ -1129,6 +1188,60 @@ function App({
   useEffect(() => {
     canvasZoomRef.current = canvasZoom
   }, [canvasZoom])
+
+  const updateCanvasViewport = useCallback(() => {
+    const canvas = canvasRef.current
+
+    if (!canvas) return
+
+    const nextViewport = getCanvasViewportSnapshot(
+      canvas,
+      canvasZoomRef.current
+    )
+
+    setCanvasViewport((currentViewport) =>
+      areCanvasViewportSnapshotsEqual(currentViewport, nextViewport)
+        ? currentViewport
+        : nextViewport
+    )
+  }, [])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+
+    if (!canvas) return
+
+    const scheduleViewportUpdate = () => {
+      if (canvasViewportFrameRef.current !== null) return
+
+      canvasViewportFrameRef.current = requestAnimationFrame(() => {
+        canvasViewportFrameRef.current = null
+        updateCanvasViewport()
+      })
+    }
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(scheduleViewportUpdate)
+
+    scheduleViewportUpdate()
+    canvas.addEventListener('scroll', scheduleViewportUpdate, {
+      passive: true,
+    })
+    window.addEventListener('resize', scheduleViewportUpdate)
+    resizeObserver?.observe(canvas)
+
+    return () => {
+      canvas.removeEventListener('scroll', scheduleViewportUpdate)
+      window.removeEventListener('resize', scheduleViewportUpdate)
+      resizeObserver?.disconnect()
+
+      if (canvasViewportFrameRef.current !== null) {
+        cancelAnimationFrame(canvasViewportFrameRef.current)
+        canvasViewportFrameRef.current = null
+      }
+    }
+  }, [canvasZoom, updateCanvasViewport])
 
   const setCanvasZoomFromAnchor = useCallback(
     (
@@ -1276,6 +1389,37 @@ function App({
       },
     ])
   }, [areas, selectedAreaId, zoomCanvasToFit, zoomCanvasToItems])
+
+  const panToOffscreenIndicator = useCallback(
+    (indicator: OffscreenIndicator) => {
+      const canvas = canvasRef.current
+
+      if (!canvas) return
+
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      const nextScrollLeft = Math.max(
+        0,
+        indicator.targetBounds.x * canvasZoom +
+          (indicator.targetBounds.width * canvasZoom) / 2 -
+          canvas.clientWidth / 2
+      )
+      const nextScrollTop = Math.max(
+        0,
+        indicator.targetBounds.y * canvasZoom +
+          (indicator.targetBounds.height * canvasZoom) / 2 -
+          canvas.clientHeight / 2
+      )
+
+      canvas.scrollTo({
+        left: nextScrollLeft,
+        top: nextScrollTop,
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      })
+    },
+    [canvasZoom]
+  )
 
   const publishPresence = useCallback(
     (cursor: PresenceState['cursor'] = latestCursorRef.current) => {
@@ -3566,6 +3710,51 @@ function App({
         )
       : COMMAND_PALETTE_OPTIONS
     : []
+  const shouldShowOffscreenAreaIndicators =
+    !shouldShowEmptyState &&
+    areas.length > 0 &&
+    commandPaletteQuery === null &&
+    openDialogId === null &&
+    styleDialogAreaId === null
+  const offscreenAreaIndicators = useMemo(
+    () =>
+      shouldShowOffscreenAreaIndicators
+        ? getOffscreenAreaIndicators({
+            areas,
+            viewport: {
+              x: canvasViewport.x,
+              y: canvasViewport.y,
+              width: canvasViewport.width,
+              height: canvasViewport.height,
+            },
+            viewportPixelSize: {
+              width: canvasViewport.pixelWidth,
+              height: canvasViewport.pixelHeight,
+            },
+            zoom: canvasZoom,
+            safeInsets: shouldShowEditorChrome
+              ? {
+                  top: 88,
+                  right: 24,
+                  bottom: 84,
+                  left: 24,
+                }
+              : {
+                  top: 76,
+                  right: 24,
+                  bottom: 24,
+                  left: 24,
+                },
+          })
+        : [],
+    [
+      areas,
+      canvasViewport,
+      canvasZoom,
+      shouldShowEditorChrome,
+      shouldShowOffscreenAreaIndicators,
+    ]
+  )
   const currentUrl =
     typeof window === 'undefined'
       ? 'https://example.test/'
@@ -4091,6 +4280,13 @@ function App({
           )}
         </div>
       </div>
+
+      {offscreenAreaIndicators.length > 0 && (
+        <OffscreenAreaIndicators
+          indicators={offscreenAreaIndicators}
+          onActivate={panToOffscreenIndicator}
+        />
+      )}
 
       {shouldEnableCanvasZoom && (
         <CanvasZoomControls
@@ -5439,6 +5635,49 @@ const GifSearchFlyout = ({
       <span>Powered by GIPHY</span>
     </div>
   </section>
+)
+
+const OffscreenAreaIndicators = ({
+  indicators,
+  onActivate,
+}: {
+  indicators: OffscreenIndicator[]
+  onActivate: (indicator: OffscreenIndicator) => void
+}) => (
+  <div className="offscreen-area-indicators" aria-label="Offscreen areas">
+    {indicators.map((indicator) => (
+      <button
+        aria-label={getOffscreenIndicatorAriaLabel(indicator)}
+        className="offscreen-area-indicator"
+        key={indicator.id}
+        style={
+          {
+            '--offscreen-indicator-x': `${indicator.viewportPosition.x}px`,
+            '--offscreen-indicator-y': `${indicator.viewportPosition.y}px`,
+            '--offscreen-indicator-rotation': `${indicator.rotationDegrees}deg`,
+          } as OffscreenIndicatorCssProperties
+        }
+        title={getOffscreenIndicatorAriaLabel(indicator)}
+        type="button"
+        onClick={() => onActivate(indicator)}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <svg
+          aria-hidden="true"
+          className="offscreen-area-indicator__arrow"
+          focusable="false"
+          viewBox="0 0 20 20"
+        >
+          <path d="M4 10h10M10 5l5 5-5 5" />
+        </svg>
+        {indicator.count > 1 && (
+          <span className="offscreen-area-indicator__count">
+            {indicator.count > 9 ? '10+' : indicator.count}
+          </span>
+        )}
+      </button>
+    ))}
+  </div>
 )
 
 const CanvasZoomControls = ({

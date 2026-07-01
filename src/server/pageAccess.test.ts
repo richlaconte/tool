@@ -12,6 +12,7 @@ import {
 } from './shareSessions.ts'
 import {
   getPageAccessFromSession,
+  handlePageAccessRequest,
   resolvePageHttpAccess,
 } from './pageAccess.ts'
 
@@ -54,6 +55,46 @@ test('valid share token creates a signed page session and redirects to the clean
     pageId: 'page_share',
     shareLinkUpdatedAt: '2026-06-26T12:00:00.000Z',
   })
+})
+
+test('share token redirects preserve forwarded HTTPS origin', () => {
+  const database = createInMemoryDatabase()
+  createPageWithShareLinks(database, {
+    createToken: () => 'view-token',
+    now: '2026-06-26T12:00:00.000Z',
+    pageId: 'page_forwarded',
+  })
+  const headers = new Map<string, string | string[]>()
+  const response = {
+    statusCode: 200,
+    setHeader(name: string, value: string | string[]) {
+      headers.set(name, value)
+    },
+    end() {},
+  }
+
+  const handled = handlePageAccessRequest({
+    database,
+    request: {
+      method: 'GET',
+      url: '/p/page_forwarded?share=view&token=view-token',
+      headers: {
+        host: 'internal.fly.dev',
+        'x-forwarded-host': 'cascadery.test',
+        'x-forwarded-proto': 'https',
+      },
+    } as never,
+    response: response as never,
+    secret,
+  })
+
+  assert.equal(handled, true)
+  assert.equal(response.statusCode, 302)
+  assert.equal(
+    headers.get('Location'),
+    'https://cascadery.test/p/page_forwarded'
+  )
+  assert.match(String(headers.get('Set-Cookie')), /HttpOnly/)
 })
 
 test('page sessions are rejected after that share link is regenerated', () => {

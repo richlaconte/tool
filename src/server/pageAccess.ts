@@ -191,7 +191,7 @@ export const handlePageAccessRequest = ({
 
   const requestUrl = new URL(
     request.url ?? '/',
-    `http://${request.headers.host ?? 'localhost'}`
+    getRequestOrigin(request.headers)
   )
   const pageId = getPageIdFromPagePathname(requestUrl.pathname)
 
@@ -226,6 +226,27 @@ export const handlePageAccessRequest = ({
 export const getPageIdFromPagePathname = (pathname: string) => {
   const match = pathname.match(/^\/p\/([^/]+)$/)
   return match ? decodeURIComponent(match[1]) : null
+}
+
+const getRequestOrigin = (headers: IncomingMessage['headers']) => {
+  const forwardedProtocol = getFirstHeaderValue(
+    headers['x-forwarded-proto']
+  )
+  const forwardedHost = getFirstHeaderValue(
+    headers['x-forwarded-host']
+  )
+  const host = forwardedHost ?? getFirstHeaderValue(headers.host) ?? 'localhost'
+  const protocol = forwardedProtocol ?? 'http'
+
+  return `${protocol}://${host}`
+}
+
+const getFirstHeaderValue = (
+  value: string | string[] | undefined
+) => {
+  const headerValue = Array.isArray(value) ? value[0] : value
+
+  return headerValue?.split(',')[0]?.trim() || undefined
 }
 
 export const getPageSessionSecret = () => {

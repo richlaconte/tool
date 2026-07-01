@@ -77,6 +77,7 @@ import {
   getZoomToFit,
   screenToCanvasPoint,
 } from './canvasViewport'
+import { getCanvasPointerAction } from './canvasPointerActions'
 import {
   applyAgentPatch,
   createAgentPatchForOperation,
@@ -2037,16 +2038,29 @@ function App({
 
   useEffect(() => {
     const handleClick = (e: PointerEvent) => {
-      if (isViewOnly) return
-
       const target = e.target as HTMLElement
+      const action = getCanvasPointerAction({
+        hasLinkFlyout: Boolean(linkFlyoutLinkId),
+        hasSelectedArea: selectedAreaId !== null,
+        hasSelectedLink: selectedLinkId !== null,
+        isCanvasWorldTarget: target.classList.contains('canvas-world'),
+        isReadOnly: isViewOnly,
+      })
 
-      if (!target.classList.contains('canvas-world')) return
+      if (action === 'ignore') return
 
       e.preventDefault()
 
-      if (linkFlyoutLinkId) {
+      if (action === 'close-link-flyout') {
         setLinkFlyoutLinkId(null)
+        return
+      }
+
+      if (action === 'deselect') {
+        setSelectedAreaId(null)
+        setSelectedLinkId(null)
+        setLinkFlyoutLinkId(null)
+        setStyleDialogAreaId(null)
         return
       }
 
@@ -2083,7 +2097,13 @@ function App({
     return () => {
       document.removeEventListener('pointerdown', handleClick)
     }
-  }, [canvasZoom, isViewOnly, linkFlyoutLinkId])
+  }, [
+    canvasZoom,
+    isViewOnly,
+    linkFlyoutLinkId,
+    selectedAreaId,
+    selectedLinkId,
+  ])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

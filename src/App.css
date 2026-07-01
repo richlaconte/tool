@@ -2024,7 +2024,7 @@ button.mcp-status-badge:focus-visible {
   color: #1f2937;
   font: 14px/1.4 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
-  padding: 10px 12px;
+  padding: 10px 34px 10px 12px;
   transform: translateX(-50%);
   user-select: none;
 }
@@ -2045,4 +2045,29 @@ button.mcp-status-badge:focus-visible {
   background: #374151;
   outline: 2px solid rgb(17 24 39 / 18%);
   outline-offset: 2px;
+}
+
+.undo-toast-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font: 600 13px/1 ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.undo-toast-close:hover,
+.undo-toast-close:focus-visible {
+  background: rgb(15 23 42 / 7%);
+  color: #111827;
+  outline: 2px solid rgb(17 24 39 / 14%);
+  outline-offset: 1px;
 }

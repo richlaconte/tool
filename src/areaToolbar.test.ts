@@ -74,3 +74,19 @@ test('area toolbar hides actions by available area width and keeps drag longest'
     /@container\s*\(max-width:\s*60px\)\s*{[\s\S]*\.area-actions\s*{[\s\S]*display:\s*none\s*!important;[\s\S]*}/
   )
 })
+
+test('area deleted undo toast can be dismissed without undoing', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const css = await readFile(
+    new URL('./App.css', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /aria-label="Dismiss deleted area notice"/)
+  assert.match(source, /className="undo-toast-close"/)
+  assert.match(source, /onClick=\{\(\) => setDeletedAreaSnapshot\(null\)\}/)
+  assert.match(css, /\.undo-toast-close\s*{[\s\S]*width:\s*24px;/)
+})

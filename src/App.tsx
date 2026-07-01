@@ -5106,6 +5106,14 @@ function App({
           >
             Undo
           </button>
+          <button
+            aria-label="Dismiss deleted area notice"
+            className="undo-toast-close"
+            type="button"
+            onClick={() => setDeletedAreaSnapshot(null)}
+          >
+            <span aria-hidden="true">x</span>
+          </button>
         </div>
       )}
 

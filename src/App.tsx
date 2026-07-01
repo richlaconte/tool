@@ -1175,6 +1175,16 @@ function App({
   const hasMountedForSave = useRef(false)
   const hasMountedForCollaborationSync = useRef(false)
   const pendingImageInsert = useRef<PendingImageInsert | null>(null)
+  const deselectCurrentArea = useCallback(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur()
+    }
+
+    setSelectedAreaId(null)
+    setSelectedLinkId(null)
+    setLinkFlyoutLinkId(null)
+    setStyleDialogAreaId(null)
+  }, [])
   const gifSearchProvider = useMemo(
     () =>
       createGiphySearchProvider({
@@ -2041,39 +2051,38 @@ function App({
 
   useEffect(() => {
     const handleClick = (e: PointerEvent) => {
-      const target = e.target as HTMLElement
+      const target = e.target instanceof Element ? e.target : null
+      const targetAreaId =
+        target
+          ?.closest<HTMLElement>('[data-area-id]')
+          ?.getAttribute('data-area-id') ?? null
       const action = getCanvasPointerAction({
         hasLinkFlyout: Boolean(linkFlyoutLinkId),
         hasSelectedArea: selectedAreaId !== null,
         hasSelectedLink: selectedLinkId !== null,
+        isInsideSelectedArea:
+          selectedAreaId !== null && targetAreaId === selectedAreaId,
         isCanvasSurfaceTarget: isBlankCanvasPointerSurface(
-          target.id,
-          target.className
+          target instanceof HTMLElement ? target.id : '',
+          target instanceof HTMLElement ? target.className : ''
         ),
         isReadOnly: isViewOnly,
       })
 
       if (action === 'ignore') return
 
-      e.preventDefault()
-
       if (action === 'close-link-flyout') {
+        e.preventDefault()
         setLinkFlyoutLinkId(null)
         return
       }
 
       if (action === 'deselect') {
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur()
-        }
-
-        setSelectedAreaId(null)
-        setSelectedLinkId(null)
-        setLinkFlyoutLinkId(null)
-        setStyleDialogAreaId(null)
+        deselectCurrentArea()
         return
       }
 
+      e.preventDefault()
       setHasClickedCanvas(true)
 
       const point = getCanvasPoint(e.clientX, e.clientY, canvasZoom)
@@ -2102,13 +2111,14 @@ function App({
       setAutoFocusAreaId(id)
     }
 
-    document.addEventListener('pointerdown', handleClick)
+    document.addEventListener('pointerdown', handleClick, true)
 
     return () => {
-      document.removeEventListener('pointerdown', handleClick)
+      document.removeEventListener('pointerdown', handleClick, true)
     }
   }, [
     canvasZoom,
+    deselectCurrentArea,
     isViewOnly,
     linkFlyoutLinkId,
     selectedAreaId,
@@ -2225,11 +2235,7 @@ function App({
       e.preventDefault()
 
       if (keyboardAction === 'deselect-area') {
-        if (document.activeElement instanceof HTMLElement) {
-          document.activeElement.blur()
-        }
-
-        setSelectedAreaId(null)
+        deselectCurrentArea()
         return
       }
 
@@ -2253,6 +2259,7 @@ function App({
     }
   }, [
     commandPaletteQuery,
+    deselectCurrentArea,
     isViewOnly,
     openDialogId,
     resetCanvasZoom,
@@ -4438,11 +4445,7 @@ function App({
         onRemoveEvidence={removeEvidenceFromArea}
         onReplaceImage={replaceImageById}
         onChangeImageAlt={updateImageAlt}
-        onDeselect={() => {
-          setSelectedAreaId(null)
-          setSelectedLinkId(null)
-          setLinkFlyoutLinkId(null)
-        }}
+        onDeselect={deselectCurrentArea}
       >
         {getChildAreas(areas, area.id).map(renderArea)}
       </Area>

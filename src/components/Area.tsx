@@ -612,6 +612,7 @@ const Area = ({
     <div
       ref={shellRef}
       className="area-shell"
+      data-area-id={area.id}
       style={{
         position: 'absolute',
         left: area.x,

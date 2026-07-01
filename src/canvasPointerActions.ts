@@ -8,18 +8,24 @@ export const getCanvasPointerAction = ({
   hasLinkFlyout,
   hasSelectedArea,
   hasSelectedLink,
+  isInsideSelectedArea = false,
   isCanvasSurfaceTarget,
   isReadOnly = false,
 }: {
   hasLinkFlyout: boolean
   hasSelectedArea: boolean
   hasSelectedLink: boolean
+  isInsideSelectedArea?: boolean
   isCanvasSurfaceTarget: boolean
   isReadOnly?: boolean
 }): CanvasPointerAction => {
-  if (isReadOnly || !isCanvasSurfaceTarget) return 'ignore'
+  if (isReadOnly) return 'ignore'
+  if (hasSelectedArea) {
+    return isInsideSelectedArea ? 'ignore' : 'deselect'
+  }
+  if (!isCanvasSurfaceTarget) return 'ignore'
   if (hasLinkFlyout) return 'close-link-flyout'
-  if (hasSelectedArea || hasSelectedLink) return 'deselect'
+  if (hasSelectedLink) return 'deselect'
 
   return 'create-area'
 }

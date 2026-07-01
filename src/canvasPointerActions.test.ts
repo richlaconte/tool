@@ -52,12 +52,23 @@ test('canvas clicks close transient selections before creating areas', () => {
   assert.equal(
     getCanvasPointerAction({
       hasLinkFlyout: true,
-      hasSelectedArea: true,
+      hasSelectedArea: false,
       hasSelectedLink: false,
       isCanvasSurfaceTarget: true,
       isReadOnly: false,
     }),
     'close-link-flyout'
+  )
+  assert.equal(
+    getCanvasPointerAction({
+      hasLinkFlyout: true,
+      hasSelectedArea: true,
+      hasSelectedLink: false,
+      isCanvasSurfaceTarget: true,
+      isInsideSelectedArea: false,
+      isReadOnly: false,
+    }),
+    'deselect'
   )
   assert.equal(
     getCanvasPointerAction({
@@ -68,6 +79,28 @@ test('canvas clicks close transient selections before creating areas', () => {
       isReadOnly: false,
     }),
     'deselect'
+  )
+  assert.equal(
+    getCanvasPointerAction({
+      hasLinkFlyout: false,
+      hasSelectedArea: true,
+      hasSelectedLink: false,
+      isCanvasSurfaceTarget: false,
+      isInsideSelectedArea: false,
+      isReadOnly: false,
+    }),
+    'deselect'
+  )
+  assert.equal(
+    getCanvasPointerAction({
+      hasLinkFlyout: false,
+      hasSelectedArea: true,
+      hasSelectedLink: false,
+      isCanvasSurfaceTarget: true,
+      isInsideSelectedArea: true,
+      isReadOnly: false,
+    }),
+    'ignore'
   )
   assert.equal(
     getCanvasPointerAction({
@@ -94,21 +127,61 @@ test('canvas clicks create areas only when nothing is selected', () => {
   )
 })
 
-test('canvas deselect blurs the active editor before clearing selection', async () => {
+test('canvas deselect uses the same shared routine as Escape', async () => {
   const source = await readFile(
     new URL('./App.tsx', import.meta.url),
     'utf8'
   )
+  const helperStart = source.indexOf('const deselectCurrentArea = useCallback')
+  const helperEnd = source.indexOf('  const gifSearchProvider', helperStart)
+  const helperBlock = source.slice(helperStart, helperEnd)
   const blockStart = source.indexOf("if (action === 'deselect') {")
   const blockEnd = source.indexOf('      setHasClickedCanvas(true)', blockStart)
   const deselectBlock = source.slice(blockStart, blockEnd)
+  const escapeStart = source.indexOf(
+    "if (keyboardAction === 'deselect-area') {"
+  )
+  const escapeEnd = source.indexOf(
+    "      if (keyboardAction === 'close-command-palette')",
+    escapeStart
+  )
+  const escapeBlock = source.slice(escapeStart, escapeEnd)
 
+  assert.ok(helperStart > 0)
+  assert.ok(helperEnd > helperStart)
   assert.ok(blockStart > 0)
   assert.ok(blockEnd > blockStart)
-  assert.match(deselectBlock, /document\.activeElement\.blur\(\)/)
-  assert.match(deselectBlock, /setSelectedAreaId\(null\)/)
+  assert.ok(escapeStart > 0)
+  assert.ok(escapeEnd > escapeStart)
+  assert.match(helperBlock, /document\.activeElement\.blur\(\)/)
+  assert.match(helperBlock, /setSelectedAreaId\(null\)/)
+  assert.match(helperBlock, /setStyleDialogAreaId\(null\)/)
+  assert.match(deselectBlock, /deselectCurrentArea\(\)/)
+  assert.match(escapeBlock, /deselectCurrentArea\(\)/)
   assert.ok(
-    deselectBlock.indexOf('document.activeElement.blur()') <
-      deselectBlock.indexOf('setSelectedAreaId(null)')
+    helperBlock.indexOf('document.activeElement.blur()') <
+      helperBlock.indexOf('setSelectedAreaId(null)')
   )
+})
+
+test('app listens for outside-area pointer downs before area handlers stop propagation', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const areaSource = await readFile(
+    new URL('./components/Area.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /closest<HTMLElement>\('\[data-area-id\]'\)/)
+  assert.match(
+    source,
+    /document\.addEventListener\('pointerdown', handleClick, true\)/
+  )
+  assert.match(
+    source,
+    /document\.removeEventListener\('pointerdown', handleClick, true\)/
+  )
+  assert.match(areaSource, /data-area-id=\{area\.id\}/)
 })

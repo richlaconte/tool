@@ -1,7 +1,16 @@
 # Area Style Dialog Overhaul Spec
 
 Created: 2026-07-01
-Status: Proposed
+Status: Completed
+
+Completed: 2026-07-01
+
+Completion notes:
+
+- The dialog now opens recipe-first with active styles above outcome recipes.
+- One default search field searches recipes and matching CSS properties.
+- Advanced CSS is an explicit mode, and the broad property browser opens only after search or `Browse properties`.
+- Existing `area.styles` remains the only persisted style model.
 
 ## Problem
 

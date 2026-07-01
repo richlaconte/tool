@@ -18,6 +18,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Area Duplicate Action](completed/2026-06-26-area-duplicate-action.md)
 - [Area Resize](completed/2026-06-26-area-resize.md)
 - [Area CSS Style Dialog](completed/2026-06-30-area-css-style-dialog.md)
+- [Area Style Dialog Overhaul](completed/2026-07-01-area-style-dialog-overhaul.md)
 - [Area Styles Dialog UX Audit and Simplification](completed/2026-06-30-area-styles-dialog-ux-audit.md)
 - [Area Connector System](completed/2026-06-30-area-connector-system.md)
 - [Area Toolbar Delete](completed/2026-06-26-area-toolbar-delete.md)

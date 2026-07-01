@@ -85,6 +85,13 @@ const AreaStyleDialog = ({
     () => searchAreaStylePresets(quickQuery),
     [quickQuery]
   )
+  const quickCssMatches = useMemo(
+    () =>
+      quickQuery.trim()
+        ? filterStyleProperties(definitions, quickQuery).slice(0, 8)
+        : [],
+    [definitions, quickQuery]
+  )
   const selectedDefinition = useMemo(
     () =>
       definitions.find(
@@ -190,10 +197,7 @@ const AreaStyleDialog = ({
         }}
       >
         <div className="area-style-dialog-header">
-          <div>
-            <h2>Style Area</h2>
-            <span>Quick visual controls with CSS still one step away.</span>
-          </div>
+          <h2>Style Area</h2>
           <button
             aria-label="Close Area styles"
             className="area-style-close-button"
@@ -214,57 +218,26 @@ const AreaStyleDialog = ({
           onRemove={onRemoveStyle}
         />
 
-        <div
-          className="area-style-tabs"
-          role="tablist"
-          aria-label="Area style modes"
-        >
-          <button
-            aria-selected={areaStylePanel === 'quick'}
-            className={`area-style-tab${
-              areaStylePanel === 'quick' ? ' area-style-tab--active' : ''
-            }`}
-            role="tab"
-            type="button"
-            onClick={() => {
-              setAreaStylePanel('quick')
-              requestAnimationFrame(() =>
-                quickSearchInputRef.current?.focus()
-              )
-            }}
-          >
-            Quick styles
-          </button>
-          <button
-            aria-selected={areaStylePanel === 'advanced'}
-            className={`area-style-tab${
-              areaStylePanel === 'advanced'
-                ? ' area-style-tab--active'
-                : ''
-            }`}
-            role="tab"
-            type="button"
-            onClick={() => {
-              setAreaStylePanel('advanced')
-              requestAnimationFrame(() =>
-                advancedSearchInputRef.current?.focus()
-              )
-            }}
-          >
-            Advanced CSS
-          </button>
-        </div>
+        <AreaStyleQuickPanel
+          cssMatches={quickCssMatches}
+          filteredPresets={filteredQuickPresets}
+          query={quickQuery}
+          searchInputRef={quickSearchInputRef}
+          themeColors={themeColors}
+          onApplyDeclarations={applyDeclarations}
+          onOpenAdvanced={() => {
+            setAreaStylePanel('advanced')
+            setQuery(quickQuery)
+            setHighlightedPropertyIndex(0)
+            requestAnimationFrame(() =>
+              advancedSearchInputRef.current?.focus()
+            )
+          }}
+          onQueryChange={setQuickQuery}
+          onSelectProperty={selectProperty}
+        />
 
-        {areaStylePanel === 'quick' ? (
-          <AreaStyleQuickPanel
-            filteredPresets={filteredQuickPresets}
-            query={quickQuery}
-            searchInputRef={quickSearchInputRef}
-            themeColors={themeColors}
-            onApplyDeclarations={applyDeclarations}
-            onQueryChange={setQuickQuery}
-          />
-        ) : (
+        {areaStylePanel === 'advanced' ? (
           <AreaStyleAdvancedPanel
             filteredDefinitions={filteredDefinitions}
             highlightedPropertyIndex={highlightedPropertyIndex}
@@ -289,7 +262,7 @@ const AreaStyleDialog = ({
             onSetValueInput={setValueInput}
             styles={area.styles}
           />
-        )}
+        ) : null}
       </section>
     </div>
   )
@@ -354,19 +327,27 @@ const AreaStyleActiveSummary = ({
 }
 
 const AreaStyleQuickPanel = ({
+  cssMatches,
   filteredPresets,
   query,
   searchInputRef,
   themeColors,
   onApplyDeclarations,
+  onOpenAdvanced,
   onQueryChange,
+  onSelectProperty,
 }: {
+  cssMatches: StylePropertyDefinition[]
   filteredPresets: AreaStylePreset[]
   query: string
   searchInputRef: RefObject<HTMLInputElement | null>
   themeColors: ThemeColorToken[]
   onApplyDeclarations: (declarations: Record<string, string>) => void
+  onOpenAdvanced: () => void
   onQueryChange: (query: string) => void
+  onSelectProperty: (
+    definition: Pick<StylePropertyDefinition, 'property'>
+  ) => void
 }) => {
   const filteredPresetIds = new Set(
     filteredPresets.map((preset) => preset.id)
@@ -375,11 +356,11 @@ const AreaStyleQuickPanel = ({
   return (
     <section className="area-style-panel area-style-quick-panel">
       <label className="page-style-control area-style-search-control">
-        <span>Find a quick style</span>
+        <span>Search styles or CSS</span>
         <input
           ref={searchInputRef}
           aria-label="Search quick Area styles"
-          placeholder="Try border, round, text, shadow"
+          placeholder="Search styles or CSS"
           type="text"
           value={query}
           onChange={(e) => onQueryChange(e.currentTarget.value)}
@@ -415,6 +396,36 @@ const AreaStyleQuickPanel = ({
           }
         )}
       </div>
+      {cssMatches.length > 0 && (
+        <section className="area-style-css-matches">
+          <h3>CSS matches</h3>
+          <div
+            className="area-style-property-list"
+            role="listbox"
+            aria-label="Matching CSS properties"
+          >
+            {cssMatches.map((definition) => (
+              <button
+                className="area-style-property-row"
+                key={definition.property}
+                role="option"
+                type="button"
+                onClick={() => onSelectProperty(definition)}
+              >
+                <span>{definition.label ?? definition.property}</span>
+                <code>{definition.property}</code>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      <button
+        className="area-style-advanced-toggle"
+        type="button"
+        onClick={onOpenAdvanced}
+      >
+        Advanced CSS
+      </button>
     </section>
   )
 }
@@ -526,9 +537,14 @@ const AreaStyleAdvancedPanel = ({
   ) => void
   onSetValidationMessage: (message: string | null) => void
   onSetValueInput: (value: string) => void
-}) => (
-  <section className="area-style-panel area-style-advanced-panel">
-    <div className="area-style-main">
+}) => {
+  const [isBrowsingProperties, setIsBrowsingProperties] = useState(false)
+  const shouldShowPropertyList =
+    query.trim() !== '' || isBrowsingProperties
+
+  return (
+    <section className="area-style-panel area-style-advanced-panel">
+      <div className="area-style-main">
       <section className="area-style-section area-style-property-panel">
         <label className="page-style-control">
           <span>Property</span>
@@ -570,44 +586,53 @@ const AreaStyleAdvancedPanel = ({
             }}
           />
         </label>
-        <div
-          className="area-style-property-list"
-          id="area-style-property-list"
-          role="listbox"
-          aria-label="CSS properties"
+        <button
+          className="area-style-browse-button"
+          type="button"
+          onClick={() => setIsBrowsingProperties((isBrowsing) => !isBrowsing)}
         >
-          {filteredDefinitions.slice(0, 80).map(
-            (definition, index) => {
-              const isSelected =
-                definition.property === selectedDefinition?.property
+          Browse properties
+        </button>
+        {shouldShowPropertyList && (
+          <div
+            className="area-style-property-list"
+            id="area-style-property-list"
+            role="listbox"
+            aria-label="CSS properties"
+          >
+            {filteredDefinitions.slice(0, 80).map(
+              (definition, index) => {
+                const isSelected =
+                  definition.property === selectedDefinition?.property
 
-              return (
-                <button
-                  aria-selected={isSelected}
-                  className={`area-style-property-row${
-                    isSelected
-                      ? ' area-style-property-row--selected'
-                      : ''
-                  }${
-                    index === highlightedPropertyIndex
-                      ? ' area-style-property-row--highlighted'
-                      : ''
-                  }`}
-                  key={definition.property}
-                  role="option"
-                  type="button"
-                  onClick={() => onSelectProperty(definition)}
-                >
-                  <span>{definition.label ?? definition.property}</span>
-                  <code>{definition.property}</code>
-                  {styles[definition.property] && (
-                    <small>{styles[definition.property]}</small>
-                  )}
-                </button>
-              )
-            }
-          )}
-        </div>
+                return (
+                  <button
+                    aria-selected={isSelected}
+                    className={`area-style-property-row${
+                      isSelected
+                        ? ' area-style-property-row--selected'
+                        : ''
+                    }${
+                      index === highlightedPropertyIndex
+                        ? ' area-style-property-row--highlighted'
+                        : ''
+                    }`}
+                    key={definition.property}
+                    role="option"
+                    type="button"
+                    onClick={() => onSelectProperty(definition)}
+                  >
+                    <span>{definition.label ?? definition.property}</span>
+                    <code>{definition.property}</code>
+                    {styles[definition.property] && (
+                      <small>{styles[definition.property]}</small>
+                    )}
+                  </button>
+                )
+              }
+            )}
+          </div>
+        )}
       </section>
 
       <section className="area-style-section area-style-value-panel">
@@ -721,9 +746,10 @@ const AreaStyleAdvancedPanel = ({
           <p>Select a property to edit its value.</p>
         )}
       </section>
-    </div>
-  </section>
-)
+      </div>
+    </section>
+  )
+}
 
 const getPresetPreviewStyle = (
   preview?: AreaStylePreview

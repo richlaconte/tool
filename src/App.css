@@ -1127,6 +1127,49 @@ button.mcp-status-badge:focus-visible {
   margin: 0 0 14px;
 }
 
+.area-style-css-matches {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0 0;
+  border-top: 1px solid rgb(148 163 184 / 22%);
+  padding-top: 12px;
+}
+
+.area-style-css-matches h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.area-style-advanced-toggle,
+.area-style-browse-button {
+  justify-self: start;
+  border: 1px solid rgb(148 163 184 / 34%);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
+.area-style-advanced-toggle {
+  margin: 14px 0 0;
+}
+
+.area-style-advanced-toggle:hover,
+.area-style-advanced-toggle:focus-visible,
+.area-style-browse-button:hover,
+.area-style-browse-button:focus-visible {
+  border-color: rgb(37 99 235 / 20%);
+  background: #f8fafc;
+  outline: 2px solid rgb(37 99 235 / 14%);
+  outline-offset: 1px;
+}
+
 .area-style-quick-groups {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

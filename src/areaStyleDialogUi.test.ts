@@ -26,7 +26,7 @@ test('App renders a guided Area styles dialog for the selected Area', async () =
   assert.match(source, /setStyleDialogAreaId\(areaId\)/)
 })
 
-test('AreaStyleDialog opens on quick visual styles before advanced CSS', async () => {
+test('AreaStyleDialog opens on outcome recipes before advanced CSS', async () => {
   const dialogSource = await readFile(
     new URL('./components/AreaStyleDialog.tsx', import.meta.url),
     'utf8'
@@ -38,9 +38,10 @@ test('AreaStyleDialog opens on quick visual styles before advanced CSS', async (
   const source = `${dialogSource}\n${presetSource}`
 
   assert.match(source, /Style Area/)
-  assert.match(source, /Quick styles/)
+  assert.match(source, /Search styles or CSS/)
   assert.match(source, /Advanced CSS/)
   assert.match(source, /areaStylePanel/)
+  assert.match(source, /areaStylePanel === 'advanced' \?/)
   assert.match(source, /AreaStyleActiveSummary/)
   assert.match(source, /AreaStyleQuickPanel/)
   assert.match(source, /AreaStyleAdvancedPanel/)
@@ -52,7 +53,7 @@ test('AreaStyleDialog opens on quick visual styles before advanced CSS', async (
   assert.match(source, /Spacing/)
 })
 
-test('AreaStyleDialog keeps advanced CSS search, value suggestions, and validation controls', async () => {
+test('AreaStyleDialog keeps advanced CSS explicit and searchable', async () => {
   const source = await readFile(
     new URL('./components/AreaStyleDialog.tsx', import.meta.url),
     'utf8'
@@ -60,12 +61,15 @@ test('AreaStyleDialog keeps advanced CSS search, value suggestions, and validati
 
   assert.match(source, /Active styles/)
   assert.match(source, /Search CSS properties/)
+  assert.match(source, /Browse properties/)
+  assert.match(source, /shouldShowPropertyList/)
   assert.match(source, /role="listbox"/)
   assert.match(source, /role="option"/)
   assert.match(source, /getStyleValueSuggestions/)
   assert.match(source, /validateStyleDeclaration/)
   assert.match(source, /Remove/)
-  assert.match(source, /areaStylePanel === 'advanced'/)
+  assert.doesNotMatch(source, /role="tablist"/)
+  assert.doesNotMatch(source, />Quick styles</)
 })
 
 test('AreaStyleDialog uses preview-oriented style controls', async () => {

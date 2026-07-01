@@ -1,9 +1,11 @@
 import type { AreaState } from './App'
-import type {
-  AreaKind,
-  AreaLink,
-  AreaLinkKind,
-  AreaStatus,
+import {
+  createAreaLink,
+  type AreaKind,
+  type AreaLinkEndpoint,
+  type AreaLink,
+  type AreaLinkKind,
+  type AreaStatus,
 } from './areaMetadata.ts'
 import type { PageAppState } from './pagePersistence.ts'
 
@@ -235,6 +237,9 @@ export const insertContextKit = (
   }: InsertContextKitOptions
 ): InsertContextKitResult => {
   const idByKitAreaId = new Map<string, string>()
+  const kitAreaById = new Map(
+    kit.areas.map((kitArea) => [kitArea.id, kitArea])
+  )
   const areas = kit.areas.map((kitArea, index): AreaState => {
     const id = createAreaId(index)
     idByKitAreaId.set(kitArea.id, id)
@@ -264,19 +269,24 @@ export const insertContextKit = (
   const links = (kit.links ?? []).flatMap((kitLink, index): AreaLink[] => {
     const fromAreaId = idByKitAreaId.get(kitLink.fromAreaId)
     const toAreaId = idByKitAreaId.get(kitLink.toAreaId)
+    const fromKitArea = kitAreaById.get(kitLink.fromAreaId)
+    const toKitArea = kitAreaById.get(kitLink.toAreaId)
 
-    if (!fromAreaId || !toAreaId) return []
+    if (!fromAreaId || !toAreaId || !fromKitArea || !toKitArea) {
+      return []
+    }
 
     return [
-      {
+      createAreaLink({
         id: createLinkId(index),
         fromAreaId,
         toAreaId,
         kind: kitLink.kind,
+        from: getContextKitLinkEndpoint(fromAreaId, fromKitArea, toKitArea),
+        to: getContextKitLinkEndpoint(toAreaId, toKitArea, fromKitArea),
         ...(kitLink.label ? { label: kitLink.label } : {}),
-        createdAt: now,
-        updatedAt: now,
-      },
+        now,
+      }),
     ]
   })
 
@@ -322,5 +332,38 @@ function link(
     toAreaId,
     kind,
     ...(label ? { label } : {}),
+  }
+}
+
+function getContextKitLinkEndpoint(
+  areaId: string,
+  area: ContextKitArea,
+  targetArea: ContextKitArea
+): AreaLinkEndpoint {
+  const areaCenter = getContextKitAreaCenter(area)
+  const targetCenter = getContextKitAreaCenter(targetArea)
+  const deltaX = targetCenter.x - areaCenter.x
+  const deltaY = targetCenter.y - areaCenter.y
+  const side =
+    Math.abs(deltaX) >= Math.abs(deltaY)
+      ? deltaX >= 0
+        ? 'right'
+        : 'left'
+      : deltaY >= 0
+        ? 'bottom'
+        : 'top'
+
+  return {
+    areaId,
+    side,
+    position: 0.5,
+    behavior: 'fixed',
+  }
+}
+
+function getContextKitAreaCenter(area: ContextKitArea) {
+  return {
+    x: area.x + area.width / 2,
+    y: area.y + area.height / 2,
   }
 }

@@ -132,6 +132,7 @@ import {
   snapLinkEndpointToExisting,
   type Point,
 } from './linkGeometry'
+import { getAreaLinkEditButtonOffset } from './areaLinkControls'
 import {
   getOffscreenAreaIndicators,
   getOffscreenIndicatorAriaLabel,
@@ -243,6 +244,9 @@ type OffscreenIndicatorCssProperties = CSSProperties & {
   '--offscreen-indicator-x': string
   '--offscreen-indicator-y': string
   '--offscreen-indicator-rotation': string
+}
+type AreaLinkEditButtonCssProperties = CSSProperties & {
+  '--area-link-label-offset': string
 }
 type CanvasViewportSnapshot = {
   x: number
@@ -4863,7 +4867,10 @@ function App({
                 style={{
                   left: selectedLinkLine.labelX,
                   top: selectedLinkLine.labelY - 10,
-                }}
+                  '--area-link-label-offset': `${getAreaLinkEditButtonOffset(
+                    getAreaLinkLabel(selectedLink)
+                  )}px`,
+                } as AreaLinkEditButtonCssProperties}
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {

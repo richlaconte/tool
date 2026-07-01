@@ -144,7 +144,9 @@
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 5px 7px;
   pointer-events: auto;
-  transform: translate(12px, -50%) scale(var(--canvas-ui-scale));
+  transform:
+    translate(var(--area-link-label-offset), -50%)
+    scale(var(--canvas-ui-scale));
   transform-origin: left center;
   user-select: none;
 }

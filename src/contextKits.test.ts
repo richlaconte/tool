@@ -53,6 +53,17 @@ test('context kit insertion creates normal areas with fresh ids and links', () =
   assert.ok(result.areas.every((area) => area.styles))
   assert.ok(result.links.every((link) => link.fromAreaId.startsWith('area-')))
   assert.ok(result.links.every((link) => link.toAreaId.startsWith('area-')))
+  assert.ok(
+    result.links.every(
+      (link) =>
+        link.from?.behavior === 'fixed' &&
+        link.to?.behavior === 'fixed' &&
+        link.from.side &&
+        link.to.side &&
+        typeof link.from.position === 'number' &&
+        typeof link.to.position === 'number'
+    )
+  )
 })
 
 test('sprint retro kit creates a linked retrospective board', () => {

@@ -51,6 +51,8 @@ test('selected connector exposes explicit edit controls instead of auto-opening 
   assert.match(source, /area-link-edit-button/)
   assert.match(source, /aria-label="Edit connector"/)
   assert.match(source, /aria-label="Close connector menu"/)
+  assert.match(source, /getAreaLinkEditButtonOffset/)
+  assert.match(source, /--area-link-label-offset/)
   const flyoutIndex = source.indexOf('className="area-link-flyout"')
   const flyoutGuard = source.slice(Math.max(0, flyoutIndex - 500), flyoutIndex)
 
@@ -58,6 +60,7 @@ test('selected connector exposes explicit edit controls instead of auto-opening 
   assert.match(flyoutGuard, /linkFlyoutLinkId === selectedLink\.id/)
   assert.match(flyoutGuard, /openDialogId === null/)
   assert.match(css, /\.area-link-edit-button/)
+  assert.match(css, /translate\(var\(--area-link-label-offset\), -50%\)/)
   assert.match(css, /\.area-link-flyout-header/)
   assert.match(css, /\.area-link-flyout-close/)
 })

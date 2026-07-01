@@ -50,6 +50,14 @@ If enabling GLM-backed AI suggestions, set the provider secret separately:
 fly secrets set GLM_API_KEY="..."
 ```
 
+If enabling `/gif` search, create a GIPHY API key and set it as a runtime
+secret. The key is passed to the browser as a public GIPHY integration key so
+the client can call GIPHY directly:
+
+```sh
+fly secrets set GIPHY_API_KEY="..."
+```
+
 Deploy once from your machine:
 
 ```sh

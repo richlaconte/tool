@@ -5,6 +5,7 @@ import {
   getPageAccessModeFromRequestCookies,
   getPageSessionSecret,
 } from '../../../src/server/pageAccess'
+import { readGiphyApiKey } from '../../../src/gifSearchConfig'
 import EditorPage from './EditorPage'
 
 type PageProps = {
@@ -29,7 +30,11 @@ const Page = async ({ params }: PageProps) => {
     }) ?? 'view'
 
   return (
-    <EditorPage pageId={pageId} initialAccessMode={initialAccessMode} />
+    <EditorPage
+      giphyApiKey={readGiphyApiKey()}
+      pageId={pageId}
+      initialAccessMode={initialAccessMode}
+    />
   )
 }
 

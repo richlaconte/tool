@@ -8,11 +8,19 @@ const App = dynamic(() => import('../../../src/App'), {
 })
 
 const EditorPage = ({
+  giphyApiKey,
   initialAccessMode,
   pageId,
 }: {
+  giphyApiKey?: string
   initialAccessMode: ShareAccessMode
   pageId: string
-}) => <App pageId={pageId} serverAccessMode={initialAccessMode} />
+}) => (
+  <App
+    giphyApiKey={giphyApiKey}
+    pageId={pageId}
+    serverAccessMode={initialAccessMode}
+  />
+)
 
 export default EditorPage

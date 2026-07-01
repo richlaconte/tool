@@ -114,6 +114,7 @@ import {
   type GifSearchResult,
   type GifSlashCommand,
 } from './gifSearch'
+import { readGiphyApiKey } from './gifSearchConfig'
 import {
   getCandidateParentId,
   getAreaAbsolutePosition,
@@ -997,21 +998,15 @@ const getUrlAltText = (url: string) => {
 const requestImageAltText = (defaultAlt: string) =>
   window.prompt('Image description', defaultAlt) ?? defaultAlt
 
-const readGiphyApiKey = () => {
-  const meta = import.meta as ImportMeta & {
-    env?: Record<string, string | undefined>
-  }
-
-  return meta.env?.VITE_GIPHY_API_KEY ?? ''
-}
-
 const getFirstImageFile = (files: FileList | File[]) =>
   Array.from(files).find((file) => file.type.startsWith('image/')) ?? null
 
 function App({
+  giphyApiKey,
   pageId,
   serverAccessMode,
 }: {
+  giphyApiKey?: string
   pageId?: string
   serverAccessMode?: ShareAccessMode
 }) {
@@ -1180,9 +1175,9 @@ function App({
   const gifSearchProvider = useMemo(
     () =>
       createGiphySearchProvider({
-        apiKey: readGiphyApiKey(),
+        apiKey: giphyApiKey?.trim() ? giphyApiKey : readGiphyApiKey(),
       }),
-    []
+    [giphyApiKey]
   )
   const shareAccessMode =
     serverAccessMode ??

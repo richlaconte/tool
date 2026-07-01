@@ -31,8 +31,11 @@ test('page route passes server access mode into the editor', async () => {
 
   assert.match(pageSource, /getPageAccessModeFromRequestCookies/)
   assert.match(pageSource, /initialAccessMode/)
+  assert.match(pageSource, /readGiphyApiKey/)
+  assert.match(pageSource, /giphyApiKey/)
   assert.match(editorSource, /initialAccessMode/)
-  assert.match(editorSource, /<App pageId=\{pageId\} serverAccessMode=\{initialAccessMode\}/)
+  assert.match(editorSource, /giphyApiKey/)
+  assert.match(editorSource, /<App[\s\S]*giphyApiKey=\{giphyApiKey\}[\s\S]*pageId=\{pageId\}[\s\S]*serverAccessMode=\{initialAccessMode\}/)
 })
 
 test('custom server enforces page share access before rendering pages', async () => {

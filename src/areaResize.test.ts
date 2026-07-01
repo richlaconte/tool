@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   DEFAULT_AREA_HEIGHT,
   DEFAULT_AREA_WIDTH,
+  getAreaResizeMaxDimensions,
   MIN_AREA_HEIGHT,
   MIN_AREA_WIDTH,
   resizeAreaDimensions,
@@ -106,6 +107,51 @@ test('clamps height to an optional maximum height', () => {
   )
 
   assert.equal(nextAreas[0].height, 320)
+})
+
+test('leaves top-level resize unconstrained by the viewport edge', () => {
+  const result = getAreaResizeMaxDimensions(
+    [
+      {
+        ...areas[0],
+        x: 1600,
+        y: 120,
+        width: 280,
+      },
+    ],
+    'area-1'
+  )
+
+  assert.equal(result.maxWidth, undefined)
+  assert.equal(result.maxHeight, undefined)
+})
+
+test('keeps nested resize constrained by the parent area', () => {
+  const result = getAreaResizeMaxDimensions(
+    [
+      {
+        ...areas[0],
+        id: 'parent',
+        x: 100,
+        y: 100,
+        width: 400,
+        height: 220,
+      },
+      {
+        ...areas[1],
+        id: 'child',
+        parentId: 'parent',
+        x: 120,
+        y: 60,
+        width: 180,
+        height: 64,
+      },
+    ],
+    'child'
+  )
+
+  assert.equal(result.maxWidth, 280)
+  assert.equal(result.maxHeight, 160)
 })
 
 test('snaps width to the active grid size when provided', () => {

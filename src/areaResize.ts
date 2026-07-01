@@ -16,6 +16,26 @@ type ResizeAreaOptions = {
   snapGridSize?: number
 }
 
+export const getAreaResizeMaxDimensions = (
+  areas: AreaState[],
+  areaId: string
+): Pick<ResizeAreaOptions, 'maxWidth' | 'maxHeight'> => {
+  const area = areas.find((currentArea) => currentArea.id === areaId)
+
+  if (!area?.parentId) return {}
+
+  const parentArea = areas.find(
+    (currentArea) => currentArea.id === area.parentId
+  )
+
+  if (!parentArea) return {}
+
+  return {
+    maxWidth: Math.max(MIN_AREA_WIDTH, parentArea.width - area.x),
+    maxHeight: Math.max(MIN_AREA_HEIGHT, parentArea.height - area.y),
+  }
+}
+
 const snapValue = (value: number, snapGridSize?: number) =>
   snapGridSize && snapGridSize > 0
     ? Math.round(value / snapGridSize) * snapGridSize

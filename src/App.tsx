@@ -49,8 +49,7 @@ import {
 import {
   DEFAULT_AREA_HEIGHT,
   DEFAULT_AREA_WIDTH,
-  MIN_AREA_HEIGHT,
-  MIN_AREA_WIDTH,
+  getAreaResizeMaxDimensions,
   resizeAreaDimensions,
 } from './areaResize'
 import {
@@ -3428,24 +3427,13 @@ function App({
     if (isViewOnly) return
 
     setAreas((prev) => {
-      const area = prev.find((currentArea) => currentArea.id === id)
-      const parentArea = area?.parentId
-        ? prev.find((currentArea) => currentArea.id === area.parentId)
-        : null
+      const resizeMaxDimensions = getAreaResizeMaxDimensions(
+        prev,
+        id
+      )
 
       return resizeAreaDimensions(prev, id, width, height, {
-        maxWidth: area
-          ? Math.max(
-              MIN_AREA_WIDTH,
-              (parentArea?.width ?? window.innerWidth) - area.x
-            )
-          : undefined,
-        maxHeight: area
-          ? Math.max(
-              MIN_AREA_HEIGHT,
-              (parentArea?.height ?? window.innerHeight) - area.y
-            )
-          : undefined,
+        ...resizeMaxDimensions,
         snapGridSize: getActiveSnapGridSize(
           page.settings.snapGrid,
           bypassSnapGrid

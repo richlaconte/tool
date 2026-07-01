@@ -62,6 +62,12 @@ const accentStyles = {
   border: '1px solid #94a3b8',
 }
 
+const retroHeadingStyles = {
+  'font-size': '24px',
+  'font-weight': '700',
+  'line-height': '1.2',
+}
+
 export const CONTEXT_KITS: ContextKit[] = [
   {
     id: 'implementation-map',
@@ -97,20 +103,6 @@ export const CONTEXT_KITS: ContextKit[] = [
     links: [
       link('a-decision', 'option-a', 'decision', 'relates-to'),
       link('b-decision', 'option-b', 'decision', 'relates-to'),
-    ],
-  },
-  {
-    id: 'ui-state-matrix',
-    icon: 'states',
-    title: 'UI State Matrix',
-    description: 'Map product states before implementation.',
-    areas: [
-      area('happy', 'Happy path\n\n', 120, 120, 'ui-state'),
-      area('empty', 'Empty state\n\n', 500, 120, 'ui-state'),
-      area('loading', 'Loading state\n\n', 120, 320, 'ui-state'),
-      area('error', 'Error state\n\n', 500, 320, 'ui-state', ['risk']),
-      area('readonly', 'Permission/read-only state\n\n', 120, 520, 'ui-state'),
-      area('mobile', 'Mobile considerations\n\n', 500, 520, 'ui-state'),
     ],
   },
   {
@@ -157,67 +149,16 @@ export const CONTEXT_KITS: ContextKit[] = [
     title: 'Sprint Retro',
     description: 'Reflect on the sprint and choose next actions.',
     areas: [
-      area(
-        'sprint-context',
-        'Sprint context\n\nGoal:\nShipped:\nSurprises:',
-        120,
-        120,
-        'note',
-        ['retro']
-      ),
-      area('went-well', 'Went well\n\n- ', 500, 120, 'note', [
-        'retro',
-      ]),
-      area(
-        'needs-attention',
-        'Needs attention\n\n- ',
-        120,
-        320,
-        'risk',
-        ['retro', 'process']
-      ),
-      area('learned', 'Learned\n\n- ', 500, 320, 'question', [
-        'retro',
+      retroHeadingArea('went-well', 'Went well', 120, 'note'),
+      retroHeadingArea('challenges', 'Challenges', 400, 'question', [
         'process',
       ]),
-      area(
-        'try-next-sprint',
-        'Try next sprint\n\n- [ ] ',
-        120,
-        520,
-        'task',
-        ['retro', 'action']
-      ),
-      area(
-        'follow-up-owners',
-        'Follow-up owners\n\n- ',
-        500,
-        520,
-        'task',
-        ['retro', 'action']
-      ),
-    ],
-    links: [
-      link('retro-context-went-well', 'sprint-context', 'went-well', 'relates-to'),
-      link(
-        'retro-context-needs-attention',
-        'sprint-context',
-        'needs-attention',
-        'relates-to'
-      ),
-      link(
-        'retro-needs-action',
-        'needs-attention',
-        'try-next-sprint',
-        'depends-on'
-      ),
-      link('retro-learned-action', 'learned', 'try-next-sprint', 'implements'),
-      link(
-        'retro-action-owners',
-        'try-next-sprint',
-        'follow-up-owners',
-        'depends-on'
-      ),
+      retroHeadingArea('risks', 'Risks', 680, 'risk', ['risk']),
+      retroHeadingArea('action-items', 'Action items', 960, 'task', [
+        'action',
+      ]),
+      retroHeadingArea('shoutouts', 'Shoutouts', 1240, 'note'),
+      retroHeadingArea('feelings', 'Feelings', 1520, 'question'),
     ],
   },
 ]
@@ -316,6 +257,21 @@ function area(
     y,
     width: 300,
     height: 140,
+  }
+}
+
+function retroHeadingArea(
+  id: string,
+  text: string,
+  x: number,
+  kind: AreaKind,
+  tags: string[] = []
+): ContextKitArea {
+  return {
+    ...area(id, text, x, 120, kind, ['retro', ...tags]),
+    width: 240,
+    height: 120,
+    styles: retroHeadingStyles,
   }
 }
 

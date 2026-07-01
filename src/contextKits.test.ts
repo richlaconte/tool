@@ -35,6 +35,14 @@ test('context kits describe developer workflows with typed starter areas', () =>
   }
 })
 
+test('context kits do not include the removed UI state matrix template', () => {
+  assert.equal(getContextKitById('ui-state-matrix'), null)
+  assert.equal(
+    CONTEXT_KITS.some((kit) => kit.id === 'ui-state-matrix'),
+    false
+  )
+})
+
 test('context kit insertion creates normal areas with fresh ids and links', () => {
   const kit = getContextKitById('implementation-map')
   assert.ok(kit)
@@ -66,7 +74,7 @@ test('context kit insertion creates normal areas with fresh ids and links', () =
   )
 })
 
-test('sprint retro kit creates a linked retrospective board', () => {
+test('sprint retro kit creates six h2-style prompts in one row', () => {
   const kit = getContextKitById('sprint-retro')
   assert.ok(kit)
   assert.equal(kit!.title, 'Sprint Retro')
@@ -75,39 +83,52 @@ test('sprint retro kit creates a linked retrospective board', () => {
   assert.deepEqual(
     kit!.areas.map((area) => area.id),
     [
-      'sprint-context',
       'went-well',
-      'needs-attention',
-      'learned',
-      'try-next-sprint',
-      'follow-up-owners',
+      'challenges',
+      'risks',
+      'action-items',
+      'shoutouts',
+      'feelings',
+    ]
+  )
+  assert.deepEqual(
+    kit!.areas.map((area) => area.text),
+    [
+      'Went well',
+      'Challenges',
+      'Risks',
+      'Action items',
+      'Shoutouts',
+      'Feelings',
     ]
   )
   assert.deepEqual(
     kit!.areas.map((area) => area.kind),
-    ['note', 'note', 'risk', 'question', 'task', 'task']
+    ['note', 'question', 'risk', 'task', 'note', 'question']
   )
   assert.ok(kit!.areas.every((area) => area.tags?.includes('retro')))
   assert.ok(
     kit!.areas
-      .filter((area) =>
-        ['try-next-sprint', 'follow-up-owners'].includes(area.id)
-      )
+      .filter((area) => area.id === 'action-items')
       .every((area) => area.tags?.includes('action'))
   )
-  assert.equal(kit!.links?.length, 5)
-  assert.deepEqual(
-    kit!.links?.map((link) => [
-      link.fromAreaId,
-      link.toAreaId,
-      link.kind,
-    ]),
-    [
-      ['sprint-context', 'went-well', 'relates-to'],
-      ['sprint-context', 'needs-attention', 'relates-to'],
-      ['needs-attention', 'try-next-sprint', 'depends-on'],
-      ['learned', 'try-next-sprint', 'implements'],
-      ['try-next-sprint', 'follow-up-owners', 'depends-on'],
-    ]
+  assert.ok(kit!.areas.every((area) => area.y === kit!.areas[0].y))
+
+  for (let index = 1; index < kit!.areas.length; index += 1) {
+    const previousArea = kit!.areas[index - 1]
+    const currentArea = kit!.areas[index]
+
+    assert.ok(currentArea.x > previousArea.x)
+    assert.ok(currentArea.x >= previousArea.x + previousArea.width)
+  }
+
+  assert.ok(
+    kit!.areas.every(
+      (area) =>
+        area.styles?.['font-size'] === '24px' &&
+        area.styles?.['font-weight'] === '700' &&
+        area.styles?.['line-height'] === '1.2'
+    )
   )
+  assert.equal(kit!.links?.length ?? 0, 0)
 })

@@ -65,6 +65,22 @@ test('collaborative sync applies local changes as patches instead of full replac
   assert.match(source, /applyCollaborativePageStatePatch/)
 })
 
+test('collaborative sync waits for initial provider sync before writing local state', async () => {
+  const source = await readFile(
+    new URL('./useCollaborativePage.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.doesNotMatch(
+    source,
+    /createCollaborativePageDoc\(initialStateRef\.current\)/
+  )
+  assert.match(source, /new Y\.Doc\(\)/)
+  assert.match(source, /provider\.on\('synced'/)
+  assert.match(source, /isCollaborativePageDocEmpty/)
+  assert.match(source, /!hasSyncedRef\.current/)
+})
+
 test('remote sync preserves pending local area movement while applying other remote changes', () => {
   const page = createDefaultPageState({ id: 'page_1', now })
   const staleLocalArea = createTextArea({

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import * as Y from 'yjs'
+
 import {
   applyCollaborativePageStatePatch,
   applyCollaborativeAreaText,
@@ -8,6 +10,7 @@ import {
   deleteCollaborativeArea,
   getCollaborativeAreaText,
   getPageStateFromCollaborativeDoc,
+  isCollaborativePageDocEmpty,
   replaceCollaborativePageDocState,
   updateCollaborativeArea,
 } from './collaborativePage.ts'
@@ -124,6 +127,20 @@ test('converts app page state into a Yjs document and back', () => {
       updatedAt: now,
     },
   ])
+})
+
+test('detects whether a collaborative document has server state', () => {
+  const emptyDoc = new Y.Doc()
+
+  assert.equal(isCollaborativePageDocEmpty(emptyDoc), true)
+
+  const populatedDoc = createCollaborativePageDoc({
+    areas: [],
+    assets: [],
+    page: createDefaultPageState({ id: 'page_empty', now }),
+  })
+
+  assert.equal(isCollaborativePageDocEmpty(populatedDoc), false)
 })
 
 test('collaborative area metadata survives document round trips', () => {

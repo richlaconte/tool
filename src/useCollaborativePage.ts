@@ -5,8 +5,9 @@ import * as Y from 'yjs'
 
 import {
   applyCollaborativePageStatePatch,
-  createCollaborativePageDoc,
   getPageStateFromCollaborativeDoc,
+  isCollaborativePageDocEmpty,
+  replaceCollaborativePageDocState,
 } from './collaborativePage.ts'
 import type { PresenceState } from './collaboration.ts'
 import type { PageAppState } from './pagePersistence.ts'
@@ -138,10 +139,10 @@ export const useCollaborativePageSync = ({
   pageId,
   state,
 }: UseCollaborativePageSyncOptions) => {
-  const initialStateRef = useRef(state)
   const docRef = useRef<Y.Doc | null>(null)
   const providerRef = useRef<HocuspocusProvider | null>(null)
   const applyingRemoteState = useRef(false)
+  const hasSyncedRef = useRef(false)
   const latestLocalStateRef = useRef(state)
   const previousLocalStateRef = useRef(state)
   const pendingLocalAreaChangesRef = useRef(
@@ -161,10 +162,14 @@ export const useCollaborativePageSync = ({
 
   useEffect(() => {
     if (!enabled) {
+      hasSyncedRef.current = false
       return
     }
 
-    const doc = createCollaborativePageDoc(initialStateRef.current)
+    hasSyncedRef.current = false
+    pendingLocalAreaChangesRef.current.clear()
+
+    const doc = new Y.Doc()
     const provider = new HocuspocusProvider({
       document: doc,
       name: getCollaborativeDocumentName(pageId),
@@ -174,9 +179,7 @@ export const useCollaborativePageSync = ({
     docRef.current = doc
     providerRef.current = provider
 
-    const handleDocUpdate = (_update: Uint8Array, origin: unknown) => {
-      if (origin === LOCAL_STATE_ORIGIN) return
-
+    const applyRemoteState = () => {
       const remoteState = getPageStateFromCollaborativeDoc(doc)
       const nextState = mergeRemoteStateWithPendingLocalAreaChanges(
         remoteState,
@@ -187,6 +190,30 @@ export const useCollaborativePageSync = ({
       applyingRemoteState.current = true
       previousLocalStateRef.current = nextState
       onRemoteState(nextState)
+    }
+
+    const handleDocUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (origin === LOCAL_STATE_ORIGIN) return
+
+      applyRemoteState()
+    }
+
+    const handleSynced = ({ state: isSynced }: { state: boolean }) => {
+      if (!isSynced) return
+
+      if (isCollaborativePageDocEmpty(doc)) {
+        const seedState = latestLocalStateRef.current
+        previousLocalStateRef.current = seedState
+        replaceCollaborativePageDocState(
+          doc,
+          seedState,
+          LOCAL_STATE_ORIGIN
+        )
+      } else {
+        applyRemoteState()
+      }
+
+      hasSyncedRef.current = true
     }
 
     const handleStatus = ({ status }: { status: string }) => {
@@ -210,12 +237,18 @@ export const useCollaborativePageSync = ({
     }
 
     doc.on('update', handleDocUpdate)
+    provider.on('synced', handleSynced)
     provider.on('status', handleStatus)
     provider.awareness?.on('change', updateRemotePresences)
+
+    if (provider.synced) {
+      handleSynced({ state: true })
+    }
 
     return () => {
       provider.awareness?.off('change', updateRemotePresences)
       provider.off('status', handleStatus)
+      provider.off('synced', handleSynced)
       doc.off('update', handleDocUpdate)
       provider.destroy()
       doc.destroy()
@@ -227,11 +260,13 @@ export const useCollaborativePageSync = ({
       if (docRef.current === doc) {
         docRef.current = null
       }
+
+      hasSyncedRef.current = false
     }
   }, [enabled, onRemoteState, pageId])
 
   useEffect(() => {
-    if (!enabled || !docRef.current) return
+    if (!enabled || !docRef.current || !hasSyncedRef.current) return
 
     if (applyingRemoteState.current) {
       applyingRemoteState.current = false

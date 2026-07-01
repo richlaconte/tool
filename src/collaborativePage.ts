@@ -29,6 +29,12 @@ export const createCollaborativePageDoc = (state: PageAppState) => {
   return doc
 }
 
+export const isCollaborativePageDocEmpty = (doc: Y.Doc) =>
+  getPageMap(doc).size === 0 &&
+  getAreasMap(doc).size === 0 &&
+  getAssetsMap(doc).size === 0 &&
+  getLinksMap(doc).size === 0
+
 export const replaceCollaborativePageDocState = (
   doc: Y.Doc,
   state: PageAppState,

@@ -1,7 +1,28 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { getCanvasPointerAction } from './canvasPointerActions.ts'
+import {
+  getCanvasPointerAction,
+  isBlankCanvasPointerSurface,
+} from './canvasPointerActions.ts'
+
+test('blank canvas pointer surfaces include the scroll wrapper and world', () => {
+  assert.equal(isBlankCanvasPointerSurface('canvas', ''), true)
+  assert.equal(
+    isBlankCanvasPointerSurface('', 'canvas-scroll-size'),
+    true
+  )
+  assert.equal(isBlankCanvasPointerSurface('', 'canvas-world'), true)
+  assert.equal(
+    isBlankCanvasPointerSurface(
+      '',
+      'canvas-world canvas--grid-visible'
+    ),
+    true
+  )
+  assert.equal(isBlankCanvasPointerSurface('', 'area-shell'), false)
+  assert.equal(isBlankCanvasPointerSurface('', 'site-brand'), false)
+})
 
 test('canvas clicks ignore read-only mode and non-canvas targets', () => {
   assert.equal(
@@ -9,7 +30,7 @@ test('canvas clicks ignore read-only mode and non-canvas targets', () => {
       hasLinkFlyout: false,
       hasSelectedArea: false,
       hasSelectedLink: false,
-      isCanvasWorldTarget: true,
+      isCanvasSurfaceTarget: true,
       isReadOnly: true,
     }),
     'ignore'
@@ -19,7 +40,7 @@ test('canvas clicks ignore read-only mode and non-canvas targets', () => {
       hasLinkFlyout: false,
       hasSelectedArea: false,
       hasSelectedLink: false,
-      isCanvasWorldTarget: false,
+      isCanvasSurfaceTarget: false,
       isReadOnly: false,
     }),
     'ignore'
@@ -32,7 +53,7 @@ test('canvas clicks close transient selections before creating areas', () => {
       hasLinkFlyout: true,
       hasSelectedArea: true,
       hasSelectedLink: false,
-      isCanvasWorldTarget: true,
+      isCanvasSurfaceTarget: true,
       isReadOnly: false,
     }),
     'close-link-flyout'
@@ -42,7 +63,7 @@ test('canvas clicks close transient selections before creating areas', () => {
       hasLinkFlyout: false,
       hasSelectedArea: true,
       hasSelectedLink: false,
-      isCanvasWorldTarget: true,
+      isCanvasSurfaceTarget: true,
       isReadOnly: false,
     }),
     'deselect'
@@ -52,7 +73,7 @@ test('canvas clicks close transient selections before creating areas', () => {
       hasLinkFlyout: false,
       hasSelectedArea: false,
       hasSelectedLink: true,
-      isCanvasWorldTarget: true,
+      isCanvasSurfaceTarget: true,
       isReadOnly: false,
     }),
     'deselect'
@@ -65,7 +86,7 @@ test('canvas clicks create areas only when nothing is selected', () => {
       hasLinkFlyout: false,
       hasSelectedArea: false,
       hasSelectedLink: false,
-      isCanvasWorldTarget: true,
+      isCanvasSurfaceTarget: true,
       isReadOnly: false,
     }),
     'create-area'

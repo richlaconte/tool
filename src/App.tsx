@@ -77,7 +77,10 @@ import {
   getZoomToFit,
   screenToCanvasPoint,
 } from './canvasViewport'
-import { getCanvasPointerAction } from './canvasPointerActions'
+import {
+  getCanvasPointerAction,
+  isBlankCanvasPointerSurface,
+} from './canvasPointerActions'
 import {
   applyAgentPatch,
   createAgentPatchForOperation,
@@ -2043,7 +2046,10 @@ function App({
         hasLinkFlyout: Boolean(linkFlyoutLinkId),
         hasSelectedArea: selectedAreaId !== null,
         hasSelectedLink: selectedLinkId !== null,
-        isCanvasWorldTarget: target.classList.contains('canvas-world'),
+        isCanvasSurfaceTarget: isBlankCanvasPointerSurface(
+          target.id,
+          target.className
+        ),
         isReadOnly: isViewOnly,
       })
 

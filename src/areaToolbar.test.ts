@@ -88,5 +88,9 @@ test('area deleted undo toast can be dismissed without undoing', async () => {
   assert.match(source, /aria-label="Dismiss deleted area notice"/)
   assert.match(source, /className="undo-toast-close"/)
   assert.match(source, /onClick=\{\(\) => setDeletedAreaSnapshot\(null\)\}/)
-  assert.match(css, /\.undo-toast-close\s*{[\s\S]*width:\s*24px;/)
+  assert.match(css, /\.undo-toast-close\s*{[\s\S]*width:\s*28px;/)
+  assert.doesNotMatch(
+    css,
+    /\.undo-toast-close\s*{[\s\S]*position:\s*absolute;/
+  )
 })

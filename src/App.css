@@ -2014,7 +2014,7 @@ button.mcp-status-badge:focus-visible {
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   border: 1px solid rgb(148 163 184 / 35%);
   border-radius: 8px;
   background: rgb(255 255 255 / 98%);
@@ -2024,7 +2024,7 @@ button.mcp-status-badge:focus-visible {
   color: #1f2937;
   font: 14px/1.4 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
-  padding: 10px 34px 10px 12px;
+  padding: 10px;
   transform: translateX(-50%);
   user-select: none;
 }
@@ -2048,15 +2048,13 @@ button.mcp-status-badge:focus-visible {
 }
 
 .undo-toast-close {
-  position: absolute;
-  top: 4px;
-  right: 4px;
   display: inline-grid;
-  width: 24px;
-  height: 24px;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: 6px;
   background: transparent;
   color: #64748b;
   cursor: pointer;

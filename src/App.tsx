@@ -2063,6 +2063,10 @@ function App({
       }
 
       if (action === 'deselect') {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur()
+        }
+
         setSelectedAreaId(null)
         setSelectedLinkId(null)
         setLinkFlyoutLinkId(null)

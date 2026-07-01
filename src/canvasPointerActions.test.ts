@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
 import {
@@ -90,5 +91,24 @@ test('canvas clicks create areas only when nothing is selected', () => {
       isReadOnly: false,
     }),
     'create-area'
+  )
+})
+
+test('canvas deselect blurs the active editor before clearing selection', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const blockStart = source.indexOf("if (action === 'deselect') {")
+  const blockEnd = source.indexOf('      setHasClickedCanvas(true)', blockStart)
+  const deselectBlock = source.slice(blockStart, blockEnd)
+
+  assert.ok(blockStart > 0)
+  assert.ok(blockEnd > blockStart)
+  assert.match(deselectBlock, /document\.activeElement\.blur\(\)/)
+  assert.match(deselectBlock, /setSelectedAreaId\(null\)/)
+  assert.ok(
+    deselectBlock.indexOf('document.activeElement.blur()') <
+      deselectBlock.indexOf('setSelectedAreaId(null)')
   )
 })

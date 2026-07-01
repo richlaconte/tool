@@ -677,7 +677,7 @@ const Area = ({
                 <>
                   <button
                     aria-label="Replace image"
-                    className="area-action-button"
+                    className="area-action-button area-action-button--priority-extra"
                     type="button"
                     onClick={(e) => {
                       e.preventDefault()
@@ -692,7 +692,7 @@ const Area = ({
                   </button>
                   <button
                     aria-label="Edit image alt text"
-                    className="area-action-button"
+                    className="area-action-button area-action-button--priority-extra"
                     type="button"
                     onClick={(e) => {
                       e.preventDefault()
@@ -709,7 +709,7 @@ const Area = ({
               )}
               <button
                 aria-label="Open Area styles"
-                className="area-action-button"
+                className="area-action-button area-action-button--priority-low"
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()
@@ -724,7 +724,7 @@ const Area = ({
               </button>
               <button
                 aria-label="Connect area"
-                className="area-action-button"
+                className="area-action-button area-action-button--priority-low"
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()
@@ -739,7 +739,7 @@ const Area = ({
               </button>
               <button
                 aria-label="Duplicate area"
-                className="area-action-button"
+                className="area-action-button area-action-button--priority-medium"
                 type="button"
                 onClick={(e) => {
                   e.preventDefault()

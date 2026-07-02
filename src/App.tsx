@@ -11,11 +11,17 @@ import Area from './components/Area'
 import AreaStyleDialog from './components/AreaStyleDialog'
 import CommandPalette from './components/CommandPalette'
 import {
-  deleteArea,
-  duplicateArea,
-  restoreDeletedArea,
-  type DeletedAreaSnapshot,
+  deleteAreas,
+  duplicateAreas,
+  restoreDeletedAreas,
+  type DeletedAreasSnapshot,
 } from './areaActions'
+import {
+  alignAreas,
+  distributeAreas,
+  type AlignEdge,
+  type DistributeAxis,
+} from './areaAlignment'
 import {
   AREA_KINDS,
   AREA_LINK_CARDINALITIES,
@@ -53,8 +59,13 @@ import {
   resizeAreaDimensions,
 } from './areaResize'
 import {
+  getMarqueeRect,
+  getMarqueeSelection,
   getSelectableRootAreaIds,
+  isMarqueeDrag,
+  normalizeSelection,
   toggleAreaSelection,
+  type SelectionRect,
 } from './areaSelection'
 import {
   getAppKeyboardAction,
@@ -65,6 +76,7 @@ import {
   createPresenceState,
   getCollaborationChannelName,
   getCollaborationProfileFromCookie,
+  getPresenceSelectedAreaIds,
   pruneStalePresences,
   serializeCollaborationProfileCookie,
   upsertPresence,
@@ -330,6 +342,12 @@ type LinkEndpointDragState = {
   targetEndpoint: AreaLinkEndpoint | null
 }
 
+type MarqueeDragState = {
+  start: Point
+  current: Point
+  isDragging: boolean
+}
+
 type CollaborationMessage =
   | {
       type: 'presence'
@@ -421,6 +439,30 @@ const ZOOM_COMMAND_OPTION_IDS = new Set([
 
 const isZoomCommandOption = (option: { id: string }) =>
   ZOOM_COMMAND_OPTION_IDS.has(option.id)
+
+const ALIGN_COMMAND_EDGES = {
+  'align-left': 'left',
+  'align-right': 'right',
+  'align-top': 'top',
+  'align-bottom': 'bottom',
+  'align-center-x': 'center-x',
+  'align-center-y': 'center-y',
+} satisfies Record<string, AlignEdge>
+
+const DISTRIBUTE_COMMAND_AXES = {
+  'distribute-horizontal': 'horizontal',
+  'distribute-vertical': 'vertical',
+} satisfies Record<string, DistributeAxis>
+
+const isAlignCommandOption = (
+  option: { id: string }
+): option is { id: keyof typeof ALIGN_COMMAND_EDGES } =>
+  option.id in ALIGN_COMMAND_EDGES
+
+const isDistributeCommandOption = (
+  option: { id: string }
+): option is { id: keyof typeof DISTRIBUTE_COMMAND_AXES } =>
+  option.id in DISTRIBUTE_COMMAND_AXES
 
 const AREA_LINK_KIND_LABELS: Record<AreaLinkKind, string> = {
   'relates-to': 'Relates to',
@@ -1043,14 +1085,36 @@ function App({
         ? 'offline'
         : 'connected'
     )
-  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(
-    []
+  const [storedSelectedAreaIds, setStoredSelectedAreaIds] =
+    useState<string[]>([])
+  const selectedAreaIds = useMemo(
+    () => normalizeSelection(storedSelectedAreaIds, areas),
+    [areas, storedSelectedAreaIds]
+  )
+  const setSelectedAreaIds = useCallback(
+    (
+      nextSelectedAreaIds:
+        | string[]
+        | ((currentSelectedAreaIds: string[]) => string[])
+    ) => {
+      setStoredSelectedAreaIds((currentSelectedAreaIds) => {
+        const normalizedCurrentAreaIds = normalizeSelection(
+          currentSelectedAreaIds,
+          areas
+        )
+
+        return typeof nextSelectedAreaIds === 'function'
+          ? nextSelectedAreaIds(normalizedCurrentAreaIds)
+          : nextSelectedAreaIds
+      })
+    },
+    [areas]
   )
   const selectedAreaId =
     selectedAreaIds.length === 1 ? selectedAreaIds[0] : null
   const setSelectedAreaId = useCallback((areaId: string | null) => {
     setSelectedAreaIds(areaId ? [areaId] : [])
-  }, [])
+  }, [setSelectedAreaIds])
   const [autoFocusAreaId, setAutoFocusAreaId] = useState<
     string | null
   >(null)
@@ -1068,7 +1132,9 @@ function App({
     string | null
   >(null)
   const [deletedAreaSnapshot, setDeletedAreaSnapshot] =
-    useState<DeletedAreaSnapshot | null>(null)
+    useState<DeletedAreasSnapshot | null>(null)
+  const [marqueeSelectionRect, setMarqueeSelectionRect] =
+    useState<SelectionRect | null>(null)
   const [saveStatus, setSaveStatus] =
     useState<SaveStatus>('saved')
   const [importError, setImportError] = useState<string | null>(
@@ -1145,6 +1211,8 @@ function App({
   const nextEvidenceId = useRef(0)
   const linkDragRef = useRef<LinkDragState | null>(null)
   const endpointDragRef = useRef<LinkEndpointDragState | null>(null)
+  const marqueeDragRef = useRef<MarqueeDragState | null>(null)
+  const deleteSelectedAreasRef = useRef<() => void>(() => undefined)
   const importInputRef = useRef<HTMLInputElement | null>(null)
   const imageInputRef = useRef<HTMLInputElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
@@ -1172,7 +1240,7 @@ function App({
     endpointDragRef.current = nextState
     setEndpointDragState(nextState)
   }
-  const selectedAreaIdRef = useRef<string | null>(null)
+  const selectedAreaIdsRef = useRef<string[]>([])
   const latestPageStateRef = useRef<PageAppState>({
     areas: initialPageState.areas,
     assets: initialPageState.assets,
@@ -1532,7 +1600,7 @@ function App({
         collaborationProfile,
         {
           cursor,
-          selectedAreaId,
+          selectedAreaIds,
         },
         Date.now()
       )
@@ -1545,7 +1613,7 @@ function App({
         presence,
       } satisfies CollaborationMessage)
     },
-    [collaborationProfile, collaborativeSync, selectedAreaId]
+    [collaborationProfile, collaborativeSync, selectedAreaIds]
   )
 
   const updateCollaborationUserName = (userName: string) => {
@@ -1576,8 +1644,8 @@ function App({
   }, [collaborationProfile])
 
   useEffect(() => {
-    selectedAreaIdRef.current = selectedAreaId
-  }, [selectedAreaId])
+    selectedAreaIdsRef.current = selectedAreaIds
+  }, [selectedAreaIds])
 
   useEffect(() => {
     if (
@@ -1822,7 +1890,7 @@ function App({
             collaborationProfileRef.current,
             {
               cursor: latestCursorRef.current,
-              selectedAreaId: selectedAreaIdRef.current,
+              selectedAreaIds: selectedAreaIdsRef.current,
             },
             Date.now()
           ),
@@ -1850,7 +1918,7 @@ function App({
         collaborationProfileRef.current,
         {
           cursor: latestCursorRef.current,
-          selectedAreaId: selectedAreaIdRef.current,
+          selectedAreaIds: selectedAreaIdsRef.current,
         },
         Date.now()
       ),
@@ -1992,12 +2060,12 @@ function App({
         collaborationProfile,
         {
           cursor: latestCursorRef.current,
-          selectedAreaId,
+          selectedAreaIds,
         },
         Date.now()
       ),
     } satisfies CollaborationMessage)
-  }, [collaborationProfile, selectedAreaId])
+  }, [collaborationProfile, selectedAreaIds])
 
   useEffect(() => {
     const pruneTimer = window.setInterval(() => {
@@ -2059,7 +2127,129 @@ function App({
   }, [pageHistory])
 
   useEffect(() => {
+    const removeMarqueeTracking = (
+      handlePointerMove: (event: PointerEvent) => void,
+      handlePointerUp: (event: PointerEvent) => void,
+      handlePointerCancel: (event: PointerEvent) => void
+    ) => {
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.removeEventListener(
+        'pointercancel',
+        handlePointerCancel
+      )
+    }
+
+    const createAreaAtPoint = (point: Point) => {
+      const id = createAreaId(nextAreaId.current)
+      nextAreaId.current += 1
+      const createdAt = new Date().toISOString()
+
+      setAreas((prev) => [
+        ...prev,
+        {
+          id,
+          parentId: null,
+          x: point.x,
+          y: point.y,
+          height: DEFAULT_AREA_HEIGHT,
+          width: DEFAULT_AREA_WIDTH,
+          text: '',
+          styles: {},
+          createdAt,
+          updatedAt: createdAt,
+        },
+      ])
+      setSelectedAreaId(id)
+      setSelectedLinkId(null)
+      setLinkFlyoutLinkId(null)
+      setAutoFocusAreaId(id)
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const currentDrag = marqueeDragRef.current
+      if (!currentDrag) return
+
+      const current = getCanvasPoint(
+        event.clientX,
+        event.clientY,
+        canvasZoom
+      )
+      const isDragging =
+        currentDrag.isDragging ||
+        isMarqueeDrag(currentDrag.start, current)
+      const nextDrag = {
+        ...currentDrag,
+        current,
+        isDragging,
+      }
+
+      marqueeDragRef.current = nextDrag
+
+      if (isDragging) {
+        event.preventDefault()
+        setMarqueeSelectionRect(
+          getMarqueeRect(nextDrag.start, nextDrag.current)
+        )
+      }
+    }
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const currentDrag = marqueeDragRef.current
+      if (!currentDrag) return
+
+      const current = getCanvasPoint(
+        event.clientX,
+        event.clientY,
+        canvasZoom
+      )
+      const nextDrag = {
+        ...currentDrag,
+        current,
+        isDragging:
+          currentDrag.isDragging ||
+          isMarqueeDrag(currentDrag.start, current),
+      }
+      const selectionRect = getMarqueeRect(
+        nextDrag.start,
+        nextDrag.current
+      )
+
+      marqueeDragRef.current = null
+      setMarqueeSelectionRect(null)
+      removeMarqueeTracking(
+        handlePointerMove,
+        handlePointerUp,
+        handlePointerCancel
+      )
+
+      if (nextDrag.isDragging) {
+        event.preventDefault()
+        setSelectedAreaIds(getMarqueeSelection(selectionRect, areas))
+        setSelectedLinkId(null)
+        setLinkFlyoutLinkId(null)
+        return
+      }
+
+      event.preventDefault()
+      createAreaAtPoint(nextDrag.start)
+    }
+
+    const handlePointerCancel = () => {
+      if (!marqueeDragRef.current) return
+
+      marqueeDragRef.current = null
+      setMarqueeSelectionRect(null)
+      removeMarqueeTracking(
+        handlePointerMove,
+        handlePointerUp,
+        handlePointerCancel
+      )
+    }
+
     const handleClick = (e: PointerEvent) => {
+      if (e.button !== 0) return
+
       const target = e.target instanceof Element ? e.target : null
       const targetAreaId =
         target
@@ -2097,37 +2287,28 @@ function App({
       setHasClickedCanvas(true)
 
       const point = getCanvasPoint(e.clientX, e.clientY, canvasZoom)
-      const id = createAreaId(nextAreaId.current)
-      nextAreaId.current += 1
-      const createdAt = new Date().toISOString()
 
-      setAreas((prev) => [
-        ...prev,
-        {
-          id,
-          parentId: null,
-          x: point.x,
-          y: point.y,
-          height: DEFAULT_AREA_HEIGHT,
-          width: DEFAULT_AREA_WIDTH,
-          text: '',
-          styles: {},
-          createdAt,
-          updatedAt: createdAt,
-        },
-      ])
-      setSelectedAreaId(id)
-      setSelectedLinkId(null)
-      setLinkFlyoutLinkId(null)
-      setAutoFocusAreaId(id)
+      marqueeDragRef.current = {
+        start: point,
+        current: point,
+        isDragging: false,
+      }
+      setMarqueeSelectionRect(null)
+      document.addEventListener('pointermove', handlePointerMove)
+      document.addEventListener('pointerup', handlePointerUp)
+      document.addEventListener('pointercancel', handlePointerCancel)
     }
 
     document.addEventListener('pointerdown', handleClick, true)
 
     return () => {
       document.removeEventListener('pointerdown', handleClick, true)
+      document.removeEventListener('pointermove', handlePointerMove)
+      document.removeEventListener('pointerup', handlePointerUp)
+      document.removeEventListener('pointercancel', handlePointerCancel)
     }
   }, [
+    areas,
     canvasZoom,
     deselectCurrentArea,
     isViewOnly,
@@ -2187,6 +2368,21 @@ function App({
           setLinkFlyoutLinkId(selectedLinkId)
           return
         }
+      }
+
+      if (
+        !isViewOnly &&
+        selectedAreaIds.length > 0 &&
+        !isEditingTarget &&
+        !isPaletteTarget &&
+        commandPaletteQuery === null &&
+        openDialogId === null &&
+        styleDialogArea === null &&
+        (e.key === 'Delete' || e.key === 'Backspace')
+      ) {
+        e.preventDefault()
+        deleteSelectedAreasRef.current()
+        return
       }
 
       if (
@@ -2434,6 +2630,9 @@ function App({
     )
   }
 
+  const getAreaActionTargetIds = (areaId: string) =>
+    selectedAreaIds.includes(areaId) ? selectedAreaIds : [areaId]
+
   const applyAreaStyle = (
     areaId: string,
     property: string,
@@ -2442,10 +2641,11 @@ function App({
     if (isViewOnly) return
 
     const normalizedValue = normalizeStyleValueInput(value)
+    const targetAreaIds = new Set(getAreaActionTargetIds(areaId))
 
     setAreas((prev) =>
       prev.map((area) =>
-        area.id === areaId
+        targetAreaIds.has(area.id)
           ? {
               ...area,
               styles: {
@@ -2461,9 +2661,11 @@ function App({
   const removeAreaStyle = (areaId: string, property: string) => {
     if (isViewOnly) return
 
+    const targetAreaIds = new Set(getAreaActionTargetIds(areaId))
+
     setAreas((prev) =>
       prev.map((area) => {
-        if (area.id !== areaId) return area
+        if (!targetAreaIds.has(area.id)) return area
 
         const nextStyles = {
           ...area.styles,
@@ -3414,6 +3616,68 @@ function App({
     })
   }
 
+  const applySelectedAreaAlignment = (edge: AlignEdge) => {
+    if (isViewOnly) return
+
+    const selectedAreaIdSet = new Set(selectedAreaIds)
+
+    setAreas((prev) => {
+      const selectedRootAreas = prev.filter(
+        (area) =>
+          selectedAreaIdSet.has(area.id) && area.parentId === null
+      )
+      const updates = alignAreas(selectedRootAreas, edge)
+      const updatesByAreaId = new Map(
+        updates.map((update) => [update.id, update])
+      )
+
+      if (updatesByAreaId.size === 0) return prev
+
+      return prev.map((area) => {
+        const update = updatesByAreaId.get(area.id)
+
+        return update
+          ? {
+              ...area,
+              x: update.x,
+              y: update.y,
+            }
+          : area
+      })
+    })
+  }
+
+  const applySelectedAreaDistribution = (axis: DistributeAxis) => {
+    if (isViewOnly) return
+
+    const selectedAreaIdSet = new Set(selectedAreaIds)
+
+    setAreas((prev) => {
+      const selectedRootAreas = prev.filter(
+        (area) =>
+          selectedAreaIdSet.has(area.id) && area.parentId === null
+      )
+      const updates = distributeAreas(selectedRootAreas, axis)
+      const updatesByAreaId = new Map(
+        updates.map((update) => [update.id, update])
+      )
+
+      if (updatesByAreaId.size === 0) return prev
+
+      return prev.map((area) => {
+        const update = updatesByAreaId.get(area.id)
+
+        return update
+          ? {
+              ...area,
+              x: update.x,
+              y: update.y,
+            }
+          : area
+      })
+    })
+  }
+
   const unnestSelectedArea = () => {
     if (isViewOnly || !selectedAreaId) return
 
@@ -3468,40 +3732,67 @@ function App({
 
     if (!areas.some((area) => area.id === sourceAreaId)) return
 
-    const id = createAreaId(nextAreaId.current)
-    nextAreaId.current += 1
+    const targetAreaIds =
+      selectedAreaIds.length > 1 && selectedAreaIds.includes(sourceAreaId)
+        ? selectedAreaIds
+        : [sourceAreaId]
+    const result = duplicateAreas(areas, targetAreaIds, () => {
+      const id = createAreaId(nextAreaId.current)
+      nextAreaId.current += 1
 
-    const result = duplicateArea(areas, sourceAreaId, id)
+      return id
+    })
+
+    if (result.selectedAreaIds.length === 0) return
 
     setAreas(result.areas)
-    setSelectedAreaId(result.selectedAreaId)
-    setAutoFocusAreaId(result.selectedAreaId)
+    setSelectedAreaIds(result.selectedAreaIds)
+    setAutoFocusAreaId(
+      result.selectedAreaIds.length === 1
+        ? result.selectedAreaIds[0]
+        : null
+    )
   }
 
-  const deleteAreaById = (areaId: string) => {
+  const deleteAreaById = useCallback((areaId: string) => {
     if (isViewOnly) return
 
-    const result = deleteArea(areas, areaId)
+    const targetAreaIds =
+      selectedAreaIds.length > 1 && selectedAreaIds.includes(areaId)
+        ? selectedAreaIds
+        : [areaId]
+    const result = deleteAreas(areas, targetAreaIds)
 
-    if (!result.deletedArea) return
+    if (result.deletedAreas.length === 0) return
 
-    const deletedArea = result.deletedArea
-    const deletedAreaIds = new Set([
-      areaId,
-      ...deletedArea.descendantAreas.map((area) => area.id),
-    ])
+    const deletedAreaIds = new Set(
+      result.deletedAreas.flatMap((deletedArea) => [
+        deletedArea.area.id,
+        ...deletedArea.descendantAreas.map((area) => area.id),
+      ])
+    )
 
     setAreas(result.areas)
     setLinks((currentLinks) =>
       removeAreaLinksForDeletedAreas(currentLinks, deletedAreaIds)
     )
-    setDeletedAreaSnapshot(deletedArea)
+    setDeletedAreaSnapshot(result.deletedAreas)
     setSelectedAreaIds((currentSelectedAreaIds) =>
       currentSelectedAreaIds.filter(
         (currentAreaId) => !deletedAreaIds.has(currentAreaId)
       )
     )
-  }
+  }, [areas, isViewOnly, selectedAreaIds, setSelectedAreaIds])
+
+  useEffect(() => {
+    deleteSelectedAreasRef.current = () => {
+      const firstSelectedAreaId = selectedAreaIds[0]
+
+      if (firstSelectedAreaId) {
+        deleteAreaById(firstSelectedAreaId)
+      }
+    }
+  }, [deleteAreaById, selectedAreaIds])
 
   const undoDeletedArea = () => {
     if (isViewOnly) return
@@ -3509,10 +3800,16 @@ function App({
     if (!deletedAreaSnapshot) return
 
     setAreas((prev) =>
-      restoreDeletedArea(prev, deletedAreaSnapshot)
+      restoreDeletedAreas(prev, deletedAreaSnapshot)
     )
-    setSelectedAreaId(deletedAreaSnapshot.area.id)
-    setAutoFocusAreaId(deletedAreaSnapshot.area.id)
+    setSelectedAreaIds(
+      deletedAreaSnapshot.map((deletedArea) => deletedArea.area.id)
+    )
+    setAutoFocusAreaId(
+      deletedAreaSnapshot.length === 1
+        ? deletedAreaSnapshot[0].area.id
+        : null
+    )
     setDeletedAreaSnapshot(null)
   }
 
@@ -3565,16 +3862,20 @@ function App({
       command.value,
       page.settings.theme.colors
     )
+    const targetAreaIds = new Set(getAreaActionTargetIds(id))
 
     setAreas((prev) =>
       prev.map((area) => {
-        if (area.id !== id || area.type === 'image') return area
+        if (!targetAreaIds.has(area.id)) return area
 
-        const result = removeCssSlashCommand(area.text, command)
+        const result =
+          area.id === id && area.type !== 'image'
+            ? removeCssSlashCommand(area.text, command)
+            : null
 
         return {
           ...area,
-          text: result.text,
+          ...(result ? { text: result.text } : {}),
           styles: {
             ...area.styles,
             [command.property]: resolvedValue,
@@ -4311,12 +4612,23 @@ function App({
     shouldShowEditorChrome &&
     page.settings.theme.colors.length > 0 &&
     (openDialogId === 'page-styles' || selectedAreaId !== null)
+  const baseCommandPaletteOptions = shouldShowEmptyState
+    ? COMMAND_PALETTE_OPTIONS.filter(
+        (option) => !isZoomCommandOption(option)
+      )
+    : COMMAND_PALETTE_OPTIONS
   const commandPaletteOptions = shouldShowEditorChrome
-    ? shouldShowEmptyState
-      ? COMMAND_PALETTE_OPTIONS.filter(
-          (option) => !isZoomCommandOption(option)
-        )
-      : COMMAND_PALETTE_OPTIONS
+    ? baseCommandPaletteOptions.filter((option) => {
+        if (isAlignCommandOption(option)) {
+          return selectedAreaIds.length >= 2
+        }
+
+        if (isDistributeCommandOption(option)) {
+          return selectedAreaIds.length >= 3
+        }
+
+        return true
+      })
     : []
   const shouldShowOffscreenAreaIndicators =
     !shouldShowEmptyState &&
@@ -4473,22 +4785,20 @@ function App({
         nestingDepth={getAreaDepth(areas, area.id)}
         canvasZoom={canvasZoom}
         onSelect={(areaId, toggleSelection) => {
-          if (!isViewOnly) {
-            setSelectedAreaIds((currentSelectedAreaIds) => {
-              if (toggleSelection) {
-                return toggleAreaSelection(
-                  currentSelectedAreaIds,
-                  areaId
-                )
-              }
+          setSelectedAreaIds((currentSelectedAreaIds) => {
+            if (toggleSelection) {
+              return toggleAreaSelection(
+                currentSelectedAreaIds,
+                areaId
+              )
+            }
 
-              return currentSelectedAreaIds.includes(areaId)
-                ? currentSelectedAreaIds
-                : [areaId]
-            })
-            setSelectedLinkId(null)
-            setLinkFlyoutLinkId(null)
-          }
+            return currentSelectedAreaIds.includes(areaId)
+              ? currentSelectedAreaIds
+              : [areaId]
+          })
+          setSelectedLinkId(null)
+          setLinkFlyoutLinkId(null)
         }}
         onTextChange={updateAreaText}
         onMoveStart={beginAreaMove}
@@ -4864,6 +5174,19 @@ function App({
             )}
           </svg>
 
+          {marqueeSelectionRect && (
+            <div
+              aria-hidden="true"
+              className="marquee-selection-box"
+              style={{
+                height: marqueeSelectionRect.height,
+                left: marqueeSelectionRect.x,
+                top: marqueeSelectionRect.y,
+                width: marqueeSelectionRect.width,
+              }}
+            />
+          )}
+
           {getRootAreas(areas).map(renderArea)}
 
           {shouldShowEditorChrome &&
@@ -5113,39 +5436,38 @@ function App({
               className="remote-collaboration-layer"
               aria-hidden="true"
             >
-              {displayedRemotePresences.map((presence) => {
-                if (!presence.selectedAreaId) return null
+              {displayedRemotePresences.flatMap((presence) =>
+                getPresenceSelectedAreaIds(presence).flatMap((areaId) => {
+                  const area = areas.find(
+                    (currentArea) => currentArea.id === areaId
+                  )
 
-                const area = areas.find(
-                  (currentArea) =>
-                    currentArea.id === presence.selectedAreaId
-                )
+                  if (!area) return []
 
-                if (!area) return null
+                  const position = getAreaAbsolutePosition(
+                    areas,
+                    area.id
+                  )
 
-                const position = getAreaAbsolutePosition(
-                  areas,
-                  area.id
-                )
-
-                return (
-                  <div
-                    className="remote-selection-ring"
-                    key={`${presence.clientId}-selection`}
-                    style={
-                      {
-                        '--presence-color': presence.color,
-                        height: area.height,
-                        left: position.x,
-                        top: position.y,
-                        width: area.width,
-                      } as PresenceCssProperties
-                    }
-                  >
-                    <span>{presence.userName}</span>
-                  </div>
-                )
-              })}
+                  return (
+                    <div
+                      className="remote-selection-ring"
+                      key={`${presence.clientId}-selection-${area.id}`}
+                      style={
+                        {
+                          '--presence-color': presence.color,
+                          height: area.height,
+                          left: position.x,
+                          top: position.y,
+                          width: area.width,
+                        } as PresenceCssProperties
+                      }
+                    >
+                      <span>{presence.userName}</span>
+                    </div>
+                  )
+                })
+              )}
               {displayedRemotePresences.map((presence) =>
                 presence.cursor ? (
                   <div
@@ -5191,7 +5513,11 @@ function App({
           className="undo-toast"
           role="status"
         >
-          <span>Area deleted</span>
+          <span>
+            {deletedAreaSnapshot.length === 1
+              ? 'Area deleted'
+              : `${deletedAreaSnapshot.length} Areas deleted`}
+          </span>
           <button
             className="undo-toast-button"
             type="button"
@@ -5303,6 +5629,16 @@ function App({
             }
             if (option.id === 'zoom-to-selection') {
               zoomCanvasToSelection()
+              return
+            }
+            if (isAlignCommandOption(option)) {
+              applySelectedAreaAlignment(ALIGN_COMMAND_EDGES[option.id])
+              return
+            }
+            if (isDistributeCommandOption(option)) {
+              applySelectedAreaDistribution(
+                DISTRIBUTE_COMMAND_AXES[option.id]
+              )
               return
             }
             if (

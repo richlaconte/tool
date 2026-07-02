@@ -51,6 +51,10 @@ test('environment documentation includes the page session secret', async () => {
   assert.match(envExample, /TOOL_PAGE_SESSION_SECRET=/)
   assert.match(deploymentDocs, /TOOL_PAGE_SESSION_SECRET/)
   assert.match(deploymentDocs, /fly secrets set TOOL_PAGE_SESSION_SECRET=/)
+  assert.match(
+    deploymentDocs,
+    /TOOL_ALLOWED_ORIGINS="https:\/\/cascadery\.com,https:\/\/www\.cascadery\.com,https:\/\/richlaconte-tool\.fly\.dev"/
+  )
 })
 
 test('GitHub Actions verifies and deploys pushes to main', async () => {

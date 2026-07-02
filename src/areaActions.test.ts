@@ -92,6 +92,26 @@ test('leaves areas unchanged when the source area is missing', () => {
   assert.equal(result.areas, areas)
 })
 
+test('duplicates multiple root areas with generated ids and one offset', () => {
+  const resultIds = [3, 4]
+  const result = areaActions.duplicateAreas(
+    areas,
+    ['area-1', 'area-2'],
+    () => `area-${resultIds.shift()}`
+  )
+
+  assert.deepEqual(result.selectedAreaIds, ['area-3', 'area-4'])
+  assert.equal(result.areas.length, 4)
+  assert.deepEqual(result.areas.slice(2).map((area) => area.id), [
+    'area-3',
+    'area-4',
+  ])
+  assert.deepEqual(result.areas.slice(2).map((area) => area.x), [
+    116,
+    256,
+  ])
+})
+
 test('deletes only the requested area and captures an undo snapshot', () => {
   const result = deleteArea(areas, 'area-1', 1234)
 
@@ -141,6 +161,27 @@ test('leaves areas unchanged when deleting a missing area', () => {
 
   assert.equal(result.areas, areas)
   assert.equal(result.deletedArea, null)
+})
+
+test('deletes multiple selected areas and restores them together', () => {
+  const result = areaActions.deleteAreas(
+    areas,
+    ['area-1', 'area-2'],
+    1234
+  )
+
+  assert.deepEqual(result.areas, [])
+  assert.deepEqual(
+    result.deletedAreas.map((deletedArea) => deletedArea.area.id),
+    ['area-1', 'area-2']
+  )
+
+  assert.deepEqual(
+    areaActions
+      .restoreDeletedAreas([], result.deletedAreas)
+      .map((area) => area.id),
+    ['area-1', 'area-2']
+  )
 })
 
 test('restores a deleted area at its original index', () => {

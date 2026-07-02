@@ -94,6 +94,46 @@ test('collaboration marks view sessions as read-only', () => {
   assert.equal(context?.readOnly, true)
 })
 
+test('collaboration accepts same-origin custom-domain websocket requests when the explicit allowlist is stale', () => {
+  const database = createInMemoryDatabase()
+  createPageWithShareLinks(database, {
+    createToken: () => 'edit-token',
+    now: '2026-06-26T12:00:00.000Z',
+    pageId: 'page_custom_domain',
+  })
+  const cookie = createPageSessionCookie(
+    {
+      accessMode: 'edit',
+      clientId: 'client_custom_domain',
+      expiresAt: now + 60_000,
+      pageId: 'page_custom_domain',
+      shareLinkUpdatedAt: '2026-06-26T12:00:00.000Z',
+    },
+    secret,
+    now
+  )
+  const context = getCollaborationContextFromHeaders(
+    {
+      cookie,
+      host: 'cascadery.com',
+      origin: 'https://cascadery.com',
+      'x-forwarded-proto': 'https',
+    },
+    {
+      allowedOrigins: ['https://richlaconte-tool.fly.dev'],
+      database,
+      sessionSecret: secret,
+      now,
+    },
+    {
+      documentName: 'page:page_custom_domain',
+    }
+  )
+
+  assert.equal(context?.pageId, 'page_custom_domain')
+  assert.equal(context?.accessMode, 'edit')
+})
+
 test('collaboration document names resolve page ids', () => {
   assert.equal(
     getPageIdFromCollaborationDocumentName('page:page_abc'),

@@ -10,12 +10,19 @@ export type DuplicateAreaResult = {
   selectedAreaId: string | null
 }
 
+export type DuplicateAreasResult = {
+  areas: AreaState[]
+  selectedAreaIds: string[]
+}
+
 export type DeletedAreaSnapshot = {
   area: AreaState
   descendantAreas: AreaState[]
   index: number
   deletedAt: number
 }
+
+export type DeletedAreasSnapshot = DeletedAreaSnapshot[]
 
 export type DeleteAreaResult = {
   areas: AreaState[]
@@ -46,6 +53,37 @@ export const duplicateArea = (
   return {
     areas: [...areas, duplicatedArea],
     selectedAreaId: duplicatedArea.id,
+  }
+}
+
+export const duplicateAreas = (
+  areas: AreaState[],
+  sourceAreaIds: string[],
+  createAreaId: () => string
+): DuplicateAreasResult => {
+  const duplicatedAreas: AreaState[] = []
+  const selectedAreaIds: string[] = []
+
+  for (const sourceAreaId of sourceAreaIds) {
+    const sourceArea = areas.find((area) => area.id === sourceAreaId)
+    if (!sourceArea) continue
+
+    const id = createAreaId()
+    duplicatedAreas.push({
+      ...cloneArea(sourceArea),
+      id,
+      x: sourceArea.x + DUPLICATE_AREA_OFFSET.x,
+      y: sourceArea.y + DUPLICATE_AREA_OFFSET.y,
+    })
+    selectedAreaIds.push(id)
+  }
+
+  return {
+    areas:
+      duplicatedAreas.length > 0
+        ? [...areas, ...duplicatedAreas]
+        : areas,
+    selectedAreaIds,
   }
 }
 
@@ -84,6 +122,32 @@ export const deleteArea = (
   }
 }
 
+export const deleteAreas = (
+  areas: AreaState[],
+  areaIds: string[],
+  deletedAt = Date.now()
+) => {
+  let nextAreas = areas
+  const deletedAreas: DeletedAreasSnapshot = []
+
+  for (const areaId of areaIds) {
+    const result = deleteArea(nextAreas, areaId, deletedAt)
+    nextAreas = result.areas
+
+    if (result.deletedArea) {
+      deletedAreas.push({
+        ...result.deletedArea,
+        index: areas.findIndex((area) => area.id === areaId),
+      })
+    }
+  }
+
+  return {
+    areas: deletedAreas.length > 0 ? nextAreas : areas,
+    deletedAreas,
+  }
+}
+
 export const restoreDeletedArea = (
   areas: AreaState[],
   deletedArea: DeletedAreaSnapshot
@@ -104,6 +168,18 @@ export const restoreDeletedArea = (
     ...areas.slice(restoreIndex),
   ]
 }
+
+export const restoreDeletedAreas = (
+  areas: AreaState[],
+  deletedAreas: DeletedAreasSnapshot
+) =>
+  [...deletedAreas]
+    .sort((left, right) => left.index - right.index)
+    .reduce(
+      (nextAreas, deletedArea) =>
+        restoreDeletedArea(nextAreas, deletedArea),
+      areas
+    )
 
 const cloneArea = (area: AreaState): AreaState => ({
   ...area,

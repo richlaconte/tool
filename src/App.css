@@ -15,6 +15,15 @@
   transform-origin: 0 0;
 }
 
+.marquee-selection-box {
+  position: absolute;
+  z-index: 65;
+  box-sizing: border-box;
+  border: 1px solid rgb(37 99 235 / 64%);
+  background: rgb(37 99 235 / 8%);
+  pointer-events: none;
+}
+
 .area-link-layer {
   position: absolute;
   inset: 0;

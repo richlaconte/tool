@@ -7,6 +7,7 @@ import {
   createCollaborationProfile,
   createPresenceState,
   getCollaborationProfileFromCookie,
+  getPresenceSelectedAreaIds,
   pruneStalePresences,
   serializeCollaborationProfileCookie,
 } from './collaboration.ts'
@@ -147,6 +148,7 @@ test('creates and prunes presence state by freshness', () => {
 
   assert.deepEqual(recentPresence.cursor, { x: 40, y: 60 })
   assert.equal(recentPresence.selectedAreaId, 'area-1')
+  assert.deepEqual(recentPresence.selectedAreaIds, ['area-1'])
   assert.deepEqual(
     pruneStalePresences(
       [
@@ -160,5 +162,38 @@ test('creates and prunes presence state by freshness', () => {
       20_000
     ).map((presence) => presence.clientId),
     ['client-1']
+  )
+})
+
+test('presence supports multi-selection while reading legacy single selections', () => {
+  const multiPresence = createPresenceState(
+    {
+      clientId: 'client-1',
+      userName: 'Ada',
+      color: '#2563eb',
+    },
+    {
+      cursor: null,
+      selectedAreaIds: ['area-1', 'area-2'],
+    },
+    10_000
+  )
+
+  assert.deepEqual(multiPresence.selectedAreaIds, [
+    'area-1',
+    'area-2',
+  ])
+  assert.equal(multiPresence.selectedAreaId, null)
+  assert.deepEqual(getPresenceSelectedAreaIds(multiPresence), [
+    'area-1',
+    'area-2',
+  ])
+  assert.deepEqual(
+    getPresenceSelectedAreaIds({
+      ...multiPresence,
+      selectedAreaIds: undefined,
+      selectedAreaId: 'legacy-area',
+    }),
+    ['legacy-area']
   )
 })

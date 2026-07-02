@@ -139,23 +139,30 @@ export const updateCollaborativeArea = (
   if (!areaMap) return
 
   doc.transact(() => {
-    const { styles, text, ...restPatch } = patch as CollaborativeAreaPatch & {
-      text?: string
-    }
+    applyCollaborativeAreaPatchToMap(doc, areaId, areaMap, patch)
+  })
+}
 
-    for (const [key, value] of Object.entries(restPatch)) {
-      areaMap.set(key, cloneJsonValue(value))
-    }
+export const updateCollaborativeAreas = (
+  doc: Y.Doc,
+  updates: Array<{
+    areaId: string
+    patch: CollaborativeAreaPatch
+  }>
+) => {
+  const areasMap = getAreasMap(doc)
 
-    if (styles) {
-      const stylesMap = getStylesMap(areaMap)
-      for (const [property, value] of Object.entries(styles)) {
-        stylesMap.set(property, value)
-      }
-    }
+  doc.transact(() => {
+    for (const update of updates) {
+      const areaMap = areasMap.get(update.areaId)
+      if (!areaMap) continue
 
-    if (typeof text === 'string') {
-      applyCollaborativeAreaText(doc, areaId, text)
+      applyCollaborativeAreaPatchToMap(
+        doc,
+        update.areaId,
+        areaMap,
+        update.patch
+      )
     }
   })
 }
@@ -169,6 +176,32 @@ export const deleteCollaborativeArea = (doc: Y.Doc, areaId: string) => {
       areasMap.delete(deletedAreaId)
     }
   })
+}
+
+const applyCollaborativeAreaPatchToMap = (
+  doc: Y.Doc,
+  areaId: string,
+  areaMap: Y.Map<unknown>,
+  patch: CollaborativeAreaPatch
+) => {
+  const { styles, text, ...restPatch } = patch as CollaborativeAreaPatch & {
+    text?: string
+  }
+
+  for (const [key, value] of Object.entries(restPatch)) {
+    areaMap.set(key, cloneJsonValue(value))
+  }
+
+  if (styles) {
+    const stylesMap = getStylesMap(areaMap)
+    for (const [property, value] of Object.entries(styles)) {
+      stylesMap.set(property, value)
+    }
+  }
+
+  if (typeof text === 'string') {
+    applyCollaborativeAreaText(doc, areaId, text)
+  }
 }
 
 const writePageMap = (pageMap: Y.Map<unknown>, page: PageState) => {

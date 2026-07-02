@@ -68,10 +68,7 @@ export const getCollaborationContextFromHeaders = (
   requestContext: CollaborationRequestContext = {}
 ): CollaborationContext | null => {
   const origin = getHeader(headers, 'origin')
-  if (
-    options.allowedOrigins?.length &&
-    (!origin || !options.allowedOrigins.includes(origin))
-  ) {
+  if (!isAllowedOrigin(headers, origin, options.allowedOrigins)) {
     return null
   }
 
@@ -222,6 +219,49 @@ const getHeader = (headers: HeaderRecord | Headers, name: string) => {
 
   return Array.isArray(recordValue) ? recordValue[0] : recordValue
 }
+
+const isAllowedOrigin = (
+  headers: HeaderRecord | Headers,
+  origin: string | undefined,
+  allowedOrigins: string[] | undefined
+) => {
+  if (!allowedOrigins?.length) return true
+  if (!origin) return false
+  if (allowedOrigins.includes(origin)) return true
+
+  return isSameOriginRequest(headers, origin)
+}
+
+const isSameOriginRequest = (
+  headers: HeaderRecord | Headers,
+  origin: string
+) => {
+  let originUrl: URL
+
+  try {
+    originUrl = new URL(origin)
+  } catch {
+    return false
+  }
+
+  const forwardedHost = getFirstHeaderValue(
+    getHeader(headers, 'x-forwarded-host')
+  )
+  const host = forwardedHost ?? getFirstHeaderValue(getHeader(headers, 'host'))
+
+  if (!host || originUrl.host !== host) return false
+
+  const forwardedProtocol = getFirstHeaderValue(
+    getHeader(headers, 'x-forwarded-proto')
+  )
+
+  if (!forwardedProtocol) return true
+
+  return originUrl.protocol.replace(':', '') === forwardedProtocol
+}
+
+const getFirstHeaderValue = (value: string | undefined) =>
+  value?.split(',')[0]?.trim() || undefined
 
 const headersToRecord = (
   headers: Headers | IncomingHttpHeaders

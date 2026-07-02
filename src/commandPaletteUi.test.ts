@@ -54,3 +54,34 @@ test('command palette options live in a typed command registry', async () => {
   assert.match(registrySource, /aliases/)
   assert.match(registrySource, /scope/)
 })
+
+test('command palette exposes multi-select alignment commands contextually', async () => {
+  const appSource = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const registrySource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
+
+  for (const commandId of [
+    'align-left',
+    'align-right',
+    'align-top',
+    'align-bottom',
+    'align-center-x',
+    'align-center-y',
+    'distribute-horizontal',
+    'distribute-vertical',
+  ]) {
+    assert.match(registrySource, new RegExp(`id: '${commandId}'`))
+  }
+
+  assert.match(appSource, /isAlignCommandOption\(option\)/)
+  assert.match(appSource, /selectedAreaIds\.length >= 2/)
+  assert.match(appSource, /isDistributeCommandOption\(option\)/)
+  assert.match(appSource, /selectedAreaIds\.length >= 3/)
+  assert.match(appSource, /applySelectedAreaAlignment/)
+  assert.match(appSource, /applySelectedAreaDistribution/)
+})

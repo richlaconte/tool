@@ -27,13 +27,14 @@ stable across deploys:
 fly secrets set TOOL_PAGE_SESSION_SECRET="$(openssl rand -base64 48)"
 ```
 
-Set the production origin and review the security defaults. `TOOL_ALLOWED_ORIGINS`
-should match the deployed app URL exactly. The remaining values have secure
-defaults, but keeping them explicit makes future tuning less mysterious:
+Set the production origins and review the security defaults.
+`TOOL_ALLOWED_ORIGINS` should include every domain people will use to open the
+app. The remaining values have secure defaults, but keeping them explicit makes
+future tuning less mysterious:
 
 ```sh
 fly secrets set \
-  TOOL_ALLOWED_ORIGINS="https://richlaconte-tool.fly.dev" \
+  TOOL_ALLOWED_ORIGINS="https://cascadery.com,https://www.cascadery.com,https://richlaconte-tool.fly.dev" \
   TOOL_SECURITY_LOGS="true" \
   TOOL_COLLABORATION_MAX_PAYLOAD_BYTES="1048576" \
   TOOL_COLLABORATION_MAX_CONNECTIONS_PER_PAGE="50" \
@@ -76,7 +77,8 @@ deploy the app.
 
 ## Notes
 
-- The production URL is `https://richlaconte-tool.fly.dev`.
+- The production URLs are `https://cascadery.com` and
+  `https://richlaconte-tool.fly.dev`.
 - If you rename the Fly app, update `app` and `TOOL_ALLOWED_ORIGINS` in
   `fly.toml`.
 - The deployment intentionally runs one always-on machine because SQLite files

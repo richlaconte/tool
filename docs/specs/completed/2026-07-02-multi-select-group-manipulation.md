@@ -2,7 +2,8 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.1). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.1).
+Completed on 2026-07-02 as an MVP canvas table-stakes spec.
 
 ## Goal
 

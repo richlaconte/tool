@@ -13,6 +13,7 @@ import {
   isCollaborativePageDocEmpty,
   replaceCollaborativePageDocState,
   updateCollaborativeArea,
+  updateCollaborativeAreas,
 } from './collaborativePage.ts'
 import { createDefaultPageState } from './pagePersistence.ts'
 import type { AreaState } from './App.tsx'
@@ -211,6 +212,39 @@ test('updates area geometry and merges style properties', () => {
     border: '1px solid black',
     color: 'red',
   })
+})
+
+test('updates multiple areas in one collaborative transaction', () => {
+  const doc = createCollaborativePageDoc({
+    areas: createAreas(),
+    assets: [],
+    page: createDefaultPageState({ id: 'page_group_move', now }),
+  })
+  let updateCount = 0
+  doc.on('update', () => {
+    updateCount += 1
+  })
+
+  updateCollaborativeAreas(doc, [
+    {
+      areaId: 'parent',
+      patch: {
+        x: 120,
+      },
+    },
+    {
+      areaId: 'child',
+      patch: {
+        y: 48,
+      },
+    },
+  ])
+
+  const nextState = getPageStateFromCollaborativeDoc(doc)
+
+  assert.equal(nextState.areas.find((area) => area.id === 'parent')?.x, 120)
+  assert.equal(nextState.areas.find((area) => area.id === 'child')?.y, 48)
+  assert.equal(updateCount, 1)
 })
 
 test('deleting an area removes its descendants in one transaction', () => {

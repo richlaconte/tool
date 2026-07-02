@@ -19,7 +19,8 @@ export type PresenceState = CollaborationProfile & {
     x: number
     y: number
   } | null
-  selectedAreaId: string | null
+  selectedAreaIds: string[]
+  selectedAreaId?: string | null
   lastSeenAt: number
 }
 
@@ -185,14 +186,35 @@ export const canPublishCollaborationOperation = (
 
 export const createPresenceState = (
   profile: CollaborationProfile,
-  state: Pick<PresenceState, 'cursor' | 'selectedAreaId'>,
+  state: Pick<PresenceState, 'cursor'> & {
+    selectedAreaId?: string | null
+    selectedAreaIds?: string[]
+  },
   lastSeenAt = Date.now()
-): PresenceState => ({
-  ...profile,
-  cursor: state.cursor,
-  selectedAreaId: state.selectedAreaId,
-  lastSeenAt,
-})
+) => {
+  const selectedAreaIds =
+    state.selectedAreaIds ??
+    (state.selectedAreaId ? [state.selectedAreaId] : [])
+
+  return {
+    ...profile,
+    cursor: state.cursor,
+    selectedAreaIds,
+    selectedAreaId: selectedAreaIds.length === 1 ? selectedAreaIds[0] : null,
+    lastSeenAt,
+  }
+}
+
+export const getPresenceSelectedAreaIds = (
+  presence: Partial<PresenceState>
+) =>
+  Array.isArray(presence.selectedAreaIds)
+    ? presence.selectedAreaIds.filter(
+        (areaId): areaId is string => typeof areaId === 'string'
+      )
+    : presence.selectedAreaId
+      ? [presence.selectedAreaId]
+      : []
 
 export const pruneStalePresences = (
   presences: PresenceState[],

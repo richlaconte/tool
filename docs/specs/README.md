@@ -16,7 +16,6 @@ the suggested build order within and across tiers.
 
 ### Tier 1 — Canvas Table Stakes
 
-- [Multi-Select and Group Manipulation](2026-07-02-multi-select-group-manipulation.md)
 - [Area Comment Threads](2026-07-02-area-comment-threads.md)
 - [Page Search and Navigation](2026-07-02-page-search-navigation.md)
 - [Undo/Redo Consolidation](2026-07-02-undo-redo-consolidation.md)
@@ -71,6 +70,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
 - [Markdown and Code-Native Area Content](completed/2026-07-02-markdown-code-area-content.md)
 - [Linked Areas Direct Manipulation UX](completed/2026-06-30-linked-areas-direct-manipulation-ux.md)
+- [Multi-Select and Group Manipulation](completed/2026-07-02-multi-select-group-manipulation.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)
 - [Offscreen Area Indicators](completed/2026-06-30-offscreen-area-indicators.md)

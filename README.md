@@ -61,6 +61,7 @@ Cascadery's follow-up specs are grounded in current market and interaction resea
 ## Follow-Up Specs
 
 - [Spec Index](docs/specs/README.md)
+- [Spec Suite Roadmap](docs/specs/2026-07-02-cascadery-spec-suite-roadmap.md)
 - [Product Direction Audit](docs/specs/2026-06-29-cascadery-product-direction-audit.md)
 - [Product and Developer Experience Direction](docs/specs/2026-06-26-cascadery-product-dx.md)
 - [AI and MCP Agent Interface](docs/specs/2026-06-26-cascadery-ai-mcp-interface.md)

@@ -4,6 +4,7 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Product Direction
 
+- [Spec Suite Roadmap](2026-07-02-cascadery-spec-suite-roadmap.md)
 - [Product Direction Audit](2026-06-29-cascadery-product-direction-audit.md)
 - [Product and Developer Experience Direction](2026-06-26-cascadery-product-dx.md)
 

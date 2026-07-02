@@ -20,7 +20,6 @@ All Tier 1 specs are complete.
 
 ### Tier 2 — Spec-Driven Development and the Agent Round-Trip
 
-- [SDD Artifact Interchange](2026-07-02-sdd-artifact-interchange.md) (flagship)
 - [Agent Work Journal and Live Agent Presence](2026-07-02-agent-work-journal.md)
 - [Remote MCP Hardening](2026-07-02-remote-mcp-hardening.md)
 - [Evidence Anchors v2: Repo-Linked Context](2026-07-02-evidence-anchors-v2.md)
@@ -78,6 +77,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Security and Privacy Baseline](completed/2026-06-26-cascadery-security-privacy.md)
 - [Share Links](completed/2026-06-26-share-links.md)
 - [Smooth Trackpad Zoom](completed/2026-06-29-smooth-trackpad-zoom.md)
+- [SDD Artifact Interchange](completed/2026-07-02-sdd-artifact-interchange.md)
 - [Snap Grid](completed/2026-06-26-snap-grid.md)
 - [Sprint Retro Context Kit](completed/2026-06-30-sprint-retro-context-kit.md)
 - [Theme Color Shortcuts](completed/2026-06-26-theme-color-shortcuts.md)

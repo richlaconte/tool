@@ -6,9 +6,13 @@ import {
 } from './areaComments.ts'
 import { searchAreas } from './areaSearch.ts'
 import {
+  AREA_KINDS,
+  AREA_STATUSES,
   removeAreaLinksForDeletedAreas,
+  type AreaKind,
   type AreaLink,
   type AreaMetadata,
+  type AreaStatus,
 } from './areaMetadata.ts'
 import { reparentArea } from './nestedAreas.ts'
 import type { PageAppState, PageState } from './pagePersistence'
@@ -90,6 +94,7 @@ export type AgentPatchOperation =
         height: number
         parentId?: string | null
         styles?: Record<string, string>
+        metadata?: AreaMetadata
       }
     }
   | {
@@ -182,6 +187,7 @@ export type DryRunAgentPatchResult = {
 type CssSupportChecker = (property: string, value: string) => boolean
 
 const MAX_AGENT_OPERATIONS = 25
+export const MAX_IMPORT_OPERATIONS = 200
 const MAX_AGENT_TEXT_LENGTH = 5000
 const MAX_AGENT_STYLES = 24
 const MAX_AGENT_STYLE_VALUE_LENGTH = 500
@@ -558,6 +564,13 @@ export const suggestImplementationMap = (
   )
 }
 
+export const createAgentOperationsPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  operations: AgentPatchOperation[],
+  options: AgentSuggestionOptions = {}
+): AgentPatch => createAgentPatch(state, client, operations, options)
+
 export const createAgentAreaPatch = (
   state: PageAppState,
   client: AgentClient,
@@ -683,9 +696,11 @@ export const dryRunAgentPatch = (
   {
     cssSupports = defaultCssSupports,
     mode = 'suggest',
+    maxOperations = MAX_AGENT_OPERATIONS,
   }: {
     cssSupports?: CssSupportChecker
     mode?: 'suggest' | 'apply'
+    maxOperations?: number
   } = {}
 ): DryRunAgentPatchResult => ({
   schemaVersion: 1,
@@ -696,6 +711,7 @@ export const dryRunAgentPatch = (
   validation: validateAgentPatch(state, patch, client, {
     cssSupports,
     mode,
+    maxOperations,
   }),
 })
 
@@ -811,9 +827,11 @@ export const validateAgentPatch = (
   {
     cssSupports = defaultCssSupports,
     mode = 'suggest',
+    maxOperations = MAX_AGENT_OPERATIONS,
   }: {
     cssSupports?: CssSupportChecker
     mode?: 'suggest' | 'apply'
+    maxOperations?: number
   } = {}
 ): AgentPatchValidationResult => {
   const errors: string[] = []
@@ -847,10 +865,10 @@ export const validateAgentPatch = (
     errors.push('Patch operations must be an array.')
   } else if (
     patch.operations.length === 0 ||
-    patch.operations.length > MAX_AGENT_OPERATIONS
+    patch.operations.length > maxOperations
   ) {
     errors.push(
-      `Patch must include 1-${MAX_AGENT_OPERATIONS} operations.`
+      `Patch must include 1-${maxOperations} operations.`
     )
   } else {
     patch.operations.forEach((operation, index) => {
@@ -882,15 +900,18 @@ export const applyAgentPatch = (
     createActionId = createAgentActionId,
     cssSupports = defaultCssSupports,
     now = new Date().toISOString(),
+    maxOperations = MAX_AGENT_OPERATIONS,
   }: {
     createActionId?: () => string
     cssSupports?: CssSupportChecker
     now?: string
+    maxOperations?: number
   } = {}
 ): ApplyAgentPatchResult => {
   const validation = validateAgentPatch(state, patch, client, {
     cssSupports,
     mode: 'apply',
+    maxOperations,
   })
 
   if (!validation.ok) return validation
@@ -1259,6 +1280,40 @@ const validateCreateAreaOperation = (
       allowRemoval: false,
     }
   )
+
+  if (operation.area.metadata !== undefined) {
+    validateAreaMetadata(operation.area.metadata, index, errors)
+  }
+}
+
+const validateAreaMetadata = (
+  metadata: unknown,
+  index: number,
+  errors: string[]
+) => {
+  if (!isRecord(metadata)) {
+    errors.push(`Operation ${index + 1} metadata must be an object.`)
+    return
+  }
+
+  if (!AREA_KINDS.includes(metadata.kind as AreaKind)) {
+    errors.push(`Operation ${index + 1} has an invalid Area kind.`)
+  }
+
+  if (
+    metadata.status !== undefined &&
+    !AREA_STATUSES.includes(metadata.status as AreaStatus)
+  ) {
+    errors.push(`Operation ${index + 1} has an invalid Area status.`)
+  }
+
+  if (
+    metadata.tags !== undefined &&
+    (!Array.isArray(metadata.tags) ||
+      metadata.tags.some((tag) => typeof tag !== 'string'))
+  ) {
+    errors.push(`Operation ${index + 1} has invalid Area tags.`)
+  }
 }
 
 const validateStyles = (
@@ -1358,6 +1413,9 @@ const applyAgentOperation = (
       styles: {
         ...(operation.area.styles ?? {}),
       },
+      ...(operation.area.metadata
+        ? { metadata: operation.area.metadata }
+        : {}),
       createdAt: now,
       updatedAt: now,
     }

@@ -154,6 +154,8 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'nest_area',
       'delete_area',
       'apply_patch',
+      'export_sdd',
+      'import_sdd',
     ]
   )
 })
@@ -819,3 +821,94 @@ const readJsonResourceWithContext = async (
 
   return JSON.parse(response.result.contents[0].text)
 }
+
+test('export_sdd compiles the page into an SDD bundle', async () => {
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'export-sdd',
+      method: 'tools/call',
+      params: {
+        name: 'export_sdd',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    context
+  )
+
+  assert.equal(response.error, undefined)
+  assert.equal(response.result.pageId, 'page-1')
+  assert.match(response.result.bundle.spec, /## Decisions/)
+  assert.match(response.result.bundle.combined, /# tasks\.md/)
+})
+
+test('import_sdd returns a reviewable proposal that is never applied', async () => {
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'import-sdd',
+      method: 'tools/call',
+      params: {
+        name: 'import_sdd',
+        arguments: {
+          pageId: 'page-1',
+          markdown: '## Decisions\n\n### Adopt SDD\n\n## Tasks\n\n- [ ] Build importer\n',
+        },
+      },
+    },
+    context
+  )
+
+  assert.equal(response.error, undefined)
+  assert.equal(response.result.dryRun, true)
+  assert.equal(response.result.applied, false)
+  assert.equal(response.result.applyAllowed, false)
+  assert.equal(response.result.createCount, 2)
+  assert.equal(response.result.validation.ok, true)
+  assert.equal(response.result.patch.operations.length, 2)
+})
+
+test('import_sdd reports warnings and no patch for empty markdown', async () => {
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'import-sdd-empty',
+      method: 'tools/call',
+      params: {
+        name: 'import_sdd',
+        arguments: { pageId: 'page-1', markdown: '   ' },
+      },
+    },
+    context
+  )
+
+  assert.equal(response.error, undefined)
+  assert.equal(response.result.patch, null)
+  assert.ok(
+    response.result.warnings.some((warning: string) =>
+      warning.includes('No importable')
+    )
+  )
+})
+
+test('export_sdd and import_sdd are recorded in the agent action audit trail', async () => {
+  const records: McpAgentActionRecord[] = []
+  const auditContext: McpGatewayContext = {
+    ...context,
+    recordAgentAction: async (record) => {
+      records.push(record)
+    },
+  }
+
+  await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'audit-export',
+      method: 'tools/call',
+      params: { name: 'export_sdd', arguments: { pageId: 'page-1' } },
+    },
+    auditContext
+  )
+
+  assert.ok(records.some((record) => record.toolName === 'export_sdd'))
+})

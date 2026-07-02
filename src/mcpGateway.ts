@@ -18,10 +18,13 @@ import {
   suggestImplementationMap,
   updateAgentAreaPatch,
   updateAgentAreaStylesPatch,
+  MAX_IMPORT_OPERATIONS,
   type AgentClient,
   type AgentPatch,
 } from './agentInterface.ts'
 import { createAgentHandoffBrief } from './agentHandoff.ts'
+import { compileSddBundle } from './sddExport.ts'
+import { buildSddImportPatch } from './sddImport.ts'
 import {
   exportPageAsJsonCanvas,
   exportPageAsMarkdown,
@@ -426,6 +429,37 @@ const toolDefinitions = [
       },
     },
   },
+  {
+    name: 'export_sdd',
+    description:
+      'Compile the page into spec.md, plan.md, and tasks.md Markdown for spec-driven development.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'import_sdd',
+    description:
+      'Turn spec/plan/tasks Markdown into a reviewable patch that lays it out as Areas. Never applies directly.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'markdown'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        markdown: {
+          type: 'string',
+        },
+      },
+    },
+  },
 ]
 
 export const handleMcpJsonRpcRequest = async (
@@ -748,6 +782,51 @@ const callTool = async (
     )
   }
 
+  if (params.name === 'export_sdd') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    return resultResponse(id, {
+      schemaVersion: 1,
+      pageId: state.page.id,
+      bundle: compileSddBundle(state),
+    })
+  }
+
+  if (params.name === 'import_sdd') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    const { patch, warnings, createCount, updateCount } =
+      buildSddImportPatch(
+        state,
+        MCP_AGENT_CLIENT,
+        typeof args.markdown === 'string' ? args.markdown : ''
+      )
+
+    if (!patch) {
+      return resultResponse(id, {
+        schemaVersion: 1,
+        dryRun: true,
+        applied: false,
+        applyAllowed: false,
+        patch: null,
+        warnings,
+        createCount,
+        updateCount,
+      })
+    }
+
+    return resultResponse(id, {
+      ...createDryRunPatchResult(state, patch, {
+        maxOperations: MAX_IMPORT_OPERATIONS,
+      }),
+      warnings,
+      createCount,
+      updateCount,
+    })
+  }
+
   return errorResponse(id, -32601, 'Tool not found.')
 }
 
@@ -1031,10 +1110,12 @@ const resourceResponse = (
 
 const createDryRunPatchResult = (
   state: PageAppState,
-  patch: AgentPatch
+  patch: AgentPatch,
+  { maxOperations }: { maxOperations?: number } = {}
 ) =>
   dryRunAgentPatch(state, patch, MCP_AGENT_CLIENT, {
     mode: 'suggest',
+    ...(maxOperations ? { maxOperations } : {}),
   })
 
 const getPageFromArgs = async (

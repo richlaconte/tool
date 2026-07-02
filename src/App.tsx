@@ -103,6 +103,7 @@ import {
   createAgentPatchForOperation,
   removeAgentPatchOperation,
   suggestDecisionLog,
+  MAX_IMPORT_OPERATIONS,
   type AgentActionRecord,
   type AgentClient,
   type AgentPatch,
@@ -191,6 +192,8 @@ import {
   stringifyExportedPageState,
   stringifyPageAsJsonCanvas,
 } from './pageExports'
+import { compileSddBundle } from './sddExport'
+import { buildSddImportPatch } from './sddImport'
 import {
   addPageHistoryEntry,
   applyRestorePageStatePatch,
@@ -427,6 +430,10 @@ const COMMAND_DIALOGS: Record<
   'agent-handoff': {
     title: 'Agent handoff brief',
     body: 'Copy or export a deterministic Markdown brief from this context canvas.',
+  },
+  'import-sdd': {
+    title: 'Import spec/plan Markdown',
+    body: 'Paste or upload spec/plan/tasks Markdown. Imported content is laid out below your current Areas as a reviewable proposal — export stays the canonical direction, so import is best-effort.',
   },
   share: {
     title: 'Share',
@@ -1185,6 +1192,13 @@ function App({
   const [importError, setImportError] = useState<string | null>(
     null
   )
+  const [sddImportText, setSddImportText] = useState('')
+  const [sddImportPreview, setSddImportPreview] = useState<{
+    createCount: number
+    updateCount: number
+    warnings: string[]
+    patch: AgentPatch | null
+  } | null>(null)
   const [agentProposal, setAgentProposal] =
     useState<AgentPatch | null>(null)
   const [agentProposalError, setAgentProposalError] = useState<
@@ -4605,6 +4619,86 @@ function App({
     }
   }
 
+  const exportSddBundle = () => {
+    const bundle = compileSddBundle(getCurrentPageAppState())
+    const slug = getPageExportSlug()
+
+    for (const [name, contents] of [
+      ['spec', bundle.spec],
+      ['plan', bundle.plan],
+      ['tasks', bundle.tasks],
+    ] as const) {
+      const blob = new Blob([contents], { type: MARKDOWN_MIME_TYPE })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+
+      link.href = url
+      link.download = `${slug}.${name}.md`
+      link.click()
+      URL.revokeObjectURL(url)
+    }
+  }
+
+  const copySddBundle = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        compileSddBundle(getCurrentPageAppState()).combined
+      )
+      setImportError(null)
+    } catch {
+      setImportError('SDD bundle could not be copied.')
+    }
+  }
+
+  const previewSddImport = (markdown: string) => {
+    const result = buildSddImportPatch(
+      getCurrentPageAppState(),
+      LOCAL_AGENT_CLIENT,
+      markdown
+    )
+
+    setSddImportPreview({
+      createCount: result.createCount,
+      updateCount: result.updateCount,
+      warnings: result.warnings,
+      patch: result.patch,
+    })
+  }
+
+  const applySddImport = () => {
+    if (isViewOnly || !sddImportPreview?.patch) return
+
+    const result = applyAgentPatch(
+      getCurrentPageAppState(),
+      sddImportPreview.patch,
+      LOCAL_AGENT_CLIENT,
+      {
+        cssSupports: supportsAgentCssDeclaration,
+        maxOperations: MAX_IMPORT_OPERATIONS,
+      }
+    )
+
+    if (!result.ok) {
+      setImportError(result.errors.join(' '))
+      return
+    }
+
+    setAreas(result.state.areas)
+    setAssets(result.state.assets)
+    setLinks(result.state.links ?? [])
+    setComments(result.state.comments ?? [])
+    setPage(result.state.page)
+    setPageHistory((currentHistory) =>
+      addPageHistoryEntry(
+        currentHistory,
+        createAgentHistoryEntry(result.auditRecord)
+      )
+    )
+    setSddImportText('')
+    setSddImportPreview(null)
+    setOpenDialogId(null)
+  }
+
   const insertContextKitById = (kitId: string) => {
     if (isViewOnly) return
 
@@ -5941,6 +6035,21 @@ function App({
               setOpenDialogId(option.id)
               return
             }
+            if (option.id === 'export-sdd-bundle') {
+              exportSddBundle()
+              return
+            }
+            if (option.id === 'copy-sdd-bundle') {
+              void copySddBundle()
+              return
+            }
+            if (option.id === 'import-sdd') {
+              setSddImportText('')
+              setSddImportPreview(null)
+              setImportError(null)
+              setOpenDialogId('import-sdd')
+              return
+            }
             if (option.id === 'undo') {
               collaborativeSync.undo()
               return
@@ -6913,6 +7022,62 @@ function App({
                     onClick={exportAgentHandoffBrief}
                   >
                     Export Markdown
+                  </button>
+                </div>
+              </div>
+            ) : openDialogId === 'import-sdd' ? (
+              <div className="sdd-import-dialog">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                <label className="sdd-import-file">
+                  <span>Upload a .md file</span>
+                  <input
+                    accept=".md,text/markdown,text/plain"
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.currentTarget.files?.[0]
+                      if (!file) return
+
+                      void file.text().then((contents) => {
+                        setSddImportText(contents)
+                        previewSddImport(contents)
+                      })
+                    }}
+                  />
+                </label>
+                <textarea
+                  aria-label="Spec or plan Markdown"
+                  className="sdd-import-textarea"
+                  placeholder="# Feature&#10;&#10;## Decisions&#10;&#10;### Use Postgres&#10;&#10;## Tasks&#10;&#10;- [ ] Wire the form"
+                  rows={10}
+                  value={sddImportText}
+                  onChange={(e) => {
+                    setSddImportText(e.currentTarget.value)
+                    previewSddImport(e.currentTarget.value)
+                  }}
+                />
+                {sddImportPreview && (
+                  <div className="sdd-import-preview">
+                    <strong>
+                      {sddImportPreview.createCount} new,{' '}
+                      {sddImportPreview.updateCount} updated
+                    </strong>
+                    {sddImportPreview.warnings.length > 0 && (
+                      <ul className="sdd-import-warnings">
+                        {sddImportPreview.warnings.map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+                <div className="agent-handoff-actions">
+                  <button
+                    className="agent-proposal-button"
+                    disabled={!sddImportPreview?.patch}
+                    type="button"
+                    onClick={applySddImport}
+                  >
+                    Add to canvas
                   </button>
                 </div>
               </div>

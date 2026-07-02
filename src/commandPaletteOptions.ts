@@ -87,6 +87,27 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'page',
   },
   {
+    id: 'export-sdd-bundle',
+    title: 'Export SDD bundle',
+    description: 'Download spec.md, plan.md, and tasks.md',
+    aliases: ['sdd', 'spec', 'plan', 'tasks', 'spec kit', 'spec-driven'],
+    scope: 'page',
+  },
+  {
+    id: 'copy-sdd-bundle',
+    title: 'Copy SDD bundle',
+    description: 'Copy the combined spec/plan/tasks Markdown',
+    aliases: ['sdd', 'copy spec', 'copy plan', 'copy tasks'],
+    scope: 'page',
+  },
+  {
+    id: 'import-sdd',
+    title: 'Import spec/plan Markdown…',
+    description: 'Lay out spec/plan/tasks Markdown as reviewable Areas',
+    aliases: ['sdd', 'import spec', 'import plan', 'import tasks', 'paste spec'],
+    scope: 'page',
+  },
+  {
     id: 'set-area-type',
     title: 'Set Area type',
     description: 'Choose metadata for the selected Area',

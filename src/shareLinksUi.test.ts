@@ -75,7 +75,7 @@ test('view-only presentation hides editor chrome and exposes create-own action',
   )
   assert.match(
     appSource,
-    /\{shouldShowEditorChrome && commandPaletteQuery !== null && \(/
+    /\{shouldShowCommandPalette && \(/
   )
   assert.match(
     appSource,

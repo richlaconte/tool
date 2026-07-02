@@ -8,6 +8,7 @@ import {
   getAnchorPreservingScroll,
   getContinuousCanvasZoom,
   getNextCanvasZoom,
+  getZoomToArea,
   getZoomToFit,
   screenToCanvasPoint,
 } from './canvasViewport.ts'
@@ -117,5 +118,32 @@ test('computes zoom-to-fit for empty and populated canvases', () => {
 
   assert.equal(Math.round(result.zoom * 1000), 1143)
   assert.equal(Math.round(result.scrollLeft), 14)
+  assert.equal(Math.round(result.scrollTop), 0)
+})
+
+test('computes zoom-to-area while centering and capping zoom-in at 100%', () => {
+  assert.deepEqual(
+    getZoomToArea(
+      { x: 1000, y: 700, width: 200, height: 100 },
+      { width: 800, height: 600 },
+      80
+    ),
+    {
+      zoom: 1,
+      scrollLeft: 700,
+      scrollTop: 450,
+    }
+  )
+})
+
+test('computes zoom-to-area with zoom-out for large areas', () => {
+  const result = getZoomToArea(
+    { x: 100, y: 200, width: 1600, height: 1200 },
+    { width: 800, height: 600 },
+    80
+  )
+
+  assert.equal(Math.round(result.zoom * 1000), 367)
+  assert.equal(Math.round(result.scrollLeft), 0)
   assert.equal(Math.round(result.scrollTop), 0)
 })

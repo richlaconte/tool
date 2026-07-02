@@ -16,7 +16,6 @@ the suggested build order within and across tiers.
 
 ### Tier 1 — Canvas Table Stakes
 
-- [Page Search and Navigation](2026-07-02-page-search-navigation.md)
 - [Undo/Redo Consolidation](2026-07-02-undo-redo-consolidation.md)
 
 ### Tier 2 — Spec-Driven Development and the Agent Round-Trip
@@ -74,6 +73,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)
 - [Offscreen Area Indicators](completed/2026-06-30-offscreen-area-indicators.md)
+- [Page Search and Navigation](completed/2026-07-02-page-search-navigation.md)
 - [Page JSON Persistence](completed/2026-06-26-page-json-persistence.md)
 - [Security and Privacy Baseline](completed/2026-06-26-cascadery-security-privacy.md)
 - [Share Links](completed/2026-06-26-share-links.md)

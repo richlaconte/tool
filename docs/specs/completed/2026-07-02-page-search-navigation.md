@@ -2,7 +2,7 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.4). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.4). Completed.
 
 ## Goal
 

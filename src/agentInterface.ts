@@ -4,6 +4,7 @@ import {
   getUnresolvedCount,
   type AreaComment,
 } from './areaComments.ts'
+import { searchAreas } from './areaSearch.ts'
 import {
   removeAreaLinksForDeletedAreas,
   type AreaLink,
@@ -277,18 +278,18 @@ export const searchAgentAreas = (
   query: string,
   client: AgentClient
 ) => {
-  const normalizedQuery = query.trim().toLowerCase()
+  const searchResults = hasScope(client, 'page:search')
+    ? searchAreas(state.areas, query)
+    : []
+  const areaById = new Map(state.areas.map((area) => [area.id, area]))
 
   return {
     schemaVersion: 1 as const,
-    areas:
-      normalizedQuery && hasScope(client, 'page:search')
-        ? state.areas
-            .filter((area) =>
-              getAreaSearchText(area).includes(normalizedQuery)
-            )
-            .map((area) => toAgentAreaResource(area, state.comments))
-        : [],
+    areas: searchResults.flatMap((result) => {
+      const area = areaById.get(result.areaId)
+
+      return area ? [toAgentAreaResource(area, state.comments)] : []
+    }),
   }
 }
 
@@ -1509,14 +1510,6 @@ const toAgentAreaResource = (
     createdAt: area.createdAt,
     updatedAt: area.updatedAt,
   }
-}
-
-const getAreaSearchText = (area: AreaState) => {
-  if (area.type === 'image') {
-    return `${area.id} ${area.alt}`.toLowerCase()
-  }
-
-  return `${area.id} ${area.text}`.toLowerCase()
 }
 
 const extractStructuredTextItems = (areas: AreaState[]) =>

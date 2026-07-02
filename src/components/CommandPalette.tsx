@@ -14,6 +14,10 @@ export type CommandPaletteOption = {
   description: string
   aliases?: string[]
   scope?: CommandPaletteScope
+  kind?: 'command' | 'area-search-result'
+  matchField?: string
+  status?: string
+  areaId?: string
 }
 
 type CommandPaletteProps = {
@@ -22,6 +26,9 @@ type CommandPaletteProps = {
   onQueryChange: (query: string) => void
   onOpenOption: (option: CommandPaletteOption) => void
   onClose: () => void
+  onEscape?: () => boolean | void
+  placeholder?: string
+  shouldFilterOptions?: boolean
 }
 
 const CommandPalette = ({
@@ -30,14 +37,20 @@ const CommandPalette = ({
   onQueryChange,
   onOpenOption,
   onClose,
+  onEscape,
+  placeholder = 'Search commands',
+  shouldFilterOptions = true,
 }: CommandPaletteProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null)
   const previousActiveElementRef = useRef<HTMLElement | null>(null)
   const selectedOptionRefs = useRef(new Map<string, HTMLButtonElement>())
   const listId = 'command-palette-list'
   const filteredOptions = useMemo(
-    () => getFilteredCommandOptions(options, query),
-    [options, query]
+    () =>
+      shouldFilterOptions
+        ? getFilteredCommandOptions(options, query)
+        : options,
+    [options, query, shouldFilterOptions]
   )
   const [selectedIndex, setSelectedIndex] = useState(() => {
     const exactOption = findExactCommandOption(
@@ -47,7 +60,11 @@ const CommandPalette = ({
 
     return exactOption ? filteredOptions.indexOf(exactOption) : 0
   })
-  const selectedOption = filteredOptions[selectedIndex]
+  const visibleSelectedIndex = Math.min(
+    selectedIndex,
+    Math.max(0, filteredOptions.length - 1)
+  )
+  const selectedOption = filteredOptions[visibleSelectedIndex]
   const selectedOptionId = selectedOption
     ? `command-palette-option-${selectedOption.id}`
     : undefined
@@ -64,14 +81,14 @@ const CommandPalette = ({
   }, [])
 
   useEffect(() => {
-    const selectedOption = filteredOptions[selectedIndex]
+    const selectedOption = filteredOptions[visibleSelectedIndex]
 
     if (!selectedOption) return
 
     selectedOptionRefs.current
       .get(selectedOption.id)
       ?.scrollIntoView({ block: 'nearest' })
-  }, [filteredOptions, selectedIndex])
+  }, [filteredOptions, visibleSelectedIndex])
 
   const closeAndRestoreFocus = () => {
     const previousActiveElement = previousActiveElementRef.current
@@ -86,7 +103,7 @@ const CommandPalette = ({
   }
 
   const openSelectedOption = () => {
-    const selectedOption = filteredOptions[selectedIndex]
+    const selectedOption = filteredOptions[visibleSelectedIndex]
 
     if (!selectedOption) {
       closeAndRestoreFocus()
@@ -118,10 +135,9 @@ const CommandPalette = ({
           value={query}
           onChange={(e) => {
             const nextQuery = e.currentTarget.value
-            const nextFilteredOptions = getFilteredCommandOptions(
-              options,
-              nextQuery
-            )
+            const nextFilteredOptions = shouldFilterOptions
+              ? getFilteredCommandOptions(options, nextQuery)
+              : options
             const exactOption = findExactCommandOption(
               nextFilteredOptions,
               nextQuery
@@ -137,6 +153,8 @@ const CommandPalette = ({
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.preventDefault()
+              if (onEscape?.()) return
+
               closeAndRestoreFocus()
             } else if (e.key === 'Enter') {
               e.preventDefault()
@@ -145,7 +163,10 @@ const CommandPalette = ({
               e.preventDefault()
               setSelectedIndex((currentIndex) =>
                 getNextCommandOptionIndex(
-                  currentIndex,
+                  Math.min(
+                    currentIndex,
+                    Math.max(0, filteredOptions.length - 1)
+                  ),
                   1,
                   filteredOptions.length
                 )
@@ -154,14 +175,17 @@ const CommandPalette = ({
               e.preventDefault()
               setSelectedIndex((currentIndex) =>
                 getNextCommandOptionIndex(
-                  currentIndex,
+                  Math.min(
+                    currentIndex,
+                    Math.max(0, filteredOptions.length - 1)
+                  ),
                   -1,
                   filteredOptions.length
                 )
               )
             }
           }}
-          placeholder="Search commands"
+          placeholder={placeholder}
         />
 
         <div
@@ -181,11 +205,11 @@ const CommandPalette = ({
                   }
                 }}
                 className={`command-palette-option${
-                  optionIndex === selectedIndex
+                  optionIndex === visibleSelectedIndex
                     ? ' command-palette-option--selected'
                     : ''
                 }`}
-                aria-selected={optionIndex === selectedIndex}
+                aria-selected={optionIndex === visibleSelectedIndex}
                 id={`command-palette-option-${option.id}`}
                 key={option.id}
                 onClick={() => onOpenOption(option)}
@@ -193,7 +217,19 @@ const CommandPalette = ({
                 type="button"
               >
                 <span>{option.title}</span>
-                <small>{option.description}</small>
+                <small>
+                  {option.matchField && (
+                    <span className="command-palette-result-badge">
+                      {option.matchField}
+                    </span>
+                  )}
+                  {option.status && (
+                    <span className="command-palette-result-status">
+                      {option.status}
+                    </span>
+                  )}
+                  {option.description}
+                </small>
               </button>
             ))
           ) : (

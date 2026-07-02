@@ -52,6 +52,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'search-areas',
+    title: 'Search Areas...',
+    description: 'Find and jump to matching Areas on this page',
+    aliases: ['find', 'jump', 'navigate', 'search page'],
+    scope: 'page',
+  },
+  {
     id: 'insert-context-kit',
     title: 'Insert context kit',
     description: 'Start from a developer workflow kit',
@@ -222,7 +229,7 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
   },
   {
     id: 'zoom-to-fit',
-    title: 'Zoom to fit',
+    title: 'Zoom to fit page',
     description: 'Fit all Areas in view',
     aliases: ['fit page', 'fit canvas', 'show all'],
     scope: 'page',

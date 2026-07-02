@@ -172,6 +172,36 @@ export const getZoomToFit = (
   }
 }
 
+export const getZoomToArea = (
+  area: CanvasBoundsItem,
+  viewport: CanvasViewportSize,
+  padding = 80
+) => {
+  const availableWidth = Math.max(1, viewport.width - padding * 2)
+  const availableHeight = Math.max(1, viewport.height - padding * 2)
+  const zoom = clampCanvasZoom(
+    Math.min(
+      1,
+      availableWidth / Math.max(1, area.width),
+      availableHeight / Math.max(1, area.height)
+    )
+  )
+  const areaCenterX = area.x + area.width / 2
+  const areaCenterY = area.y + area.height / 2
+
+  return {
+    zoom,
+    scrollLeft: Math.max(
+      0,
+      areaCenterX * zoom - viewport.width / 2
+    ),
+    scrollTop: Math.max(
+      0,
+      areaCenterY * zoom - viewport.height / 2
+    ),
+  }
+}
+
 export const getCanvasWorldSize = (
   items: CanvasBoundsItem[],
   viewport: CanvasViewportSize,

@@ -74,6 +74,50 @@ test('system command shortcuts open an empty command palette', () => {
   )
 })
 
+test('system find shortcut opens Area search outside text editing', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'f',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'open-search-palette'
+  )
+
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'f',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: true,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'ignore'
+  )
+})
+
+test('read-only mode still allows Area search shortcut', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'f',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      isReadOnly: true,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'open-search-palette'
+  )
+})
+
 test('read-only mode ignores command palette opening shortcuts', () => {
   const baseState = {
     hasSelectedArea: false,

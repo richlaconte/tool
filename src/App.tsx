@@ -90,6 +90,7 @@ import {
   getCanvasWorldSize,
   getContinuousCanvasZoom,
   getNextCanvasZoom,
+  getZoomToArea,
   getZoomToFit,
   screenToCanvasPoint,
 } from './canvasViewport'
@@ -209,6 +210,7 @@ import {
   getActiveSnapGridSize,
   moveAreaWithSnapGrid,
 } from './snapGrid'
+import { searchAreas } from './areaSearch'
 import {
   buildShareUrl,
   createShareLinks,
@@ -450,6 +452,19 @@ const ZOOM_COMMAND_OPTION_IDS = new Set([
 
 const isZoomCommandOption = (option: { id: string }) =>
   ZOOM_COMMAND_OPTION_IDS.has(option.id)
+
+const getAreaSearchTitle = (area: AreaState) => {
+  if (area.type === 'image') {
+    return area.alt.trim() || 'Image Area'
+  }
+
+  return (
+    area.text
+      .split('\n')
+      .map((line) => line.trim())
+      .find(Boolean) || 'Untitled Area'
+  )
+}
 
 const ALIGN_COMMAND_EDGES = {
   'align-left': 'left',
@@ -1560,6 +1575,7 @@ function App({
         width: canvas.clientWidth,
       })
 
+      canvasZoomRef.current = result.zoom
       setCanvasZoom(result.zoom)
 
       requestAnimationFrame(() => {
@@ -1581,23 +1597,95 @@ function App({
   }, [areas, zoomCanvasToItems])
 
   const zoomCanvasToSelection = useCallback(() => {
-    const selectedArea = selectedAreaId
-      ? areas.find((area) => area.id === selectedAreaId)
-      : null
+    const selectedAreas = selectedAreaIds.flatMap((areaId) => {
+      const area = areas.find((candidate) => candidate.id === areaId)
 
-    if (!selectedArea) {
+      return area ? [area] : []
+    })
+
+    if (selectedAreas.length === 0) {
       zoomCanvasToFit()
       return
     }
 
-    zoomCanvasToItems([
-      {
-        ...getAreaAbsolutePosition(areas, selectedArea.id),
-        height: selectedArea.height,
-        width: selectedArea.width,
-      },
-    ])
-  }, [areas, selectedAreaId, zoomCanvasToFit, zoomCanvasToItems])
+    zoomCanvasToItems(
+      selectedAreas.map((area) => ({
+        ...getAreaAbsolutePosition(areas, area.id),
+        height: area.height,
+        width: area.width,
+      }))
+    )
+  }, [areas, selectedAreaIds, zoomCanvasToFit, zoomCanvasToItems])
+
+  const jumpToArea = useCallback(
+    (areaId: string) => {
+      const area = areas.find((candidate) => candidate.id === areaId)
+      const canvas = canvasRef.current
+
+      if (!area) return
+
+      setSelectedAreaId(area.id)
+      setSelectedLinkId(null)
+      setLinkFlyoutLinkId(null)
+      setStyleDialogAreaId(null)
+      setCommentPanelAreaId(null)
+
+      if (!canvas) return
+
+      const result = getZoomToArea(
+        {
+          ...getAreaAbsolutePosition(areas, area.id),
+          height: area.height,
+          width: area.width,
+        },
+        {
+          height: canvas.clientHeight,
+          width: canvas.clientWidth,
+        }
+      )
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+      if (prefersReducedMotion) {
+        canvasZoomRef.current = result.zoom
+        setCanvasZoom(result.zoom)
+
+        requestAnimationFrame(() => {
+          canvas.scrollLeft = result.scrollLeft
+          canvas.scrollTop = result.scrollTop
+        })
+        return
+      }
+
+      const startZoom = canvasZoomRef.current
+      const startScrollLeft = canvas.scrollLeft
+      const startScrollTop = canvas.scrollTop
+      const startTime = performance.now()
+      const duration = 180
+
+      const animate = (timestamp: number) => {
+        const progress = Math.min(1, (timestamp - startTime) / duration)
+        const easedProgress = 1 - (1 - progress) ** 3
+        const nextZoom =
+          startZoom + (result.zoom - startZoom) * easedProgress
+
+        canvasZoomRef.current = nextZoom
+        setCanvasZoom(nextZoom)
+        canvas.scrollLeft =
+          startScrollLeft +
+          (result.scrollLeft - startScrollLeft) * easedProgress
+        canvas.scrollTop =
+          startScrollTop +
+          (result.scrollTop - startScrollTop) * easedProgress
+
+        if (progress < 1) requestAnimationFrame(animate)
+      }
+
+      requestAnimationFrame(animate)
+    },
+    [areas, setSelectedAreaId]
+  )
 
   const panToOffscreenIndicator = useCallback(
     (indicator: OffscreenIndicator) => {
@@ -2513,6 +2601,11 @@ function App({
 
       if (keyboardAction === 'close-command-palette') {
         setCommandPaletteQuery(null)
+        return
+      }
+
+      if (keyboardAction === 'open-search-palette') {
+        setCommandPaletteQuery('?')
         return
       }
 
@@ -4749,24 +4842,52 @@ function App({
     shouldShowEditorChrome &&
     page.settings.theme.colors.length > 0 &&
     (openDialogId === 'page-styles' || selectedAreaId !== null)
+  const isCommandPaletteSearchMode =
+    commandPaletteQuery?.startsWith('?') ?? false
+  const areaSearchQuery = isCommandPaletteSearchMode
+    ? commandPaletteQuery.slice(1).trim()
+    : ''
+  const areaById = new Map(areas.map((area) => [area.id, area]))
+  const areaSearchOptions = isCommandPaletteSearchMode
+    ? searchAreas(areas, areaSearchQuery).map((result) => {
+        const area = areaById.get(result.areaId)
+        const metadata = area ? getAreaMetadata(area) : null
+
+        return {
+          id: `area-search-${result.areaId}`,
+          title: area ? getAreaSearchTitle(area) : result.areaId,
+          description: result.excerpt,
+          aliases: [],
+          kind: 'area-search-result' as const,
+          matchField: result.matchField,
+          status: metadata?.status,
+          areaId: result.areaId,
+        }
+      })
+    : []
   const baseCommandPaletteOptions = shouldShowEmptyState
     ? COMMAND_PALETTE_OPTIONS.filter(
         (option) => !isZoomCommandOption(option)
       )
     : COMMAND_PALETTE_OPTIONS
-  const commandPaletteOptions = shouldShowEditorChrome
-    ? baseCommandPaletteOptions.filter((option) => {
-        if (isAlignCommandOption(option)) {
-          return selectedAreaIds.length >= 2
-        }
+  const commandPaletteOptions = isCommandPaletteSearchMode
+    ? areaSearchOptions
+    : shouldShowEditorChrome
+      ? baseCommandPaletteOptions.filter((option) => {
+          if (isAlignCommandOption(option)) {
+            return selectedAreaIds.length >= 2
+          }
 
-        if (isDistributeCommandOption(option)) {
-          return selectedAreaIds.length >= 3
-        }
+          if (isDistributeCommandOption(option)) {
+            return selectedAreaIds.length >= 3
+          }
 
-        return true
-      })
-    : []
+          return true
+        })
+      : []
+  const shouldShowCommandPalette =
+    commandPaletteQuery !== null &&
+    (shouldShowEditorChrome || isCommandPaletteSearchMode)
   const shouldShowOffscreenAreaIndicators =
     !shouldShowEmptyState &&
     areas.length > 0 &&
@@ -5715,13 +5836,26 @@ function App({
         </div>
       )}
 
-      {shouldShowEditorChrome && commandPaletteQuery !== null && (
+      {shouldShowCommandPalette && (
         <CommandPalette
           query={commandPaletteQuery}
           options={commandPaletteOptions}
           onQueryChange={setCommandPaletteQuery}
           onOpenOption={(option) => {
+            if (option.id === 'search-areas') {
+              setCommandPaletteQuery('?')
+              return
+            }
+
             setCommandPaletteQuery(null)
+            if (
+              option.kind === 'area-search-result' &&
+              option.areaId
+            ) {
+              jumpToArea(option.areaId)
+              return
+            }
+
             if (option.id === 'share') {
               void ensureShareLinks()
               setOpenDialogId(option.id)
@@ -5884,7 +6018,24 @@ function App({
             }
             setOpenDialogId(option.id)
           }}
+          onEscape={() => {
+            if (
+              isCommandPaletteSearchMode &&
+              shouldShowEditorChrome
+            ) {
+              setCommandPaletteQuery('')
+              return true
+            }
+
+            return false
+          }}
           onClose={() => setCommandPaletteQuery(null)}
+          placeholder={
+            isCommandPaletteSearchMode
+              ? '? Search Areas'
+              : 'Search commands'
+          }
+          shouldFilterOptions={!isCommandPaletteSearchMode}
         />
       )}
 

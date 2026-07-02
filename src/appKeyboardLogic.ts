@@ -3,6 +3,7 @@ export type AppKeyboardAction =
   | 'select-all-areas'
   | 'open-command-palette'
   | 'open-empty-command-palette'
+  | 'open-search-palette'
   | 'close-command-palette'
   | 'ignore'
 
@@ -39,15 +40,24 @@ export const getAppKeyboardAction = (
     return 'ignore'
   }
 
-  if (state.isReadOnly) {
-    return 'ignore'
-  }
-
   const normalizedKey = state.key.toLowerCase()
   const hasMetaOrCtrlModifier =
     state.hasMetaOrCtrlModifier ?? false
   const hasAltModifier = state.hasAltModifier ?? false
   const hasShiftModifier = state.hasShiftModifier ?? false
+
+  if (
+    hasMetaOrCtrlModifier &&
+    !hasAltModifier &&
+    !hasShiftModifier &&
+    normalizedKey === 'f'
+  ) {
+    return state.isEditableTarget ? 'ignore' : 'open-search-palette'
+  }
+
+  if (state.isReadOnly) {
+    return 'ignore'
+  }
 
   if (
     hasMetaOrCtrlModifier &&

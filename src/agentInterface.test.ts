@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import type { PageAppState } from './pagePersistence.ts'
+import { searchAreas } from './areaSearch.ts'
 import { createDefaultPageState } from './pagePersistence.ts'
 import {
   applyAgentPatch,
@@ -182,6 +183,36 @@ test('agent search returns matching areas as structured JSON', () => {
   assert.equal(result.areas.length, 1)
   assert.equal(result.areas[0].id, 'area-2')
   assert.equal(result.areas[0].text, state.areas[1].text)
+})
+
+test('agent search uses the shared Area search ranking', () => {
+  const searchState = {
+    ...state,
+    areas: [
+      ...state.areas,
+      {
+        id: 'area-3',
+        parentId: null,
+        x: 40,
+        y: 40,
+        width: 260,
+        height: 80,
+        text: 'Remote MCP\nImplementation note.',
+        styles: {},
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  } satisfies PageAppState
+
+  assert.deepEqual(
+    searchAgentAreas(searchState, 'remote MCP', readClient).areas.map(
+      (area) => area.id
+    ),
+    searchAreas(searchState.areas, 'remote MCP').map(
+      (result) => result.areaId
+    )
+  )
 })
 
 test('agent read tools can retrieve one area by id', () => {

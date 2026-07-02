@@ -118,6 +118,18 @@ test('remote sync preserves pending local area movement while applying other rem
     {
       areas: [staleLocalArea, remotelyMovedArea],
       assets: [],
+      comments: [
+        {
+          id: 'comment-1',
+          areaId: 'remote',
+          authorName: 'Riley Reviewer',
+          authorColor: '#2563eb',
+          text: 'Remote note',
+          createdAt: now,
+          resolvedAt: null,
+          resolvedBy: null,
+        },
+      ],
       page,
     },
     {
@@ -141,6 +153,7 @@ test('remote sync preserves pending local area movement while applying other rem
     merged.areas.find((area) => area.id === 'remote')?.x,
     320
   )
+  assert.equal(merged.comments?.[0]?.text, 'Remote note')
 })
 
 test('remote sync stops preserving local movement after the remote document catches up', () => {

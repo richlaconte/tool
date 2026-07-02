@@ -146,6 +146,16 @@ const areaLink = {
   createdAt: now,
   updatedAt: now,
 }
+const areaComment = {
+  id: 'comment-1',
+  areaId: 'area-1',
+  authorName: 'Riley Reviewer',
+  authorColor: '#2563eb',
+  text: 'This needs another pass.',
+  createdAt: now,
+  resolvedAt: null,
+  resolvedBy: null,
+}
 
 test('serializes page state into schema version 1 JSON', () => {
   const page = createDefaultPageState({
@@ -439,6 +449,29 @@ test('serializes and parses area metadata and links', () => {
     areaMetadata
   )
   assert.deepEqual(result.ok ? result.state.links : [], [areaLink])
+})
+
+test('serializes and parses area comments', () => {
+  const page = createDefaultPageState({
+    id: 'page-1',
+    now,
+  })
+  const snapshot = serializePageState(
+    {
+      areas,
+      assets: [],
+      comments: [areaComment],
+      page,
+    },
+    now
+  )
+  const result = parsePageJson(JSON.stringify(snapshot))
+
+  assert.deepEqual(snapshot.comments, [areaComment])
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.ok ? result.state.comments : [], [
+    areaComment,
+  ])
 })
 
 test('restores legacy links with connector visual defaults', () => {

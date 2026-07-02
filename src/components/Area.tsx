@@ -55,6 +55,7 @@ type AreaProps = {
   isReadOnly: boolean
   nestingDepth: number
   canvasZoom: number
+  unresolvedCommentCount: number
   onSelect: (id: string, toggleSelection?: boolean) => void
   onTextChange: (id: string, text: string) => void
   onMoveStart: (id: string) => void
@@ -78,6 +79,7 @@ type AreaProps = {
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
   onOpenStyles: (id: string) => void
+  onOpenComments: (id: string) => void
   onOpenLinkDialog: (id: string) => void
   onResize: (
     id: string,
@@ -121,6 +123,7 @@ const Area = ({
   isReadOnly,
   nestingDepth,
   canvasZoom,
+  unresolvedCommentCount,
   onSelect,
   onTextChange,
   onMoveStart,
@@ -133,6 +136,7 @@ const Area = ({
   onDuplicate,
   onDelete,
   onOpenStyles,
+  onOpenComments,
   onOpenLinkDialog,
   onResize,
   onCommitCssCommand,
@@ -670,6 +674,21 @@ const Area = ({
             onRemoveEvidence={onRemoveEvidence}
           />
         )}
+        {!isReadOnly && unresolvedCommentCount > 0 && (
+          <button
+            aria-label={`${unresolvedCommentCount} unresolved comments`}
+            className="area-comment-badge"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onOpenComments(area.id)
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {unresolvedCommentCount}
+          </button>
+        )}
         {!isReadOnly && (
           <>
             <div className="area-toolbar-bridge" aria-hidden="true" />
@@ -747,6 +766,21 @@ const Area = ({
                 }}
               >
                 <StyleSlidersIcon />
+              </button>
+              <button
+                aria-label="Open Area comments"
+                className="area-action-button area-action-button--priority-low"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onOpenComments(area.id)
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                }}
+              >
+                <CommentIcon />
               </button>
               <button
                 aria-label="Connect area"
@@ -1056,6 +1090,24 @@ const LinkIcon = () => (
     <path d="M6.7 5.3 5.4 4A2.4 2.4 0 0 0 2 7.4l1.3 1.3" />
     <path d="M9.3 10.7 10.6 12A2.4 2.4 0 0 0 14 8.6l-1.3-1.3" />
     <path d="M5.8 10.2 10.2 5.8" />
+  </svg>
+)
+
+const CommentIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="area-control-icon area-control-icon--stroke"
+    fill="none"
+    focusable="false"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="1.7"
+    viewBox="0 0 16 16"
+  >
+    <path d="M4.2 3.5h7.6a2 2 0 0 1 2 2v3.8a2 2 0 0 1-2 2H8.4L5 13.5v-2.2h-.8a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2z" />
+    <path d="M5.2 6.4h5.6" />
+    <path d="M5.2 8.4h3.8" />
   </svg>
 )
 

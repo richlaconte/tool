@@ -111,6 +111,28 @@ const state: PageAppState = {
       updatedAt: now,
     },
   ],
+  comments: [
+    {
+      id: 'comment-1',
+      areaId: 'area-1',
+      authorName: 'Riley Reviewer',
+      authorColor: '#2563eb',
+      text: 'Needs one more validation pass.',
+      createdAt: now,
+      resolvedAt: null,
+      resolvedBy: null,
+    },
+    {
+      id: 'comment-2',
+      areaId: 'area-1',
+      authorName: 'Casey Reviewer',
+      authorColor: '#16a34a',
+      text: 'Resolved with the patch flow.',
+      createdAt: '2026-06-26T12:05:00.000Z',
+      resolvedAt: '2026-06-26T12:10:00.000Z',
+      resolvedBy: 'Riley Reviewer',
+    },
+  ],
 }
 
 const cssSupports = (property: string, value: string) =>
@@ -147,6 +169,7 @@ test('agent read tools list and retrieve pages without leaking secrets', () => {
   ])
   assert.equal(pageResource.page.id, 'page-1')
   assert.equal(pageResource.areas[0].text, state.areas[0].text)
+  assert.equal(pageResource.areas[0].unresolvedCommentCount, 1)
   assert.equal(pageResource.assets[0].storageKey, undefined)
   assert.doesNotMatch(serialized, /secret-edit-token/)
   assert.doesNotMatch(serialized, /secret-view-token/)
@@ -168,6 +191,7 @@ test('agent read tools can retrieve one area by id', () => {
   assert.equal(result.area?.id, 'area-1')
   assert.equal(result.area?.type, 'text')
   assert.equal(result.area?.text, state.areas[0].text)
+  assert.deepEqual(result.area?.comments, state.comments)
   assert.equal(missing.area, null)
 })
 

@@ -1,4 +1,5 @@
 import type { AreaState, AssetState } from './App'
+import type { AreaComment } from './areaComments.ts'
 import {
   isAreaKind,
   isAreaEvidenceKind,
@@ -84,6 +85,7 @@ export type PageJsonSnapshot = {
   areas: Array<PersistedTextArea | PersistedImageArea>
   assets: AssetState[]
   links?: AreaLink[]
+  comments?: AreaComment[]
 }
 
 export type PageAppState = {
@@ -91,6 +93,7 @@ export type PageAppState = {
   areas: AreaState[]
   assets: AssetState[]
   links?: AreaLink[]
+  comments?: AreaComment[]
 }
 
 export type ParsePageJsonResult =
@@ -149,6 +152,7 @@ export const serializePageState = (
   now = new Date().toISOString()
 ): PageJsonSnapshot => {
   const links = (state.links ?? []).map(cloneAreaLink)
+  const comments = (state.comments ?? []).map(cloneAreaComment)
 
   return {
     schemaVersion: PAGE_SCHEMA_VERSION,
@@ -223,6 +227,7 @@ export const serializePageState = (
       ...asset,
     })),
     ...(links.length > 0 ? { links } : {}),
+    ...(comments.length > 0 ? { comments } : {}),
   }
 }
 
@@ -263,8 +268,9 @@ export const parsePageJson = (
   const areas = parseAreas(value.areas)
   const assets = parseAssets(value.assets)
   const links = parseAreaLinks(value.links)
+  const comments = parseAreaComments(value.comments)
 
-  if (!page || !areas || !assets || !links) {
+  if (!page || !areas || !assets || !links || !comments) {
     return {
       ok: false,
       error: 'Import is missing required page data.',
@@ -278,6 +284,7 @@ export const parsePageJson = (
       areas,
       assets,
       links,
+      ...(comments.length > 0 ? { comments } : {}),
     },
   }
 }
@@ -615,6 +622,35 @@ const parseAreaLinks = (value: unknown): AreaLink[] | null => {
   return links
 }
 
+const parseAreaComments = (value: unknown): AreaComment[] | null => {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return null
+
+  const comments: AreaComment[] = []
+
+  for (const comment of value) {
+    if (
+      !isRecord(comment) ||
+      typeof comment.id !== 'string' ||
+      typeof comment.areaId !== 'string' ||
+      typeof comment.authorName !== 'string' ||
+      typeof comment.authorColor !== 'string' ||
+      typeof comment.text !== 'string' ||
+      typeof comment.createdAt !== 'string' ||
+      (comment.resolvedAt !== null &&
+        typeof comment.resolvedAt !== 'string') ||
+      (comment.resolvedBy !== null &&
+        typeof comment.resolvedBy !== 'string')
+    ) {
+      return null
+    }
+
+    comments.push(cloneAreaComment(comment))
+  }
+
+  return comments
+}
+
 const parseAssets = (value: unknown): AssetState[] | null => {
   if (!Array.isArray(value)) return null
 
@@ -728,6 +764,17 @@ const isValidParentId = (value: unknown) =>
 
 const cloneAreaLink = (link: AreaLink): AreaLink => ({
   ...normalizeAreaLink(link),
+})
+
+const cloneAreaComment = (comment: AreaComment): AreaComment => ({
+  id: comment.id,
+  areaId: comment.areaId,
+  authorName: comment.authorName,
+  authorColor: comment.authorColor,
+  text: comment.text,
+  createdAt: comment.createdAt,
+  resolvedAt: comment.resolvedAt,
+  resolvedBy: comment.resolvedBy,
 })
 
 const isRecord = (

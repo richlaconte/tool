@@ -2,7 +2,10 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.3). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.3).
+Completed on 2026-07-02. The MVP supports per-Area comment threads,
+unresolved badges, toolbar and command-palette entry points, JSON/Yjs
+persistence, optional Markdown export, and MCP/agent read payloads.
 
 ## Goal
 

@@ -6,12 +6,16 @@ import * as Y from 'yjs'
 import {
   applyCollaborativePageStatePatch,
   applyCollaborativeAreaText,
+  addCollaborativeComment,
   createCollaborativePageDoc,
+  deleteCollaborativeComment,
   deleteCollaborativeArea,
   getCollaborativeAreaText,
   getPageStateFromCollaborativeDoc,
   isCollaborativePageDocEmpty,
+  reopenCollaborativeComment,
   replaceCollaborativePageDocState,
+  resolveCollaborativeComment,
   updateCollaborativeArea,
   updateCollaborativeAreas,
 } from './collaborativePage.ts'
@@ -19,6 +23,16 @@ import { createDefaultPageState } from './pagePersistence.ts'
 import type { AreaState } from './App.tsx'
 
 const now = '2026-06-26T12:00:00.000Z'
+const comment = {
+  id: 'comment_1',
+  areaId: 'parent',
+  authorName: 'Riley Reviewer',
+  authorColor: '#2563eb',
+  text: 'Please verify this risk.',
+  createdAt: now,
+  resolvedAt: null,
+  resolvedBy: null,
+}
 
 const createAreas = (): AreaState[] => [
   {
@@ -90,6 +104,7 @@ test('converts app page state into a Yjs document and back', () => {
         updatedAt: now,
       },
     ],
+    comments: [comment],
     page,
   })
 
@@ -128,6 +143,7 @@ test('converts app page state into a Yjs document and back', () => {
       updatedAt: now,
     },
   ])
+  assert.deepEqual(exported.comments, [comment])
 })
 
 test('detects whether a collaborative document has server state', () => {
@@ -168,6 +184,37 @@ test('collaborative area metadata survives document round trips', () => {
     tags: ['launch'],
     filePath: 'src/risk.ts',
   })
+})
+
+test('collaborative comments can be added, resolved, reopened, and deleted', () => {
+  const doc = createCollaborativePageDoc({
+    areas: createAreas(),
+    assets: [],
+    page: createDefaultPageState({ id: 'page_comments', now }),
+  })
+
+  addCollaborativeComment(doc, comment)
+  resolveCollaborativeComment(doc, 'comment_1', {
+    resolvedAt: '2026-06-26T12:05:00.000Z',
+    resolvedBy: 'Riley Reviewer',
+  })
+
+  assert.deepEqual(getPageStateFromCollaborativeDoc(doc).comments, [
+    {
+      ...comment,
+      resolvedAt: '2026-06-26T12:05:00.000Z',
+      resolvedBy: 'Riley Reviewer',
+    },
+  ])
+
+  reopenCollaborativeComment(doc, 'comment_1')
+  assert.equal(
+    getPageStateFromCollaborativeDoc(doc).comments?.[0]?.resolvedAt,
+    null
+  )
+
+  deleteCollaborativeComment(doc, 'comment_1')
+  assert.deepEqual(getPageStateFromCollaborativeDoc(doc).comments, [])
 })
 
 test('text areas store content in Y.Text and accept diff updates', () => {

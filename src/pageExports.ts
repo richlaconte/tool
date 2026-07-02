@@ -1,4 +1,5 @@
 import type { AreaState, AssetState } from './App'
+import { getAreaThread } from './areaComments.ts'
 import { getAreaMetadata } from './areaMetadata.ts'
 import { getAreaAbsolutePosition } from './nestedAreas.ts'
 import {
@@ -84,7 +85,12 @@ export const stringifyExportedPageState = (
   now = new Date().toISOString()
 ) => `${JSON.stringify(serializePageState(redactShareLinks(state), now), null, 2)}\n`
 
-export const exportPageAsMarkdown = (state: PageAppState) => {
+export const exportPageAsMarkdown = (
+  state: PageAppState,
+  options: {
+    includeComments?: boolean
+  } = {}
+) => {
   const lines = [`# ${state.page.title || 'Untitled page'}`, '']
 
   for (const group of MARKDOWN_GROUPS) {
@@ -111,6 +117,27 @@ export const exportPageAsMarkdown = (state: PageAppState) => {
     }
 
     lines.push('')
+  }
+
+  if (options.includeComments && (state.comments ?? []).length > 0) {
+    lines.push('## Comments', '')
+
+    for (const area of state.areas) {
+      const thread = getAreaThread(state.comments, area.id)
+      if (thread.length === 0) continue
+
+      lines.push(`### ${getAreaMarkdownTitle(area)}`, '')
+
+      for (const comment of thread) {
+        const status = comment.resolvedAt
+          ? `resolved by ${comment.resolvedBy ?? 'unknown'}`
+          : 'open'
+
+        lines.push(`- [${status}] ${comment.authorName}: ${comment.text}`)
+      }
+
+      lines.push('')
+    }
   }
 
   return `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`

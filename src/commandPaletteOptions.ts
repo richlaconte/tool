@@ -116,6 +116,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'area',
   },
   {
+    id: 'comment-selected-area',
+    title: 'Comment on selected Area',
+    description: 'Open the comment thread for the selected Area',
+    aliases: ['comment', 'comments', 'thread', 'annotation'],
+    scope: 'area',
+  },
+  {
     id: 'align-left',
     title: 'Align left',
     description: 'Align selected Areas to the left edge',

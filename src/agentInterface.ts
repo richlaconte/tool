@@ -1,5 +1,10 @@
 import type { AreaState, AssetState, TextAreaState } from './App'
 import {
+  getAreaThread,
+  getUnresolvedCount,
+  type AreaComment,
+} from './areaComments.ts'
+import {
   removeAreaLinksForDeletedAreas,
   type AreaLink,
   type AreaMetadata,
@@ -31,6 +36,8 @@ export type AgentAreaResource = {
   alt?: string
   assetId?: string
   metadata?: AreaMetadata
+  comments?: AreaComment[]
+  unresolvedCommentCount?: number
   styles: Record<string, string>
   createdAt?: string
   updatedAt?: string
@@ -242,7 +249,11 @@ export const getAgentPage = (
     },
   },
   areas: hasScope(client, 'page:read')
-    ? state.areas.map(toAgentAreaResource)
+    ? state.areas.map((area) =>
+        toAgentAreaResource(area, state.comments, {
+          includeComments: false,
+        })
+      )
     : [],
   assets: hasScope(client, 'page:read')
     ? state.assets.map(({ storageKey, ...asset }) => {
@@ -276,7 +287,7 @@ export const searchAgentAreas = (
             .filter((area) =>
               getAreaSearchText(area).includes(normalizedQuery)
             )
-            .map(toAgentAreaResource)
+            .map((area) => toAgentAreaResource(area, state.comments))
         : [],
   }
 }
@@ -289,7 +300,11 @@ export const getAgentArea = (
   schemaVersion: 1 as const,
   area: hasScope(client, 'page:read')
     ? state.areas
-        .map(toAgentAreaResource)
+        .map((area) =>
+          toAgentAreaResource(area, state.comments, {
+            includeComments: true,
+          })
+        )
         .find((area) => area.id === areaId) ?? null
     : null,
 })
@@ -1426,7 +1441,20 @@ const applyAgentOperation = (
   }
 }
 
-const toAgentAreaResource = (area: AreaState): AgentAreaResource => {
+const toAgentAreaResource = (
+  area: AreaState,
+  comments: AreaComment[] | undefined,
+  {
+    includeComments = false,
+  }: {
+    includeComments?: boolean
+  } = {}
+): AgentAreaResource => {
+  const areaComments = getAreaThread(comments, area.id)
+  const commentFields = {
+    unresolvedCommentCount: getUnresolvedCount(comments, area.id),
+    ...(includeComments ? { comments: areaComments } : {}),
+  }
   const metadata = area.metadata
     ? {
         metadata: {
@@ -1458,6 +1486,7 @@ const toAgentAreaResource = (area: AreaState): AgentAreaResource => {
         ...area.styles,
       },
       ...metadata,
+      ...commentFields,
       createdAt: area.createdAt,
       updatedAt: area.updatedAt,
     }
@@ -1476,6 +1505,7 @@ const toAgentAreaResource = (area: AreaState): AgentAreaResource => {
       ...area.styles,
     },
     ...metadata,
+    ...commentFields,
     createdAt: area.createdAt,
     updatedAt: area.updatedAt,
   }

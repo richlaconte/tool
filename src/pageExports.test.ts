@@ -155,6 +155,28 @@ const state: PageAppState = {
       updatedAt: now,
     },
   ],
+  comments: [
+    {
+      id: 'comment-1',
+      areaId: 'decision-1',
+      authorName: 'Riley Reviewer',
+      authorColor: '#2563eb',
+      text: 'Check this with backend before implementation.',
+      createdAt: now,
+      resolvedAt: null,
+      resolvedBy: null,
+    },
+    {
+      id: 'comment-2',
+      areaId: 'risk-1',
+      authorName: 'Casey Reviewer',
+      authorColor: '#16a34a',
+      text: 'Resolved after export redaction landed.',
+      createdAt: '2026-06-29T12:05:00.000Z',
+      resolvedAt: '2026-06-29T12:10:00.000Z',
+      resolvedBy: 'Riley Reviewer',
+    },
+  ],
 }
 
 test('Markdown export groups typed Areas and preserves text', () => {
@@ -179,6 +201,24 @@ test('Markdown export groups typed Areas and preserves text', () => {
   assert.match(
     markdown,
     /## Relationships\n\n- `decision-1` -> `task-1` \(depends-on, drives, schema, one-to-many, required, field: decision_id\)/
+  )
+})
+
+test('Markdown export can include Area comment threads', () => {
+  const markdown = exportPageAsMarkdown(state, {
+    includeComments: true,
+  })
+
+  assert.match(markdown, /## Comments/)
+  assert.match(markdown, /### Use WebSockets/)
+  assert.match(
+    markdown,
+    /- \[open\] Riley Reviewer: Check this with backend before implementation\./
+  )
+  assert.match(markdown, /### Exports should not leak share tokens\./)
+  assert.match(
+    markdown,
+    /- \[resolved by Riley Reviewer\] Casey Reviewer: Resolved after export redaction landed\./
   )
 })
 

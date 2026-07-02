@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { CSSProperties, ChangeEvent } from 'react'
+import type { CSSProperties, ChangeEvent, FormEvent } from 'react'
 
 import Area from './components/Area'
 import AreaStyleDialog from './components/AreaStyleDialog'
@@ -110,6 +110,17 @@ import {
 import type { CssSlashCommand } from './cssSlashCommand'
 import { removeCssSlashCommand } from './cssSlashCommand'
 import { normalizeStyleValueInput } from './cssStyleCatalog'
+import {
+  AREA_COMMENT_MAX_LENGTH,
+  createAreaComment,
+  deleteAreaComment,
+  getAreaThread,
+  getUnresolvedCount,
+  reopenAreaComment,
+  resolveAreaComment,
+  validateAreaCommentText,
+  type AreaComment,
+} from './areaComments'
 import {
   addAreaEvidenceReference,
   createAreaEvidenceReference,
@@ -669,6 +680,17 @@ const createEvidenceId = (nextId: number) => {
   return `evidence-${nextId}`
 }
 
+const createAreaCommentId = (nextId: number) => {
+  if (
+    typeof crypto !== 'undefined' &&
+    typeof crypto.randomUUID === 'function'
+  ) {
+    return `comment_${crypto.randomUUID()}`
+  }
+
+  return `comment-${nextId}`
+}
+
 const getInitialPageState = (pageId?: string): PageAppState => {
   const fallbackState = {
     page: createDefaultPageState(pageId ? { id: pageId } : undefined),
@@ -1069,6 +1091,9 @@ function App({
   const [links, setLinks] = useState<AreaLink[]>(
     initialPageState.links ?? []
   )
+  const [comments, setComments] = useState<AreaComment[]>(
+    initialPageState.comments ?? []
+  )
   const [page, setPage] = useState(initialPageState.page)
   const [pageHistory, setPageHistory] = useState(
     getInitialPageHistoryState
@@ -1131,6 +1156,11 @@ function App({
   const [styleDialogAreaId, setStyleDialogAreaId] = useState<
     string | null
   >(null)
+  const [commentPanelAreaId, setCommentPanelAreaId] = useState<
+    string | null
+  >(null)
+  const [commentDraft, setCommentDraft] = useState('')
+  const [commentError, setCommentError] = useState<string | null>(null)
   const [deletedAreaSnapshot, setDeletedAreaSnapshot] =
     useState<DeletedAreasSnapshot | null>(null)
   const [marqueeSelectionRect, setMarqueeSelectionRect] =
@@ -1209,6 +1239,7 @@ function App({
   const nextThemeColorId = useRef(0)
   const nextAreaLinkId = useRef(0)
   const nextEvidenceId = useRef(0)
+  const nextAreaCommentId = useRef(0)
   const linkDragRef = useRef<LinkDragState | null>(null)
   const endpointDragRef = useRef<LinkEndpointDragState | null>(null)
   const marqueeDragRef = useRef<MarqueeDragState | null>(null)
@@ -1245,6 +1276,7 @@ function App({
     areas: initialPageState.areas,
     assets: initialPageState.assets,
     links: initialPageState.links ?? [],
+    comments: initialPageState.comments ?? [],
     page: initialPageState.page,
   })
   const latestCursorRef = useRef<PresenceState['cursor']>(null)
@@ -1261,6 +1293,7 @@ function App({
     setSelectedLinkId(null)
     setLinkFlyoutLinkId(null)
     setStyleDialogAreaId(null)
+    setCommentPanelAreaId(null)
   }, [setSelectedAreaId])
   const gifSearchProvider = useMemo(
     () =>
@@ -1286,9 +1319,10 @@ function App({
       areas,
       assets,
       links,
+      comments,
       page,
     }),
-    [areas, assets, links, page]
+    [areas, assets, comments, links, page]
   )
   const handleRemoteCollaborativeState = useCallback(
     (nextState: PageAppState) => {
@@ -1297,6 +1331,7 @@ function App({
       setAreas(nextState.areas)
       setAssets(nextState.assets)
       setLinks(nextState.links ?? [])
+      setComments(nextState.comments ?? [])
     },
     []
   )
@@ -1335,6 +1370,7 @@ function App({
       setOpenDialogId(null)
       setStyleDialogAreaId(null)
       setLinkFlyoutLinkId(null)
+      setCommentPanelAreaId(null)
     })
 
     return () => cancelAnimationFrame(cleanupFrame)
@@ -1635,9 +1671,10 @@ function App({
       areas,
       assets,
       links,
+      comments,
       page,
     }
-  }, [areas, assets, links, page])
+  }, [areas, assets, comments, links, page])
 
   useEffect(() => {
     collaborationProfileRef.current = collaborationProfile
@@ -1675,6 +1712,19 @@ function App({
       return () => window.clearTimeout(timeout)
     }
   }, [linkFlyoutLinkId, links, openDialogId, selectedLinkId])
+
+  useEffect(() => {
+    if (
+      commentPanelAreaId &&
+      !areas.some((area) => area.id === commentPanelAreaId)
+    ) {
+      const timeout = window.setTimeout(() => {
+        setCommentPanelAreaId(null)
+      }, 0)
+
+      return () => window.clearTimeout(timeout)
+    }
+  }, [areas, commentPanelAreaId])
 
   const handleGifCommandActive = useCallback(
     (areaId: string, command: GifSlashCommand | null) => {
@@ -1903,6 +1953,7 @@ function App({
       setAreas(message.state.areas)
       setAssets(message.state.assets)
       setLinks(message.state.links ?? [])
+      setComments(message.state.comments ?? [])
     }
 
     const handleOnline = () => setCollaborationStatus('connected')
@@ -1971,6 +2022,7 @@ function App({
           areas,
           assets,
           links,
+          comments,
           page,
         },
       } satisfies CollaborationMessage)
@@ -1980,6 +2032,7 @@ function App({
   }, [
     areas,
     assets,
+    comments,
     links,
     collaborationProfile.clientId,
     collaborationStatus,
@@ -2099,7 +2152,7 @@ function App({
       try {
         localStorage.setItem(
           PAGE_STORAGE_KEY,
-          stringifyPageState({ areas, assets, links, page })
+          stringifyPageState({ areas, assets, comments, links, page })
         )
         setSaveStatus('saved')
       } catch {
@@ -2111,7 +2164,7 @@ function App({
       window.clearTimeout(savingTimer)
       window.clearTimeout(saveTimer)
     }
-  }, [areas, assets, links, page])
+  }, [areas, assets, comments, links, page])
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
@@ -2163,6 +2216,7 @@ function App({
       setSelectedAreaId(id)
       setSelectedLinkId(null)
       setLinkFlyoutLinkId(null)
+      setCommentPanelAreaId(null)
       setAutoFocusAreaId(id)
     }
 
@@ -2775,6 +2829,74 @@ function App({
     )
   }
 
+  const openCommentsForArea = (areaId: string) => {
+    if (isViewOnly) return
+
+    setSelectedAreaId(areaId)
+    setSelectedLinkId(null)
+    setLinkFlyoutLinkId(null)
+    setStyleDialogAreaId(null)
+    setOpenDialogId(null)
+    setCommentPanelAreaId(areaId)
+    setCommentDraft('')
+    setCommentError(null)
+  }
+
+  const addCommentToOpenArea = () => {
+    if (isViewOnly || !commentPanelAreaId) return
+
+    const validation = validateAreaCommentText(commentDraft)
+
+    if (!validation.ok) {
+      setCommentError(validation.error)
+      return
+    }
+
+    const comment = createAreaComment({
+      areaId: commentPanelAreaId,
+      createId: () => createAreaCommentId(nextAreaCommentId.current),
+      profile: {
+        userName: collaborationProfile.userName,
+        color: collaborationProfile.color,
+      },
+      text: validation.text,
+    })
+
+    nextAreaCommentId.current += 1
+    setComments((currentComments) => [...currentComments, comment])
+    setCommentDraft('')
+    setCommentError(null)
+  }
+
+  const resolveCommentById = (commentId: string) => {
+    if (isViewOnly) return
+
+    setComments((currentComments) =>
+      resolveAreaComment(currentComments, commentId, {
+        profile: {
+          userName: collaborationProfile.userName,
+          color: collaborationProfile.color,
+        },
+      })
+    )
+  }
+
+  const reopenCommentById = (commentId: string) => {
+    if (isViewOnly) return
+
+    setComments((currentComments) =>
+      reopenAreaComment(currentComments, commentId)
+    )
+  }
+
+  const deleteCommentById = (commentId: string) => {
+    if (isViewOnly) return
+
+    setComments((currentComments) =>
+      deleteAreaComment(currentComments, commentId)
+    )
+  }
+
   const getCreateLinkVisual = (): AreaLinkVisual => ({
     mode: linkVisualMode,
     direction: linkDirection,
@@ -3118,6 +3240,7 @@ function App({
     setSelectedAreaId(areaId)
     setSelectedLinkId(null)
     setLinkFlyoutLinkId(null)
+    setCommentPanelAreaId(null)
     setLinkTargetAreaId(
       areas.find((area) => area.id !== areaId)?.id ?? ''
     )
@@ -3359,6 +3482,7 @@ function App({
       {
         areas,
         assets,
+        comments,
         links,
         page,
       },
@@ -3377,6 +3501,7 @@ function App({
       {
         areas,
         assets,
+        comments,
         links,
         page,
       },
@@ -3395,6 +3520,7 @@ function App({
     setAreas(result.state.areas)
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
+    setComments(result.state.comments ?? [])
     setPage(result.state.page)
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
@@ -3426,6 +3552,7 @@ function App({
       {
         areas,
         assets,
+        comments,
         links,
         page,
       },
@@ -3449,6 +3576,7 @@ function App({
     setAreas(result.state.areas)
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
+    setComments(result.state.comments ?? [])
     setPage(result.state.page)
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
@@ -4335,6 +4463,7 @@ function App({
   const getCurrentPageAppState = (): PageAppState => ({
     areas,
     assets,
+    comments,
     links,
     page,
   })
@@ -4398,6 +4527,7 @@ function App({
       {
         areas,
         assets,
+        comments,
         links,
         page,
       },
@@ -4415,6 +4545,7 @@ function App({
     setAreas(nextState.areas)
     setAssets(nextState.assets)
     setLinks(nextState.links ?? [])
+    setComments(nextState.comments ?? [])
     setSelectedAreaId(nextState.selectedAreaId)
     setAutoFocusAreaId(nextState.selectedAreaId)
     setHasClickedCanvas(true)
@@ -4446,6 +4577,7 @@ function App({
           beforeState: {
             areas,
             assets,
+            comments,
             links,
             page,
           },
@@ -4458,6 +4590,7 @@ function App({
     setAreas(result.state.areas)
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
+    setComments(result.state.comments ?? [])
     setSelectedAreaId(null)
     setImportError(null)
   }
@@ -4474,6 +4607,7 @@ function App({
         {
           areas,
           assets,
+          comments,
           links,
           page,
         },
@@ -4484,6 +4618,7 @@ function App({
       setAreas(restoredState.areas)
       setAssets(restoredState.assets)
       setLinks(restoredState.links ?? [])
+      setComments(restoredState.comments ?? [])
       setSelectedAreaId(null)
       setOpenDialogId(null)
       setImportError(null)
@@ -4494,6 +4629,7 @@ function App({
       {
         areas,
         assets,
+        comments,
         links,
         page,
       },
@@ -4513,6 +4649,7 @@ function App({
     setAreas(result.state.areas)
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
+    setComments(result.state.comments ?? [])
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
       ...currentRecords.slice(0, 9),
@@ -4635,7 +4772,8 @@ function App({
     areas.length > 0 &&
     commandPaletteQuery === null &&
     openDialogId === null &&
-    styleDialogAreaId === null
+    styleDialogAreaId === null &&
+    commentPanelAreaId === null
   const offscreenAreaIndicators = useMemo(
     () =>
       shouldShowOffscreenAreaIndicators
@@ -4728,9 +4866,26 @@ function App({
   const selectedAreaMetadata = selectedArea
     ? getAreaMetadata(selectedArea)
     : null
+  const commentPanelArea = commentPanelAreaId
+    ? areas.find((area) => area.id === commentPanelAreaId) ?? null
+    : null
+  const commentPanelAreaPosition = commentPanelArea
+    ? getAreaAbsolutePosition(areas, commentPanelArea.id)
+    : null
+  const commentPanelStyle =
+    commentPanelArea && commentPanelAreaPosition
+      ? ({
+          left: commentPanelAreaPosition.x + commentPanelArea.width + 12,
+          top: commentPanelAreaPosition.y,
+        } as CSSProperties)
+      : undefined
+  const commentPanelThread = commentPanelArea
+    ? getAreaThread(comments, commentPanelArea.id)
+    : []
   const agentHandoffBrief = createAgentHandoffBrief({
     areas,
     assets,
+    comments,
     links,
     page,
   })
@@ -4784,6 +4939,7 @@ function App({
         isReadOnly={isViewOnly}
         nestingDepth={getAreaDepth(areas, area.id)}
         canvasZoom={canvasZoom}
+        unresolvedCommentCount={getUnresolvedCount(comments, area.id)}
         onSelect={(areaId, toggleSelection) => {
           setSelectedAreaIds((currentSelectedAreaIds) => {
             if (toggleSelection) {
@@ -4816,8 +4972,10 @@ function App({
           setSelectedAreaId(areaId)
           setSelectedLinkId(null)
           setLinkFlyoutLinkId(null)
+          setCommentPanelAreaId(null)
           setStyleDialogAreaId(areaId)
         }}
+        onOpenComments={openCommentsForArea}
         onOpenLinkDialog={openLinkDialogForArea}
         onResize={resizeAreaById}
         onCommitCssCommand={commitAreaCssCommand}
@@ -5431,6 +5589,27 @@ function App({
               />
             )}
 
+          {shouldShowEditorChrome &&
+            commentPanelArea &&
+            commentPanelStyle && (
+              <AreaCommentPanel
+                area={commentPanelArea}
+                commentDraft={commentDraft}
+                error={commentError}
+                style={commentPanelStyle}
+                thread={commentPanelThread}
+                onAddComment={addCommentToOpenArea}
+                onChangeDraft={(text) => {
+                  setCommentDraft(text)
+                  if (commentError) setCommentError(null)
+                }}
+                onClose={() => setCommentPanelAreaId(null)}
+                onDeleteComment={deleteCommentById}
+                onReopenComment={reopenCommentById}
+                onResolveComment={resolveCommentById}
+              />
+            )}
+
           {shouldShowEditorChrome && (
             <div
               className="remote-collaboration-layer"
@@ -5647,7 +5826,8 @@ function App({
               option.id === 'nest-selected-area' ||
               option.id === 'unnest-selected-area' ||
               option.id === 'add-child-area' ||
-              option.id === 'add-evidence'
+              option.id === 'add-evidence' ||
+              option.id === 'comment-selected-area'
             ) {
               if (!selectedAreaId) {
                 setImportError('Select an Area first.')
@@ -5666,6 +5846,11 @@ function App({
 
               if (option.id === 'add-evidence') {
                 requestEvidenceForSelectedArea()
+                return
+              }
+
+              if (option.id === 'comment-selected-area') {
+                openCommentsForArea(selectedAreaId)
                 return
               }
 
@@ -6926,6 +7111,150 @@ const GifSearchFlyout = ({
     </div>
   </section>
 )
+
+const AreaCommentPanel = ({
+  area,
+  commentDraft,
+  error,
+  style,
+  thread,
+  onAddComment,
+  onChangeDraft,
+  onClose,
+  onDeleteComment,
+  onReopenComment,
+  onResolveComment,
+}: {
+  area: AreaState
+  commentDraft: string
+  error: string | null
+  style: CSSProperties
+  thread: AreaComment[]
+  onAddComment: () => void
+  onChangeDraft: (text: string) => void
+  onClose: () => void
+  onDeleteComment: (commentId: string) => void
+  onReopenComment: (commentId: string) => void
+  onResolveComment: (commentId: string) => void
+}) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    onAddComment()
+  }
+
+  return (
+    <section
+      aria-label={`Comments for ${getAreaPanelTitle(area)}`}
+      className="area-comment-panel"
+      style={style}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
+      <div className="area-comment-panel-header">
+        <div>
+          <strong>Comments</strong>
+          <span>{getAreaPanelTitle(area)}</span>
+        </div>
+        <button
+          aria-label="Close comments"
+          className="area-comment-panel-close"
+          type="button"
+          onClick={onClose}
+        >
+          x
+        </button>
+      </div>
+
+      <div className="area-comment-thread">
+        {thread.length > 0 ? (
+          thread.map((comment) => {
+            const isResolved = Boolean(comment.resolvedAt)
+
+            return (
+              <article
+                className={`area-comment${
+                  isResolved ? ' area-comment--resolved' : ''
+                }`}
+                key={comment.id}
+              >
+                <div className="area-comment-meta">
+                  <span
+                    className="area-comment-author-dot"
+                    style={{ backgroundColor: comment.authorColor }}
+                  />
+                  <strong>{comment.authorName}</strong>
+                  <span>{formatCommentTimestamp(comment.createdAt)}</span>
+                </div>
+                <p>{comment.text}</p>
+                <div className="area-comment-actions">
+                  {isResolved ? (
+                    <button
+                      type="button"
+                      onClick={() => onReopenComment(comment.id)}
+                    >
+                      Reopen
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onResolveComment(comment.id)}
+                    >
+                      Resolve
+                    </button>
+                  )}
+                  <button
+                    className="area-comment-delete"
+                    type="button"
+                    onClick={() => onDeleteComment(comment.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </article>
+            )
+          })
+        ) : (
+          <p className="area-comment-empty">No comments yet.</p>
+        )}
+      </div>
+
+      <form className="area-comment-form" onSubmit={handleSubmit}>
+        <textarea
+          aria-label="New comment"
+          maxLength={AREA_COMMENT_MAX_LENGTH}
+          placeholder="Add a note for this Area"
+          rows={3}
+          value={commentDraft}
+          onChange={(event) =>
+            onChangeDraft(event.currentTarget.value)
+          }
+        />
+        {error && (
+          <p className="area-comment-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit">Comment</button>
+      </form>
+    </section>
+  )
+}
+
+const getAreaPanelTitle = (area: AreaState) => {
+  if (area.type === 'image') return area.alt.trim() || 'Image Area'
+
+  return area.text.trim().split('\n')[0] || 'Untitled Area'
+}
+
+const formatCommentTimestamp = (createdAt: string) => {
+  const date = new Date(createdAt)
+
+  if (Number.isNaN(date.getTime())) return createdAt
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
 
 const OffscreenAreaIndicators = ({
   indicators,

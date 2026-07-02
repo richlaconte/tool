@@ -16,7 +16,6 @@ the suggested build order within and across tiers.
 
 ### Tier 1 — Canvas Table Stakes
 
-- [Area Comment Threads](2026-07-02-area-comment-threads.md)
 - [Page Search and Navigation](2026-07-02-page-search-navigation.md)
 - [Undo/Redo Consolidation](2026-07-02-undo-redo-consolidation.md)
 
@@ -52,6 +51,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Area Style Dialog Overhaul](completed/2026-07-01-area-style-dialog-overhaul.md)
 - [Area Styles Dialog UX Audit and Simplification](completed/2026-06-30-area-styles-dialog-ux-audit.md)
 - [Area Connector System](completed/2026-06-30-area-connector-system.md)
+- [Area Comment Threads](completed/2026-07-02-area-comment-threads.md)
 - [Area Toolbar Delete](completed/2026-06-26-area-toolbar-delete.md)
 - [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)
 - [AI and MCP Agent Interface](completed/2026-06-26-cascadery-ai-mcp-interface.md)

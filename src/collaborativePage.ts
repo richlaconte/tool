@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 
 import type { AreaState, AssetState, ImageAreaState, TextAreaState } from './App'
+import type { AreaComment } from './areaComments.ts'
 import {
   isAreaKind,
   isAreaLinkKind,
@@ -20,6 +21,7 @@ const PAGE_MAP = 'page'
 const AREAS_MAP = 'areas'
 const ASSETS_MAP = 'assets'
 const LINKS_MAP = 'links'
+const COMMENTS_MAP = 'comments'
 
 export const createCollaborativePageDoc = (state: PageAppState) => {
   const doc = new Y.Doc()
@@ -33,7 +35,8 @@ export const isCollaborativePageDocEmpty = (doc: Y.Doc) =>
   getPageMap(doc).size === 0 &&
   getAreasMap(doc).size === 0 &&
   getAssetsMap(doc).size === 0 &&
-  getLinksMap(doc).size === 0
+  getLinksMap(doc).size === 0 &&
+  getCommentsMap(doc).size === 0
 
 export const replaceCollaborativePageDocState = (
   doc: Y.Doc,
@@ -45,11 +48,13 @@ export const replaceCollaborativePageDocState = (
     const areasMap = getAreasMap(doc)
     const assetsMap = getAssetsMap(doc)
     const linksMap = getLinksMap(doc)
+    const commentsMap = getCommentsMap(doc)
 
     pageMap.clear()
     areasMap.clear()
     assetsMap.clear()
     linksMap.clear()
+    commentsMap.clear()
 
     writePageMap(pageMap, state.page)
 
@@ -63,6 +68,10 @@ export const replaceCollaborativePageDocState = (
 
     for (const link of state.links ?? []) {
       linksMap.set(link.id, createPlainMap(link))
+    }
+
+    for (const comment of state.comments ?? []) {
+      commentsMap.set(comment.id, createPlainMap(comment))
     }
   }, origin)
 }
@@ -90,6 +99,11 @@ export const applyCollaborativePageStatePatch = (
       previousState.links ?? [],
       nextState.links ?? []
     )
+    patchCommentsMap(
+      getCommentsMap(doc),
+      previousState.comments ?? [],
+      nextState.comments ?? []
+    )
   }, origin)
 }
 
@@ -100,6 +114,7 @@ export const getPageStateFromCollaborativeDoc = (
   areas: readAreasMap(getAreasMap(doc)),
   assets: readAssetsMap(getAssetsMap(doc)),
   links: readLinksMap(getLinksMap(doc)),
+  comments: readCommentsMap(getCommentsMap(doc)),
 })
 
 export const getCollaborativeAreaText = (doc: Y.Doc, areaId: string) => {
@@ -175,6 +190,57 @@ export const deleteCollaborativeArea = (doc: Y.Doc, areaId: string) => {
     for (const deletedAreaId of deletedAreaIds) {
       areasMap.delete(deletedAreaId)
     }
+  })
+}
+
+export const addCollaborativeComment = (
+  doc: Y.Doc,
+  comment: AreaComment
+) => {
+  doc.transact(() => {
+    getCommentsMap(doc).set(comment.id, createPlainMap(comment))
+  })
+}
+
+export const resolveCollaborativeComment = (
+  doc: Y.Doc,
+  commentId: string,
+  {
+    resolvedAt,
+    resolvedBy,
+  }: {
+    resolvedAt: string
+    resolvedBy: string
+  }
+) => {
+  const commentMap = getCommentsMap(doc).get(commentId)
+  if (!commentMap) return
+
+  doc.transact(() => {
+    commentMap.set('resolvedAt', resolvedAt)
+    commentMap.set('resolvedBy', resolvedBy)
+  })
+}
+
+export const reopenCollaborativeComment = (
+  doc: Y.Doc,
+  commentId: string
+) => {
+  const commentMap = getCommentsMap(doc).get(commentId)
+  if (!commentMap) return
+
+  doc.transact(() => {
+    commentMap.set('resolvedAt', null)
+    commentMap.set('resolvedBy', null)
+  })
+}
+
+export const deleteCollaborativeComment = (
+  doc: Y.Doc,
+  commentId: string
+) => {
+  doc.transact(() => {
+    getCommentsMap(doc).delete(commentId)
   })
 }
 
@@ -603,6 +669,70 @@ const patchLinksMap = (
   }
 }
 
+const patchCommentsMap = (
+  commentsMap: Y.Map<Y.Map<unknown>>,
+  previousComments: AreaComment[],
+  nextComments: AreaComment[]
+) => {
+  const previousCommentsById = new Map(
+    previousComments.map((comment) => [comment.id, comment])
+  )
+  const nextCommentsById = new Map(
+    nextComments.map((comment) => [comment.id, comment])
+  )
+
+  for (const [commentId] of previousCommentsById) {
+    if (!nextCommentsById.has(commentId)) {
+      commentsMap.delete(commentId)
+    }
+  }
+
+  for (const nextComment of nextComments) {
+    const previousComment = previousCommentsById.get(nextComment.id)
+    const commentMap = commentsMap.get(nextComment.id)
+
+    if (!commentMap) {
+      commentsMap.set(nextComment.id, createPlainMap(nextComment))
+      continue
+    }
+
+    for (const [key, value] of Object.entries(nextComment)) {
+      setMapValueIfChanged(
+        commentMap,
+        key,
+        previousComment?.[key as keyof AreaComment],
+        value
+      )
+    }
+  }
+}
+
+const readCommentsMap = (commentsMap: Y.Map<Y.Map<unknown>>) => {
+  const comments: AreaComment[] = []
+
+  commentsMap.forEach((commentMap) => {
+    const resolvedAt = commentMap.get('resolvedAt')
+    const resolvedBy = commentMap.get('resolvedBy')
+
+    comments.push({
+      id: String(commentMap.get('id') ?? ''),
+      areaId: String(commentMap.get('areaId') ?? ''),
+      authorName: String(commentMap.get('authorName') ?? ''),
+      authorColor: String(commentMap.get('authorColor') ?? ''),
+      text: String(commentMap.get('text') ?? ''),
+      createdAt: String(commentMap.get('createdAt') ?? ''),
+      resolvedAt: typeof resolvedAt === 'string' ? resolvedAt : null,
+      resolvedBy: typeof resolvedBy === 'string' ? resolvedBy : null,
+    })
+  })
+
+  return comments.sort(
+    (first, second) =>
+      first.createdAt.localeCompare(second.createdAt) ||
+      first.id.localeCompare(second.id)
+  )
+}
+
 const createStylesMap = (styles: Record<string, string>) => {
   const map = new Y.Map<string>()
 
@@ -739,6 +869,9 @@ const getAssetsMap = (doc: Y.Doc) =>
 
 const getLinksMap = (doc: Y.Doc) =>
   doc.getMap<Y.Map<unknown>>(LINKS_MAP)
+
+const getCommentsMap = (doc: Y.Doc) =>
+  doc.getMap<Y.Map<unknown>>(COMMENTS_MAP)
 
 const getAreaAndDescendantIds = (
   areasMap: Y.Map<Y.Map<unknown>>,

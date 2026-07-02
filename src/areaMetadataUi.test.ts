@@ -31,7 +31,11 @@ test('app renders area metadata controls and connector lines', async () => {
   assert.match(source, /Schema details/)
   assert.match(source, /Delete connector/)
   assert.doesNotMatch(areaSource, /className="area-metadata-label"/)
-  assert.match(areaSource, /aria-label="Connect area"/)
+  assert.doesNotMatch(areaSource, /aria-label="Connect area"/)
+  assert.match(
+    areaSource,
+    /aria-label={`Start connector from \${side} edge`}/
+  )
   assert.match(areaSource, /area-link-zone/)
   assert.match(areaSource, /onBeginLinkDrag/)
   assert.doesNotMatch(css, /\.area-metadata-label/)
@@ -81,6 +85,18 @@ test('selected connector endpoint handles render above Area edge link zones', as
   assert.match(css, /\.area-link-control-layer/)
   assert.match(css, /\.area-link-control-layer[\s\S]*z-index: 62/)
   assert.match(areaCss, /\.area-link-zone[\s\S]*z-index: 1/)
+})
+
+test('selected areas reveal their link anchor points', async () => {
+  const areaCss = await readFile(
+    new URL('./components/area.css', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(
+    areaCss,
+    /\.area--selected \.area-link-zone::after[\s\S]*opacity: 1/
+  )
 })
 
 test('app renders nesting preview states for child Area drops', async () => {

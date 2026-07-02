@@ -80,7 +80,6 @@ type AreaProps = {
   onDelete: (id: string) => void
   onOpenStyles: (id: string) => void
   onOpenComments: (id: string) => void
-  onOpenLinkDialog: (id: string) => void
   onResize: (
     id: string,
     width: number,
@@ -137,7 +136,6 @@ const Area = ({
   onDelete,
   onOpenStyles,
   onOpenComments,
-  onOpenLinkDialog,
   onResize,
   onCommitCssCommand,
   onCommitImageCommand,
@@ -783,21 +781,6 @@ const Area = ({
                 <CommentIcon />
               </button>
               <button
-                aria-label="Connect area"
-                className="area-action-button area-action-button--priority-low"
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onOpenLinkDialog(area.id)
-                }}
-                onPointerDown={(e) => {
-                  e.stopPropagation()
-                }}
-              >
-                <LinkIcon />
-              </button>
-              <button
                 aria-label="Duplicate area"
                 className="area-action-button area-action-button--priority-medium"
                 type="button"
@@ -1072,24 +1055,6 @@ const StyleSlidersIcon = () => (
     <path d="M10 9.8v3.4" />
     <circle cx="6" cy="4.5" r="1.5" />
     <circle cx="10" cy="11.5" r="1.5" />
-  </svg>
-)
-
-const LinkIcon = () => (
-  <svg
-    aria-hidden="true"
-    className="area-control-icon area-control-icon--stroke"
-    fill="none"
-    focusable="false"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="1.7"
-    viewBox="0 0 16 16"
-  >
-    <path d="M6.7 5.3 5.4 4A2.4 2.4 0 0 0 2 7.4l1.3 1.3" />
-    <path d="M9.3 10.7 10.6 12A2.4 2.4 0 0 0 14 8.6l-1.3-1.3" />
-    <path d="M5.8 10.2 10.2 5.8" />
   </svg>
 )
 

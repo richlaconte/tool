@@ -2393,6 +2393,9 @@ function App({
       if (e.button !== 0) return
 
       const target = e.target instanceof Element ? e.target : null
+
+      if (target?.closest('[data-canvas-overlay]')) return
+
       const targetAreaId =
         target
           ?.closest<HTMLElement>('[data-area-id]')
@@ -3336,19 +3339,6 @@ function App({
     }
 
     setEndpointDrag(null)
-  }
-
-  const openLinkDialogForArea = (areaId: string) => {
-    if (isViewOnly) return
-
-    setSelectedAreaId(areaId)
-    setSelectedLinkId(null)
-    setLinkFlyoutLinkId(null)
-    setCommentPanelAreaId(null)
-    setLinkTargetAreaId(
-      areas.find((area) => area.id !== areaId)?.id ?? ''
-    )
-    setOpenDialogId('link-selected-area')
   }
 
   const createSelectedAreaLink = () => {
@@ -4856,7 +4846,7 @@ function App({
   const isCommandPaletteSearchMode =
     commandPaletteQuery?.startsWith('?') ?? false
   const areaSearchQuery = isCommandPaletteSearchMode
-    ? commandPaletteQuery.slice(1).trim()
+    ? (commandPaletteQuery?.slice(1).trim() ?? '')
     : ''
   const areaById = new Map(areas.map((area) => [area.id, area]))
   const areaSearchOptions = isCommandPaletteSearchMode
@@ -5124,7 +5114,6 @@ function App({
           setStyleDialogAreaId(areaId)
         }}
         onOpenComments={openCommentsForArea}
-        onOpenLinkDialog={openLinkDialogForArea}
         onResize={resizeAreaById}
         onCommitCssCommand={commitAreaCssCommand}
         onCommitImageCommand={commitAreaImageCommand}
@@ -5625,6 +5614,7 @@ function App({
             openDialogId === null && (
               <div
                 className="area-link-flyout"
+                data-canvas-overlay=""
                 style={{
                   left: selectedLinkLine.labelX,
                   top: selectedLinkLine.labelY,
@@ -7337,6 +7327,7 @@ const AreaCommentPanel = ({
     <section
       aria-label={`Comments for ${getAreaPanelTitle(area)}`}
       className="area-comment-panel"
+      data-canvas-overlay=""
       style={style}
       onPointerDown={(event) => event.stopPropagation()}
     >

@@ -368,6 +368,7 @@
   top: calc(50% - 4px);
 }
 
+.area--selected .area-link-zone::after,
 .area-link-zone:hover::after {
   opacity: 1;
 }

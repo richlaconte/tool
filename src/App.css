@@ -820,6 +820,36 @@ button.mcp-status-badge:focus-visible {
   background: color-mix(in srgb, var(--presence-color) 12%, white);
 }
 
+.presence-share-button {
+  display: grid;
+  height: 26px;
+  width: 26px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgb(148 163 184 / 32%);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 90%);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
+  color: #334155;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease,
+    border-color 120ms ease;
+}
+
+.presence-share-button:hover {
+  background: white;
+  border-color: rgb(148 163 184 / 55%);
+  color: #0f172a;
+}
+
+.presence-share-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
 .remote-collaboration-layer {
   position: absolute;
   inset: 0;

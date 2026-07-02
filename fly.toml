@@ -12,7 +12,7 @@ kill_timeout = "5s"
   PORT = "3000"
   TOOL_DATABASE_PATH = "/data/tool.sqlite"
   TOOL_YJS_DATABASE_PATH = "/data/collaboration.sqlite"
-  TOOL_ALLOWED_ORIGINS = "https://richlaconte-tool.fly.dev"
+  TOOL_ALLOWED_ORIGINS = "https://cascadery.com,https://www.cascadery.com,https://richlaconte-tool.fly.dev"
 
 [mounts]
   source = "tool_data"

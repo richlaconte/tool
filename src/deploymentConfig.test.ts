@@ -39,7 +39,7 @@ test('Fly configuration keeps the collaborative SQLite app on one persistent mac
   )
   assert.match(
     flyConfig,
-    /TOOL_ALLOWED_ORIGINS = "https:\/\/richlaconte-tool\.fly\.dev"/
+    /TOOL_ALLOWED_ORIGINS = "https:\/\/cascadery\.com,https:\/\/www\.cascadery\.com,https:\/\/richlaconte-tool\.fly\.dev"/
   )
   assert.match(flyConfig, /path = "\/api\/health"/)
 })

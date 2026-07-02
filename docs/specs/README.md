@@ -16,7 +16,7 @@ the suggested build order within and across tiers.
 
 ### Tier 1 — Canvas Table Stakes
 
-- [Undo/Redo Consolidation](2026-07-02-undo-redo-consolidation.md)
+All Tier 1 specs are complete.
 
 ### Tier 2 — Spec-Driven Development and the Agent Round-Trip
 
@@ -81,6 +81,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Snap Grid](completed/2026-06-26-snap-grid.md)
 - [Sprint Retro Context Kit](completed/2026-06-30-sprint-retro-context-kit.md)
 - [Theme Color Shortcuts](completed/2026-06-26-theme-color-shortcuts.md)
+- [Undo/Redo Consolidation](completed/2026-07-02-undo-redo-consolidation.md)
 - [Version History and Change Review](completed/2026-06-29-version-history-and-change-review.md)
 - [View-Only Presentation Mode](completed/2026-06-29-view-only-presentation-mode.md)
 

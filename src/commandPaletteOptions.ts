@@ -52,6 +52,20 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'undo',
+    title: 'Undo',
+    description: 'Undo your latest canvas change in this session',
+    aliases: ['revert', 'cmd z', 'ctrl z'],
+    scope: 'page',
+  },
+  {
+    id: 'redo',
+    title: 'Redo',
+    description: 'Redo your latest undone canvas change',
+    aliases: ['restore', 'shift cmd z', 'ctrl y'],
+    scope: 'page',
+  },
+  {
     id: 'search-areas',
     title: 'Search Areas...',
     description: 'Find and jump to matching Areas on this page',

@@ -65,6 +65,17 @@
   outline: none;
 }
 
+.command-palette-option:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.command-palette-option:disabled:hover,
+.command-palette-option:disabled:focus-visible,
+.command-palette-option:disabled.command-palette-option--selected {
+  background: transparent;
+}
+
 .command-palette-option span {
   font-weight: 650;
 }

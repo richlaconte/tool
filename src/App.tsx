@@ -2599,6 +2599,16 @@ function App({
         return
       }
 
+      if (keyboardAction === 'undo') {
+        collaborativeSync.undo()
+        return
+      }
+
+      if (keyboardAction === 'redo') {
+        collaborativeSync.redo()
+        return
+      }
+
       if (keyboardAction === 'close-command-palette') {
         setCommandPaletteQuery(null)
         return
@@ -2625,6 +2635,7 @@ function App({
   }, [
     areas,
     commandPaletteQuery,
+    collaborativeSync,
     deselectCurrentArea,
     isViewOnly,
     openDialogId,
@@ -4883,6 +4894,22 @@ function App({
           }
 
           return true
+        }).map((option) => {
+          if (option.id === 'undo') {
+            return {
+              ...option,
+              disabled: !collaborativeSync.canUndo,
+            }
+          }
+
+          if (option.id === 'redo') {
+            return {
+              ...option,
+              disabled: !collaborativeSync.canRedo,
+            }
+          }
+
+          return option
         })
       : []
   const shouldShowCommandPalette =
@@ -5924,6 +5951,14 @@ function App({
               setOpenDialogId(option.id)
               return
             }
+            if (option.id === 'undo') {
+              collaborativeSync.undo()
+              return
+            }
+            if (option.id === 'redo') {
+              collaborativeSync.redo()
+              return
+            }
             if (option.id === 'zoom-in') {
               zoomCanvasByDirection(1)
               return
@@ -6818,6 +6853,11 @@ function App({
             ) : openDialogId === 'history' ? (
               <div className="history-dialog">
                 <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                <p>
+                  Session undo is local to this tab and your own canvas
+                  edits. History is durable page-level recovery across
+                  actors.
+                </p>
                 {recentHistoryEvents.length > 0 ? (
                   <div className="history-events">
                     {recentHistoryEvents.map((event) => (

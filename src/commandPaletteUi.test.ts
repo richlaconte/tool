@@ -85,3 +85,26 @@ test('command palette exposes multi-select alignment commands contextually', asy
   assert.match(appSource, /applySelectedAreaAlignment/)
   assert.match(appSource, /applySelectedAreaDistribution/)
 })
+
+test('command palette exposes undo and redo commands with disabled states', async () => {
+  const appSource = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const registrySource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
+  const paletteSource = await readFile(
+    new URL('./components/CommandPalette.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(registrySource, /id: 'undo'/)
+  assert.match(registrySource, /id: 'redo'/)
+  assert.match(appSource, /collaborativeSync\.undo\(\)/)
+  assert.match(appSource, /collaborativeSync\.redo\(\)/)
+  assert.match(appSource, /disabled: !collaborativeSync\.canUndo/)
+  assert.match(appSource, /disabled: !collaborativeSync\.canRedo/)
+  assert.match(paletteSource, /disabled=\{option\.disabled\}/)
+})

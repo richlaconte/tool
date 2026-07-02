@@ -118,6 +118,76 @@ test('read-only mode still allows Area search shortcut', () => {
   )
 })
 
+test('system undo and redo shortcuts work outside text editing', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'z',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'undo'
+  )
+
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'z',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+      hasShiftModifier: true,
+      hasModifier: true,
+    }),
+    'redo'
+  )
+
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'y',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'redo'
+  )
+})
+
+test('system undo and redo shortcuts stay native while editing text', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'z',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: true,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'ignore'
+  )
+
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'y',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: true,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'ignore'
+  )
+})
+
 test('read-only mode ignores command palette opening shortcuts', () => {
   const baseState = {
     hasSelectedArea: false,

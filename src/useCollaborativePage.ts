@@ -4,12 +4,21 @@ import { HocuspocusProvider } from '@hocuspocus/provider'
 import * as Y from 'yjs'
 
 import {
+  LOCAL_ORIGIN,
   applyCollaborativePageStatePatch,
   getPageStateFromCollaborativeDoc,
   isCollaborativePageDocEmpty,
   replaceCollaborativePageDocState,
 } from './collaborativePage.ts'
 import type { PresenceState } from './collaboration.ts'
+import {
+  canRedo,
+  canUndo,
+  createPageUndoManager,
+  redo,
+  undo,
+  type PageUndoManager,
+} from './pageUndo.ts'
 import type { PageAppState } from './pagePersistence.ts'
 
 export type CollaborativeConnectionStatus =
@@ -142,6 +151,7 @@ export const useCollaborativePageSync = ({
 }: UseCollaborativePageSyncOptions) => {
   const docRef = useRef<Y.Doc | null>(null)
   const providerRef = useRef<HocuspocusProvider | null>(null)
+  const undoManagerRef = useRef<PageUndoManager | null>(null)
   const applyingRemoteState = useRef(false)
   const hasSyncedRef = useRef(false)
   const latestLocalStateRef = useRef(state)
@@ -156,6 +166,19 @@ export const useCollaborativePageSync = ({
   const [remotePresences, setRemotePresences] = useState<
     PresenceState[]
   >([])
+  const [undoState, setUndoState] = useState({
+    canRedo: false,
+    canUndo: false,
+  })
+
+  const updateUndoState = useCallback(() => {
+    const undoManager = undoManagerRef.current
+
+    setUndoState({
+      canUndo: undoManager ? canUndo(undoManager) : false,
+      canRedo: undoManager ? canRedo(undoManager) : false,
+    })
+  }, [])
 
   useEffect(() => {
     latestLocalStateRef.current = state
@@ -171,6 +194,7 @@ export const useCollaborativePageSync = ({
     pendingLocalAreaChangesRef.current.clear()
 
     const doc = new Y.Doc()
+    const undoManager = createPageUndoManager(doc)
     const provider = new HocuspocusProvider({
       document: doc,
       name: getCollaborativeDocumentName(pageId),
@@ -179,6 +203,7 @@ export const useCollaborativePageSync = ({
 
     docRef.current = doc
     providerRef.current = provider
+    undoManagerRef.current = undoManager
 
     const applyRemoteState = () => {
       const remoteState = getPageStateFromCollaborativeDoc(doc)
@@ -194,9 +219,15 @@ export const useCollaborativePageSync = ({
     }
 
     const handleDocUpdate = (_update: Uint8Array, origin: unknown) => {
-      if (origin === LOCAL_STATE_ORIGIN) return
+      if (origin === LOCAL_STATE_ORIGIN || origin === LOCAL_ORIGIN) {
+        return
+      }
 
       applyRemoteState()
+    }
+
+    const handleUndoStackChange = () => {
+      updateUndoState()
     }
 
     const handleSynced = ({ state: isSynced }: { state: boolean }) => {
@@ -238,6 +269,9 @@ export const useCollaborativePageSync = ({
     }
 
     doc.on('update', handleDocUpdate)
+    undoManager.on('stack-item-added', handleUndoStackChange)
+    undoManager.on('stack-item-popped', handleUndoStackChange)
+    undoManager.on('stack-item-updated', handleUndoStackChange)
     provider.on('synced', handleSynced)
     provider.on('status', handleStatus)
     provider.awareness?.on('change', updateRemotePresences)
@@ -250,7 +284,11 @@ export const useCollaborativePageSync = ({
       provider.awareness?.off('change', updateRemotePresences)
       provider.off('status', handleStatus)
       provider.off('synced', handleSynced)
+      undoManager.off('stack-item-updated', handleUndoStackChange)
+      undoManager.off('stack-item-popped', handleUndoStackChange)
+      undoManager.off('stack-item-added', handleUndoStackChange)
       doc.off('update', handleDocUpdate)
+      undoManager.destroy()
       provider.destroy()
       doc.destroy()
 
@@ -262,9 +300,17 @@ export const useCollaborativePageSync = ({
         docRef.current = null
       }
 
+      if (undoManagerRef.current === undoManager) {
+        undoManagerRef.current = null
+      }
+
       hasSyncedRef.current = false
+      setUndoState({
+        canRedo: false,
+        canUndo: false,
+      })
     }
-  }, [enabled, onRemoteState, pageId])
+  }, [enabled, onRemoteState, pageId, updateUndoState])
 
   useEffect(() => {
     if (!enabled || !docRef.current || !hasSyncedRef.current) return
@@ -284,7 +330,7 @@ export const useCollaborativePageSync = ({
       docRef.current,
       previousLocalStateRef.current,
       state,
-      LOCAL_STATE_ORIGIN
+      LOCAL_ORIGIN
     )
     previousLocalStateRef.current = state
   }, [enabled, state])
@@ -296,10 +342,32 @@ export const useCollaborativePageSync = ({
     )
   }, [])
 
+  const performUndo = useCallback(() => {
+    const undoManager = undoManagerRef.current
+
+    if (!undoManager || !canUndo(undoManager)) return
+
+    undo(undoManager)
+    updateUndoState()
+  }, [updateUndoState])
+
+  const performRedo = useCallback(() => {
+    const undoManager = undoManagerRef.current
+
+    if (!undoManager || !canRedo(undoManager)) return
+
+    redo(undoManager)
+    updateUndoState()
+  }, [updateUndoState])
+
   return {
+    canRedo: undoState.canRedo,
+    canUndo: undoState.canUndo,
     connectionStatus,
+    redo: performRedo,
     remotePresences,
     setPresence,
+    undo: performUndo,
   }
 }
 

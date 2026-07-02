@@ -4,6 +4,7 @@ import test from 'node:test'
 import * as Y from 'yjs'
 
 import {
+  LOCAL_ORIGIN,
   applyCollaborativePageStatePatch,
   applyCollaborativeAreaText,
   addCollaborativeComment,
@@ -292,6 +293,40 @@ test('updates multiple areas in one collaborative transaction', () => {
   assert.equal(nextState.areas.find((area) => area.id === 'parent')?.x, 120)
   assert.equal(nextState.areas.find((area) => area.id === 'child')?.y, 48)
   assert.equal(updateCount, 1)
+})
+
+test('collaborative write helpers tag local origin by default and honor explicit origins', () => {
+  const doc = createCollaborativePageDoc({
+    areas: createAreas(),
+    assets: [],
+    page: createDefaultPageState({ id: 'page_origins', now }),
+  })
+  const origins: unknown[] = []
+
+  doc.on('afterTransaction', (transaction) => {
+    origins.push(transaction.origin)
+  })
+
+  updateCollaborativeArea(doc, 'parent', {
+    x: 120,
+  })
+  updateCollaborativeAreas(doc, [
+    {
+      areaId: 'parent',
+      patch: {
+        y: 160,
+      },
+    },
+  ])
+  applyCollaborativeAreaText(doc, 'parent', 'Origin text')
+  deleteCollaborativeArea(doc, 'child', 'explicit-delete')
+
+  assert.deepEqual(origins.slice(-4), [
+    LOCAL_ORIGIN,
+    LOCAL_ORIGIN,
+    LOCAL_ORIGIN,
+    'explicit-delete',
+  ])
 })
 
 test('deleting an area removes its descendants in one transaction', () => {

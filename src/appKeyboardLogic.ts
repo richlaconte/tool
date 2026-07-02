@@ -1,6 +1,8 @@
 export type AppKeyboardAction =
   | 'deselect-area'
   | 'select-all-areas'
+  | 'undo'
+  | 'redo'
   | 'open-command-palette'
   | 'open-empty-command-palette'
   | 'open-search-palette'
@@ -57,6 +59,25 @@ export const getAppKeyboardAction = (
 
   if (state.isReadOnly) {
     return 'ignore'
+  }
+
+  if (
+    hasMetaOrCtrlModifier &&
+    !hasAltModifier &&
+    !state.isEditableTarget &&
+    normalizedKey === 'z'
+  ) {
+    return hasShiftModifier ? 'redo' : 'undo'
+  }
+
+  if (
+    hasMetaOrCtrlModifier &&
+    !hasAltModifier &&
+    !hasShiftModifier &&
+    !state.isEditableTarget &&
+    normalizedKey === 'y'
+  ) {
+    return 'redo'
   }
 
   if (

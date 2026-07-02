@@ -14,6 +14,7 @@ export type CommandPaletteOption = {
   description: string
   aliases?: string[]
   scope?: CommandPaletteScope
+  disabled?: boolean
   kind?: 'command' | 'area-search-result'
   matchField?: string
   status?: string
@@ -109,6 +110,8 @@ const CommandPalette = ({
       closeAndRestoreFocus()
       return
     }
+
+    if (selectedOption.disabled) return
 
     onOpenOption(selectedOption)
   }
@@ -212,7 +215,10 @@ const CommandPalette = ({
                 aria-selected={optionIndex === visibleSelectedIndex}
                 id={`command-palette-option-${option.id}`}
                 key={option.id}
-                onClick={() => onOpenOption(option)}
+                disabled={option.disabled}
+                onClick={() => {
+                  if (!option.disabled) onOpenOption(option)
+                }}
                 role="option"
                 type="button"
               >

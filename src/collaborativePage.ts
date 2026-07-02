@@ -23,6 +23,9 @@ const ASSETS_MAP = 'assets'
 const LINKS_MAP = 'links'
 const COMMENTS_MAP = 'comments'
 
+export const LOCAL_ORIGIN = 'local-user'
+export const AGENT_ORIGIN = 'agent'
+
 export const createCollaborativePageDoc = (state: PageAppState) => {
   const doc = new Y.Doc()
 
@@ -41,7 +44,7 @@ export const isCollaborativePageDocEmpty = (doc: Y.Doc) =>
 export const replaceCollaborativePageDocState = (
   doc: Y.Doc,
   state: PageAppState,
-  origin?: unknown
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   doc.transact(() => {
     const pageMap = getPageMap(doc)
@@ -80,7 +83,7 @@ export const applyCollaborativePageStatePatch = (
   doc: Y.Doc,
   previousState: PageAppState,
   nextState: PageAppState,
-  origin?: unknown
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   doc.transact(() => {
     patchPageMap(getPageMap(doc), previousState.page, nextState.page)
@@ -131,7 +134,8 @@ export const getCollaborativeAreaText = (doc: Y.Doc, areaId: string) => {
 export const applyCollaborativeAreaText = (
   doc: Y.Doc,
   areaId: string,
-  nextText: string
+  nextText: string,
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   const text = getCollaborativeAreaText(doc, areaId)
   const currentText = text.toString()
@@ -142,20 +146,21 @@ export const applyCollaborativeAreaText = (
 
   doc.transact(() => {
     applyTextDiff(text, diff)
-  })
+  }, origin)
 }
 
 export const updateCollaborativeArea = (
   doc: Y.Doc,
   areaId: string,
-  patch: CollaborativeAreaPatch
+  patch: CollaborativeAreaPatch,
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   const areaMap = getAreasMap(doc).get(areaId)
   if (!areaMap) return
 
   doc.transact(() => {
     applyCollaborativeAreaPatchToMap(doc, areaId, areaMap, patch)
-  })
+  }, origin)
 }
 
 export const updateCollaborativeAreas = (
@@ -163,7 +168,8 @@ export const updateCollaborativeAreas = (
   updates: Array<{
     areaId: string
     patch: CollaborativeAreaPatch
-  }>
+  }>,
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   const areasMap = getAreasMap(doc)
 
@@ -179,10 +185,14 @@ export const updateCollaborativeAreas = (
         update.patch
       )
     }
-  })
+  }, origin)
 }
 
-export const deleteCollaborativeArea = (doc: Y.Doc, areaId: string) => {
+export const deleteCollaborativeArea = (
+  doc: Y.Doc,
+  areaId: string,
+  origin: unknown = LOCAL_ORIGIN
+) => {
   const areasMap = getAreasMap(doc)
   const deletedAreaIds = getAreaAndDescendantIds(areasMap, areaId)
 
@@ -190,16 +200,17 @@ export const deleteCollaborativeArea = (doc: Y.Doc, areaId: string) => {
     for (const deletedAreaId of deletedAreaIds) {
       areasMap.delete(deletedAreaId)
     }
-  })
+  }, origin)
 }
 
 export const addCollaborativeComment = (
   doc: Y.Doc,
-  comment: AreaComment
+  comment: AreaComment,
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   doc.transact(() => {
     getCommentsMap(doc).set(comment.id, createPlainMap(comment))
-  })
+  }, origin)
 }
 
 export const resolveCollaborativeComment = (
@@ -211,7 +222,8 @@ export const resolveCollaborativeComment = (
   }: {
     resolvedAt: string
     resolvedBy: string
-  }
+  },
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   const commentMap = getCommentsMap(doc).get(commentId)
   if (!commentMap) return
@@ -219,12 +231,13 @@ export const resolveCollaborativeComment = (
   doc.transact(() => {
     commentMap.set('resolvedAt', resolvedAt)
     commentMap.set('resolvedBy', resolvedBy)
-  })
+  }, origin)
 }
 
 export const reopenCollaborativeComment = (
   doc: Y.Doc,
-  commentId: string
+  commentId: string,
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   const commentMap = getCommentsMap(doc).get(commentId)
   if (!commentMap) return
@@ -232,16 +245,17 @@ export const reopenCollaborativeComment = (
   doc.transact(() => {
     commentMap.set('resolvedAt', null)
     commentMap.set('resolvedBy', null)
-  })
+  }, origin)
 }
 
 export const deleteCollaborativeComment = (
   doc: Y.Doc,
-  commentId: string
+  commentId: string,
+  origin: unknown = LOCAL_ORIGIN
 ) => {
   doc.transact(() => {
     getCommentsMap(doc).delete(commentId)
-  })
+  }, origin)
 }
 
 const applyCollaborativeAreaPatchToMap = (

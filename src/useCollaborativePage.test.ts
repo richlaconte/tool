@@ -65,6 +65,20 @@ test('collaborative sync applies local changes as patches instead of full replac
   assert.match(source, /applyCollaborativePageStatePatch/)
 })
 
+test('collaborative sync creates a per-page undo manager and exposes controls', async () => {
+  const source = await readFile(
+    new URL('./useCollaborativePage.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /createPageUndoManager\(doc\)/)
+  assert.match(source, /undoManagerRef/)
+  assert.match(source, /canUndo: undoManager \? canUndo\(undoManager\) : false/)
+  assert.match(source, /undo: performUndo/)
+  assert.match(source, /redo: performRedo/)
+  assert.match(source, /undoManager\.destroy\(\)/)
+})
+
 test('collaborative sync waits for initial provider sync before writing local state', async () => {
   const source = await readFile(
     new URL('./useCollaborativePage.ts', import.meta.url),

@@ -5,6 +5,7 @@ import '../src/index.css'
 import '../src/App.css'
 import '../src/components/area.css'
 import '../src/components/commandPalette.css'
+import '../src/components/markdownContent.css'
 
 export const metadata: Metadata = {
   title: 'Cascadery',

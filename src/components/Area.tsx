@@ -35,6 +35,7 @@ import {
   type GifSlashCommand,
 } from '../gifSearch'
 import { resizeWithPreservedAspectRatio } from '../imageResize'
+import MarkdownContent from './MarkdownContent'
 import {
   resolveThemeColorTokens,
   type ThemeColorToken,
@@ -248,13 +249,19 @@ const Area = ({
       evidenceCommandForHighlight &&
         !evidenceCommandForHighlight.targetIsValid
     ) ||
-    (!gifCommandForHighlight &&
-      !evidenceCommandForHighlight &&
-      cssCommandForHighlight &&
+    Boolean(
+      !gifCommandForHighlight &&
+        !evidenceCommandForHighlight &&
+        cssCommandForHighlight &&
         cssCommandForHighlight.value.length > 0 &&
-        !cssCommandForHighlight.declarationIsValid)
+        !cssCommandForHighlight.declarationIsValid
+    )
 
   const canEditText = !isImageArea
+  const showMarkdownView =
+    !isImageArea &&
+    (isReadOnly || !isSelected) &&
+    areaText.trim().length > 0
 
   const imageAltText = isImageArea ? area.alt : ''
   const imageSource =
@@ -365,8 +372,23 @@ const Area = ({
     area.width,
     canEditText,
     isReadOnly,
+    showMarkdownView,
     syncTextLayerHeight,
   ])
+
+  const focusEditableAtEnd = () => {
+    requestAnimationFrame(() => {
+      const editable = editableRef.current
+
+      if (!editable) return
+
+      const textLength = getEditableText(editable).length
+
+      editable.focus()
+      setEditableCaretIndex(editable, textLength)
+      setCaretIndex(textLength)
+    })
+  }
 
   const handlePointerDown = (
     e: React.PointerEvent<HTMLDivElement>
@@ -805,6 +827,17 @@ const Area = ({
                 {shouldShowGifStill ? 'Play GIF' : 'Pause GIF'}
               </button>
             )}
+          </div>
+        ) : showMarkdownView ? (
+          <div
+            className="area-editor"
+            onPointerDown={() => {
+              if (isReadOnly) return
+
+              focusEditableAtEnd()
+            }}
+          >
+            <MarkdownContent text={areaText} />
           </div>
         ) : (
           <div

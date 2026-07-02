@@ -53,6 +53,10 @@ import {
   resizeAreaDimensions,
 } from './areaResize'
 import {
+  getSelectableRootAreaIds,
+  toggleAreaSelection,
+} from './areaSelection'
+import {
   getAppKeyboardAction,
   getDialogKeyboardAction,
 } from './appKeyboardLogic'
@@ -1039,9 +1043,14 @@ function App({
         ? 'offline'
         : 'connected'
     )
-  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(
-    null
+  const [selectedAreaIds, setSelectedAreaIds] = useState<string[]>(
+    []
   )
+  const selectedAreaId =
+    selectedAreaIds.length === 1 ? selectedAreaIds[0] : null
+  const setSelectedAreaId = useCallback((areaId: string | null) => {
+    setSelectedAreaIds(areaId ? [areaId] : [])
+  }, [])
   const [autoFocusAreaId, setAutoFocusAreaId] = useState<
     string | null
   >(null)
@@ -1184,7 +1193,7 @@ function App({
     setSelectedLinkId(null)
     setLinkFlyoutLinkId(null)
     setStyleDialogAreaId(null)
-  }, [])
+  }, [setSelectedAreaId])
   const gifSearchProvider = useMemo(
     () =>
       createGiphySearchProvider({
@@ -1261,7 +1270,7 @@ function App({
     })
 
     return () => cancelAnimationFrame(cleanupFrame)
-  }, [isViewOnly])
+  }, [isViewOnly, setSelectedAreaId])
 
   const getCanvasCenterAnchor = useCallback(() => {
     const canvas = canvasRef.current
@@ -2058,15 +2067,17 @@ function App({
           ?.getAttribute('data-area-id') ?? null
       const action = getCanvasPointerAction({
         hasLinkFlyout: Boolean(linkFlyoutLinkId),
-        hasSelectedArea: selectedAreaId !== null,
+        hasSelectedArea: selectedAreaIds.length > 0,
         hasSelectedLink: selectedLinkId !== null,
         isInsideSelectedArea:
-          selectedAreaId !== null && targetAreaId === selectedAreaId,
+          targetAreaId !== null &&
+          selectedAreaIds.includes(targetAreaId),
         isCanvasSurfaceTarget: isBlankCanvasPointerSurface(
           target instanceof HTMLElement ? target.id : '',
           target instanceof HTMLElement ? target.className : ''
         ),
         isReadOnly: isViewOnly,
+        isToggleModifier: e.shiftKey,
       })
 
       if (action === 'ignore') return
@@ -2121,7 +2132,8 @@ function App({
     deselectCurrentArea,
     isViewOnly,
     linkFlyoutLinkId,
-    selectedAreaId,
+    selectedAreaIds,
+    setSelectedAreaId,
     selectedLinkId,
   ])
 
@@ -2217,7 +2229,7 @@ function App({
 
       const keyboardAction = getAppKeyboardAction({
         key: e.key,
-        hasSelectedArea: selectedAreaId !== null,
+        hasSelectedArea: selectedAreaIds.length > 0,
         isCommandPaletteOpen: commandPaletteQuery !== null,
         isDialogOpen:
           openDialogId !== null || styleDialogArea !== null,
@@ -2236,6 +2248,16 @@ function App({
 
       if (keyboardAction === 'deselect-area') {
         deselectCurrentArea()
+        return
+      }
+
+      if (keyboardAction === 'select-all-areas') {
+        const rootAreaIds = getSelectableRootAreaIds(areas)
+
+        if (rootAreaIds.length > 0) {
+          setSelectedAreaIds(rootAreaIds)
+        }
+
         return
       }
 
@@ -2258,12 +2280,13 @@ function App({
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [
+    areas,
     commandPaletteQuery,
     deselectCurrentArea,
     isViewOnly,
     openDialogId,
     resetCanvasZoom,
-    selectedAreaId,
+    selectedAreaIds,
     selectedLinkId,
     shouldShowEmptyState,
     styleDialogArea,
@@ -3313,6 +3336,9 @@ function App({
   ) => {
     if (isViewOnly) return
 
+    const isGroupMove =
+      selectedAreaIds.length > 1 && selectedAreaIds.includes(id)
+
     setAreas((prev) => {
       const nextAreas = moveAreaWithSnapGrid(prev, id, x, y, {
         snapGridSize: getActiveSnapGridSize(
@@ -3320,6 +3346,37 @@ function App({
           bypassSnapGrid
         ),
       })
+
+      if (isGroupMove) {
+        const draggedBefore = prev.find((area) => area.id === id)
+        const draggedAfter = nextAreas.find(
+          (area) => area.id === id
+        )
+
+        setNestingPreview({
+          draggedAreaId: id,
+          candidateParentId: null,
+          unnestingFromParentId: null,
+        })
+
+        if (!draggedBefore || !draggedAfter) return nextAreas
+
+        const deltaX = draggedAfter.x - draggedBefore.x
+        const deltaY = draggedAfter.y - draggedBefore.y
+        const otherSelectedIds = new Set(
+          selectedAreaIds.filter((areaId) => areaId !== id)
+        )
+
+        return nextAreas.map((area) =>
+          otherSelectedIds.has(area.id) && area.parentId === null
+            ? {
+                ...area,
+                x: area.x + deltaX,
+                y: area.y + deltaY,
+              }
+            : area
+        )
+      }
 
       setNestingPreview({
         draggedAreaId: id,
@@ -3344,7 +3401,12 @@ function App({
   const endAreaMove = (id: string) => {
     if (isViewOnly) return
 
-    setAreas((prev) => nestAreaIfContained(prev, id))
+    const isGroupMove =
+      selectedAreaIds.length > 1 && selectedAreaIds.includes(id)
+
+    if (!isGroupMove) {
+      setAreas((prev) => nestAreaIfContained(prev, id))
+    }
     setNestingPreview({
       draggedAreaId: null,
       candidateParentId: null,
@@ -3434,12 +3496,11 @@ function App({
       removeAreaLinksForDeletedAreas(currentLinks, deletedAreaIds)
     )
     setDeletedAreaSnapshot(deletedArea)
-    setSelectedAreaId((currentSelectedAreaId) => {
-      return currentSelectedAreaId &&
-        deletedAreaIds.has(currentSelectedAreaId)
-        ? null
-        : currentSelectedAreaId
-    })
+    setSelectedAreaIds((currentSelectedAreaIds) =>
+      currentSelectedAreaIds.filter(
+        (currentAreaId) => !deletedAreaIds.has(currentAreaId)
+      )
+    )
   }
 
   const undoDeletedArea = () => {
@@ -4401,7 +4462,7 @@ function App({
         }
         themeColors={page.settings.theme.colors}
         isNewest={area.id === autoFocusAreaId}
-        isSelected={area.id === selectedAreaId}
+        isSelected={selectedAreaIds.includes(area.id)}
         isDragging={area.id === nestingPreview.draggedAreaId}
         isNestingTarget={area.id === nestingPreview.candidateParentId}
         isUnnestingSource={
@@ -4411,9 +4472,20 @@ function App({
         isReadOnly={isViewOnly}
         nestingDepth={getAreaDepth(areas, area.id)}
         canvasZoom={canvasZoom}
-        onSelect={(areaId) => {
+        onSelect={(areaId, toggleSelection) => {
           if (!isViewOnly) {
-            setSelectedAreaId(areaId)
+            setSelectedAreaIds((currentSelectedAreaIds) => {
+              if (toggleSelection) {
+                return toggleAreaSelection(
+                  currentSelectedAreaIds,
+                  areaId
+                )
+              }
+
+              return currentSelectedAreaIds.includes(areaId)
+                ? currentSelectedAreaIds
+                : [areaId]
+            })
             setSelectedLinkId(null)
             setLinkFlyoutLinkId(null)
           }
@@ -4600,6 +4672,20 @@ function App({
               {getPresenceInitials(presence.userName)}
             </span>
           ))}
+          {!isViewOnly && (
+            <button
+              type="button"
+              className="presence-share-button"
+              aria-label="Share"
+              title="Share"
+              onClick={() => {
+                void ensureShareLinks()
+                setOpenDialogId('share')
+              }}
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+          )}
         </div>
       )}
 

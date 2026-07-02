@@ -177,3 +177,44 @@ test('enter from the command palette does not close the opened dialog', () => {
     'ignore'
   )
 })
+
+test('meta+a selects all areas outside text editing', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'a',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+    }),
+    'select-all-areas'
+  )
+})
+
+test('meta+a inside a text editor stays native', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'a',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: true,
+      hasMetaOrCtrlModifier: true,
+    }),
+    'ignore'
+  )
+})
+
+test('plain a without modifier still opens the command palette', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: 'a',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+    }),
+    'open-command-palette'
+  )
+})

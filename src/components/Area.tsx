@@ -55,7 +55,7 @@ type AreaProps = {
   isReadOnly: boolean
   nestingDepth: number
   canvasZoom: number
-  onSelect: (id: string) => void
+  onSelect: (id: string, toggleSelection?: boolean) => void
   onTextChange: (id: string, text: string) => void
   onMoveStart: (id: string) => void
   onMove: (
@@ -395,7 +395,7 @@ const Area = ({
   ) => {
     e.preventDefault()
     e.stopPropagation()
-    onSelect(area.id)
+    onSelect(area.id, e.shiftKey)
     onMoveStart(area.id)
 
     isAreaDraggingRef.current = true
@@ -467,7 +467,7 @@ const Area = ({
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault()
       e.stopPropagation()
-      onSelect(area.id)
+      onSelect(area.id, e.shiftKey)
       isLinkDragging.current = true
       onBeginLinkDrag(
         area.id,
@@ -645,7 +645,10 @@ const Area = ({
       }}
       onPointerDown={(e) => {
         e.stopPropagation()
-        onSelect(area.id)
+
+        if (e.shiftKey) e.preventDefault()
+
+        onSelect(area.id, e.shiftKey)
       }}
     >
       <div
@@ -831,8 +834,8 @@ const Area = ({
         ) : showMarkdownView ? (
           <div
             className="area-editor"
-            onPointerDown={() => {
-              if (isReadOnly) return
+            onPointerDown={(e) => {
+              if (isReadOnly || e.shiftKey) return
 
               focusEditableAtEnd()
             }}

@@ -185,3 +185,31 @@ test('app listens for outside-area pointer downs before area handlers stop propa
   )
   assert.match(areaSource, /data-area-id=\{area\.id\}/)
 })
+
+test('shift pointerdown inside an area keeps the selection for toggling', () => {
+  assert.equal(
+    getCanvasPointerAction({
+      hasLinkFlyout: false,
+      hasSelectedArea: true,
+      hasSelectedLink: false,
+      isInsideSelectedArea: false,
+      isCanvasSurfaceTarget: false,
+      isToggleModifier: true,
+    }),
+    'ignore'
+  )
+})
+
+test('shift pointerdown on blank canvas still deselects', () => {
+  assert.equal(
+    getCanvasPointerAction({
+      hasLinkFlyout: false,
+      hasSelectedArea: true,
+      hasSelectedLink: false,
+      isInsideSelectedArea: false,
+      isCanvasSurfaceTarget: true,
+      isToggleModifier: true,
+    }),
+    'deselect'
+  )
+})

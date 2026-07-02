@@ -1,5 +1,6 @@
 export type AppKeyboardAction =
   | 'deselect-area'
+  | 'select-all-areas'
   | 'open-command-palette'
   | 'open-empty-command-palette'
   | 'close-command-palette'
@@ -55,6 +56,16 @@ export const getAppKeyboardAction = (
       (normalizedKey === 'p' && hasShiftModifier))
   ) {
     return 'open-empty-command-palette'
+  }
+
+  if (
+    hasMetaOrCtrlModifier &&
+    !hasAltModifier &&
+    !hasShiftModifier &&
+    normalizedKey === 'a' &&
+    !state.isEditableTarget
+  ) {
+    return 'select-all-areas'
   }
 
   if (state.key === 'Escape') {

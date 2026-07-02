@@ -11,6 +11,7 @@ export const getCanvasPointerAction = ({
   isInsideSelectedArea = false,
   isCanvasSurfaceTarget,
   isReadOnly = false,
+  isToggleModifier = false,
 }: {
   hasLinkFlyout: boolean
   hasSelectedArea: boolean
@@ -18,9 +19,14 @@ export const getCanvasPointerAction = ({
   isInsideSelectedArea?: boolean
   isCanvasSurfaceTarget: boolean
   isReadOnly?: boolean
+  isToggleModifier?: boolean
 }): CanvasPointerAction => {
   if (isReadOnly) return 'ignore'
   if (hasSelectedArea) {
+    if (isToggleModifier && !isCanvasSurfaceTarget) {
+      return 'ignore'
+    }
+
     return isInsideSelectedArea ? 'ignore' : 'deselect'
   }
   if (!isCanvasSurfaceTarget) return 'ignore'

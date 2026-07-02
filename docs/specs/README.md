@@ -10,7 +10,39 @@ This directory is split between active foundational specs and completed MVP spec
 
 ## Active Foundational Specs
 
-No active specs are currently outstanding.
+Drafted on 2026-07-02 from the [Spec Suite Roadmap](2026-07-02-cascadery-spec-suite-roadmap.md).
+Tiers are priority order; the roadmap's "Recommended Sequencing" section gives
+the suggested build order within and across tiers.
+
+### Tier 1 — Canvas Table Stakes
+
+- [Multi-Select and Group Manipulation](2026-07-02-multi-select-group-manipulation.md)
+- [Markdown and Code-Native Area Content](2026-07-02-markdown-code-area-content.md)
+- [Area Comment Threads](2026-07-02-area-comment-threads.md)
+- [Page Search and Navigation](2026-07-02-page-search-navigation.md)
+- [Undo/Redo Consolidation](2026-07-02-undo-redo-consolidation.md)
+
+### Tier 2 — Spec-Driven Development and the Agent Round-Trip
+
+- [SDD Artifact Interchange](2026-07-02-sdd-artifact-interchange.md) (flagship)
+- [Agent Work Journal and Live Agent Presence](2026-07-02-agent-work-journal.md)
+- [Remote MCP Hardening](2026-07-02-remote-mcp-hardening.md)
+- [Evidence Anchors v2: Repo-Linked Context](2026-07-02-evidence-anchors-v2.md)
+
+### Tier 3 — Trust and Ownership
+
+- [Identity-Lite and the Page Shelf](2026-07-02-identity-lite-page-shelf.md)
+- [Offline Resilience and Local-First Cache](2026-07-02-offline-resilience.md)
+- [JSON Canvas Interoperability](2026-07-02-json-canvas-interop.md)
+- [Named Snapshots and Visual Diff](2026-07-02-named-snapshots-visual-diff.md)
+
+### Tier 4 — Reach, Performance, and Craft
+
+- [Canvas Performance at Scale](2026-07-02-canvas-performance-at-scale.md)
+- [Keyboard-First Canvas and Accessibility](2026-07-02-keyboard-first-canvas-accessibility.md)
+- [Read-Anywhere Responsive View Mode](2026-07-02-responsive-view-mode.md)
+- [Product Site, Docs, and Launch Narrative](2026-07-02-product-site-launch.md)
+- [Quality Infrastructure: E2E Harness and Telemetry](2026-07-02-quality-infrastructure.md)
 
 ## Completed MVP Specs
 

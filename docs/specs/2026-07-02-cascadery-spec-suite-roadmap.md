@@ -3,9 +3,11 @@
 ## Status
 
 Created on 2026-07-02 after a deep product, market, and UX analysis pass. This is a
-direction document, not an implementation spec. Each outlined spec below should be
-expanded into its own dated spec file before implementation, following the
-conventions in "How to Expand These Outlines" at the bottom.
+direction document, not an implementation spec.
+
+All 18 outlined specs were expanded into full active specs on 2026-07-02 — see the
+"Active Foundational Specs" section of [README.md](README.md) for the list. The
+outlines below remain as the strategic rationale behind each spec.
 
 ## Part 1: Analysis
 

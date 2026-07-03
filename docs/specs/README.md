@@ -20,7 +20,6 @@ All Tier 1 specs are complete.
 
 ### Tier 2 — Spec-Driven Development and the Agent Round-Trip
 
-- [Agent Work Journal and Live Agent Presence](2026-07-02-agent-work-journal.md)
 - [Remote MCP Hardening](2026-07-02-remote-mcp-hardening.md)
 - [Evidence Anchors v2: Repo-Linked Context](2026-07-02-evidence-anchors-v2.md)
 
@@ -54,6 +53,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Area Types, Metadata, and Links](completed/2026-06-29-area-types-metadata-and-links.md)
 - [AI and MCP Agent Interface](completed/2026-06-26-cascadery-ai-mcp-interface.md)
 - [Agent Handoff Briefs](completed/2026-06-29-agent-handoff-briefs.md)
+- [Agent Work Journal and Live Agent Presence](completed/2026-07-02-agent-work-journal.md)
 - [Brand Positioning and Narrative System](completed/2026-06-29-brand-positioning-and-narrative.md)
 - [Cascadery Brand Leave Confirmation](completed/2026-06-30-brand-leave-confirmation.md)
 - [Cascadery Logo and Favicon Integration](completed/2026-06-30-cascadery-logo-favicon-integration.md)

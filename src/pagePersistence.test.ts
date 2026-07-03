@@ -156,6 +156,16 @@ const areaComment = {
   resolvedAt: null,
   resolvedBy: null,
 }
+const journalEntry = {
+  id: 'journal-1',
+  actor: {
+    name: 'GLM Agent',
+    kind: 'agent' as const,
+  },
+  text: 'Running tests before applying the patch.',
+  createdAt: now,
+  taskAreaId: 'area-1',
+}
 
 test('serializes page state into schema version 1 JSON', () => {
   const page = createDefaultPageState({
@@ -183,6 +193,7 @@ test('serializes page state into schema version 1 JSON', () => {
         },
         mcp: {
           enabled: false,
+          autoAcceptStatusUpdates: false,
         },
         shareLinks: null,
       },
@@ -342,6 +353,7 @@ test('serializes and parses MCP page access settings', () => {
       ...createDefaultPageState({ id: 'page-1', now }).settings,
       mcp: {
         enabled: true,
+        autoAcceptStatusUpdates: true,
       },
     },
   }
@@ -357,10 +369,57 @@ test('serializes and parses MCP page access settings', () => {
 
   assert.deepEqual(snapshot.page.settings.mcp, {
     enabled: true,
+    autoAcceptStatusUpdates: true,
   })
   assert.deepEqual(result.ok ? result.state.page.settings.mcp : null, {
     enabled: true,
+    autoAcceptStatusUpdates: true,
   })
+})
+
+test('parses legacy MCP settings with auto-accept disabled by default', () => {
+  const page = createDefaultPageState({
+    id: 'page-1',
+    now,
+  })
+  const snapshot = serializePageState({ areas, assets: [], page }, now)
+
+  delete (snapshot.page.settings.mcp as { autoAcceptStatusUpdates?: boolean })
+    .autoAcceptStatusUpdates
+
+  const result = parsePageJson(JSON.stringify(snapshot))
+
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.ok ? result.state.page.settings.mcp : null, {
+    enabled: false,
+    autoAcceptStatusUpdates: false,
+  })
+})
+
+test('serializes and parses recent journal entries', () => {
+  const page = createDefaultPageState({
+    id: 'page-1',
+    now,
+  })
+  const journal = Array.from({ length: 105 }, (_value, index) => ({
+    ...journalEntry,
+    id: `journal-${index}`,
+    text: `Entry ${index}`,
+  }))
+  const snapshot = serializePageState(
+    {
+      areas,
+      assets: [],
+      journal,
+      page,
+    },
+    now
+  )
+  const result = parsePageJson(JSON.stringify(snapshot))
+
+  assert.equal(snapshot.journal?.length, 100)
+  assert.equal(snapshot.journal?.[0]?.id, 'journal-5')
+  assert.deepEqual(result.ok ? result.state.journal : null, snapshot.journal)
 })
 
 test('serializes and parses nested area parent ids', () => {

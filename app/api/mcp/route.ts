@@ -18,12 +18,16 @@ import {
   createFixedWindowRateLimiter,
   getRateLimitConfigFromEnv,
 } from '../../../src/server/rateLimit'
-import { getStoredCollaborativePageState } from '../../../src/server/collaborativeStorage'
+import {
+  getStoredCollaborativePageState,
+  saveStoredCollaborativePageState,
+} from '../../../src/server/collaborativeStorage'
 import { createDefaultPageState, type PageAppState } from '../../../src/pagePersistence'
 import {
   listMcpAgentActions,
   recordMcpAgentAction,
 } from '../../../src/server/mcpAgentActions'
+import { createConsoleSecurityLogger } from '../../../src/server/securityLog'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -31,6 +35,11 @@ export const runtime = 'nodejs'
 const rateLimiter = createFixedWindowRateLimiter(
   getRateLimitConfigFromEnv()
 )
+const journalRateLimiter = createFixedWindowRateLimiter({
+  limit: 30,
+  windowMs: 60_000,
+})
+const securityLogger = createConsoleSecurityLogger()
 
 export const GET = () =>
   Response.json({
@@ -82,12 +91,33 @@ export const POST = async (request: Request) => {
 
   const database = createDatabase()
   const glmConfig = getGlmProviderConfigFromEnv()
+  const clientRateLimitKey = getClientRateLimitKey(request)
   const response = await handleMcpJsonRpcRequest(rpcRequest, {
+    checkJournalRateLimit: (pageId) => {
+      const result = journalRateLimiter.check(
+        `${clientRateLimitKey}:${pageId}`
+      )
+
+      if (result.ok) return { ok: true }
+
+      securityLogger({
+        type: 'mcp-agent-journal-rate-limit',
+        pageId,
+        reason: 'journal-append-rate-limit',
+        retryAfterSeconds: result.retryAfterSeconds,
+      })
+
+      return {
+        ok: false,
+        retryAfterSeconds: result.retryAfterSeconds,
+      }
+    },
     createAiDecisionLogPatch: glmConfig
       ? (state, client) =>
           createGlmDecisionLogPatch(state, client, glmConfig)
       : undefined,
     createActionId: () => `mcp_action_${crypto.randomUUID()}`,
+    createJournalId: () => `journal_${crypto.randomUUID()}`,
     getPage: async (pageId) => getPageState(database, pageId),
     listAgentActions: async (pageId) =>
       listMcpAgentActions(database, pageId),
@@ -106,6 +136,18 @@ export const POST = async (request: Request) => {
         'cascadery.mcp.agent_action',
         JSON.stringify(record)
       )
+    },
+    savePageState: async (state) => {
+      saveStoredCollaborativePageState(database, {
+        ...state,
+        page: {
+          ...state.page,
+          settings: {
+            ...state.page.settings,
+            shareLinks: null,
+          },
+        },
+      })
     },
   })
 

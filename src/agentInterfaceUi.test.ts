@@ -35,3 +35,31 @@ test('app exposes a reviewable agent suggestion flow', async () => {
   assert.match(css, /\.agent-proposal-operation-actions/)
   assert.match(css, /\.agent-proposal-error/)
 })
+
+test('app exposes an agent journal panel, presence chip, and MCP status setting', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const css = await readFile(
+    new URL('./App.css', import.meta.url),
+    'utf8'
+  )
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(commandSource, /id: 'agent-journal'/)
+  assert.match(source, /journalEntries/)
+  assert.match(source, /Agent journal/)
+  assert.match(source, /agent-journal-panel/)
+  assert.match(source, /agent-journal-toggle/)
+  assert.match(source, /agent-journal-toggle--unread/)
+  assert.match(source, /presence-avatar--agent/)
+  assert.match(source, /autoAcceptStatusUpdates/)
+  assert.match(source, /Auto-accept task status updates/)
+  assert.match(css, /\.agent-journal-panel/)
+  assert.match(css, /\.agent-journal-toggle--unread/)
+  assert.match(css, /\.presence-avatar--agent/)
+})

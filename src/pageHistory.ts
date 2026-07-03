@@ -310,6 +310,15 @@ const clonePageState = (state: PageAppState): PageAppState => ({
   links: (state.links ?? []).map((link) => ({
     ...link,
   })),
+  comments: (state.comments ?? []).map((comment) => ({
+    ...comment,
+  })),
+  journal: (state.journal ?? []).map((entry) => ({
+    ...entry,
+    actor: {
+      ...entry.actor,
+    },
+  })),
 })
 
 const isPageChangeEvent = (value: unknown): value is PageChangeEvent => {

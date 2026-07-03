@@ -138,6 +138,7 @@ export const mergeRemoteStateWithPendingLocalAreaChanges = (
     areas: mergedAreas,
     assets: remoteState.assets,
     comments: remoteState.comments,
+    journal: remoteState.journal,
     links: remoteState.links,
     page: remoteState.page,
   }

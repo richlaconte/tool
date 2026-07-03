@@ -5,6 +5,8 @@ import * as Y from 'yjs'
 
 import {
   LOCAL_ORIGIN,
+  AGENT_ORIGIN,
+  appendJournalEntry,
   applyCollaborativePageStatePatch,
   applyCollaborativeAreaText,
   addCollaborativeComment,
@@ -33,6 +35,16 @@ const comment = {
   createdAt: now,
   resolvedAt: null,
   resolvedBy: null,
+}
+const journalEntry = {
+  id: 'journal_1',
+  actor: {
+    name: 'GLM Agent',
+    kind: 'agent' as const,
+  },
+  text: 'Checking implementation status.',
+  createdAt: now,
+  taskAreaId: 'parent',
 }
 
 const createAreas = (): AreaState[] => [
@@ -106,6 +118,7 @@ test('converts app page state into a Yjs document and back', () => {
       },
     ],
     comments: [comment],
+    journal: [journalEntry],
     page,
   })
 
@@ -145,6 +158,7 @@ test('converts app page state into a Yjs document and back', () => {
     },
   ])
   assert.deepEqual(exported.comments, [comment])
+  assert.deepEqual(exported.journal, [journalEntry])
 })
 
 test('detects whether a collaborative document has server state', () => {
@@ -327,6 +341,26 @@ test('collaborative write helpers tag local origin by default and honor explicit
     LOCAL_ORIGIN,
     'explicit-delete',
   ])
+})
+
+test('collaborative journal appends use agent origin and prune oldest entries', () => {
+  const doc = createCollaborativePageDoc({
+    areas: createAreas(),
+    assets: [],
+    page: createDefaultPageState({ id: 'page_journal', now }),
+  })
+  const origins: unknown[] = []
+
+  doc.on('afterTransaction', (transaction) => {
+    origins.push(transaction.origin)
+  })
+
+  appendJournalEntry(doc, journalEntry)
+
+  const exported = getPageStateFromCollaborativeDoc(doc)
+
+  assert.deepEqual(exported.journal, [journalEntry])
+  assert.equal(origins.at(-1), AGENT_ORIGIN)
 })
 
 test('deleting an area removes its descendants in one transaction', () => {

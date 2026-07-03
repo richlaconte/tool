@@ -1,4 +1,9 @@
 import {
+  isAreaStatus,
+  type AreaStatus,
+} from './areaMetadata.ts'
+import {
+  applyAgentPatch,
   createAgentAreaPatch,
   deleteAgentAreaPatch,
   dryRunAgentPatch,
@@ -17,11 +22,16 @@ import {
   suggestDecisionLog,
   suggestImplementationMap,
   updateAgentAreaPatch,
+  updateAgentAreaStatusPatch,
   updateAgentAreaStylesPatch,
   MAX_IMPORT_OPERATIONS,
   type AgentClient,
   type AgentPatch,
 } from './agentInterface.ts'
+import {
+  createJournalEntry,
+  pruneJournalEntries,
+} from './agentJournal.ts'
 import { createAgentHandoffBrief } from './agentHandoff.ts'
 import { compileSddBundle } from './sddExport.ts'
 import { buildSddImportPatch } from './sddImport.ts'
@@ -73,16 +83,23 @@ type McpResourceDefinition = {
 }
 
 export type McpGatewayContext = {
+  checkJournalRateLimit?: (
+    pageId: string
+  ) =>
+    | { ok: true }
+    | { ok: false; retryAfterSeconds: number }
   createAiDecisionLogPatch?: (
     state: PageAppState,
     client: AgentClient
   ) => Promise<AgentPatch>
   createActionId?: () => string
+  createJournalId?: () => string
   getPage: (pageId: string) => Promise<PageAppState | null>
   listAgentActions?: (pageId: string) => Promise<McpAgentActionRecord[]>
   listPages: () => Promise<PageAppState[]>
   now?: () => string
   recordAgentAction?: (record: McpAgentActionRecord) => Promise<void>
+  savePageState?: (state: PageAppState) => Promise<void>
 }
 
 const MCP_AGENT_CLIENT: AgentClient = {
@@ -348,6 +365,46 @@ const toolDefinitions = [
         },
         styles: {
           type: 'object',
+        },
+      },
+    },
+  },
+  {
+    name: 'append_journal_entry',
+    description:
+      'Append a visible progress note to the page agent journal without changing canvas content.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'text'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        text: {
+          type: 'string',
+        },
+        taskAreaId: {
+          type: ['string', 'null'],
+        },
+      },
+    },
+  },
+  {
+    name: 'update_area_status',
+    description:
+      'Return or auto-apply a status-only Area metadata patch for task progress.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId', 'status'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+        status: {
+          type: 'string',
         },
       },
     },
@@ -709,6 +766,101 @@ const callTool = async (
         )
       )
     )
+  }
+
+  if (params.name === 'append_journal_entry') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    const rateLimit = context.checkJournalRateLimit?.(state.page.id) ?? {
+      ok: true as const,
+    }
+
+    if (!rateLimit.ok) {
+      return errorResponse(
+        id,
+        -32029,
+        'Agent journal rate limit exceeded.',
+        {
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        }
+      )
+    }
+
+    const result = createJournalEntry({
+      actorKind: 'agent',
+      actorName: MCP_AGENT_CLIENT.displayName,
+      createId: context.createJournalId,
+      knownAreaIds: state.areas.map((area) => area.id),
+      now: context.now?.() ?? new Date().toISOString(),
+      taskAreaId: readNullableString(args.taskAreaId),
+      text: typeof args.text === 'string' ? args.text : '',
+    })
+
+    if (!result.ok) {
+      return errorResponse(id, -32602, result.error)
+    }
+
+    if (!context.savePageState) {
+      return errorResponse(id, -32012, 'Page journal writes are not configured.')
+    }
+
+    await context.savePageState({
+      ...state,
+      journal: pruneJournalEntries([
+        ...(state.journal ?? []),
+        result.entry,
+      ]),
+    })
+
+    return resultResponse(id, {
+      schemaVersion: 1,
+      appended: true,
+      entry: result.entry,
+      warnings: result.warnings,
+    })
+  }
+
+  if (params.name === 'update_area_status') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    const status = typeof args.status === 'string' ? args.status : ''
+    if (!isAreaStatus(status)) {
+      return errorResponse(id, -32602, 'Area status is invalid.')
+    }
+
+    const patch = updateAgentAreaStatusPatch(
+      state,
+      MCP_AGENT_CLIENT,
+      typeof args.areaId === 'string' ? args.areaId : '',
+      status as AreaStatus,
+      {
+        createPatchId: () =>
+          `agent_patch_status_${context.createActionId?.() ?? Date.now()}`,
+        now: context.now?.() ?? new Date().toISOString(),
+      }
+    )
+
+    if (!state.page.settings.mcp.autoAcceptStatusUpdates) {
+      return resultResponse(id, createDryRunPatchResult(state, patch))
+    }
+
+    if (!context.savePageState) {
+      return errorResponse(id, -32012, 'Page status writes are not configured.')
+    }
+
+    const result = await applyAutoAcceptedStatusPatch(state, patch, context)
+    if (!result.ok) return errorResponse(id, -32602, result.errors.join(' '))
+
+    await context.savePageState(result.state)
+
+    return resultResponse(id, {
+      schemaVersion: 1,
+      applied: true,
+      auditRecord: result.auditRecord,
+      patch,
+    })
   }
 
   if (params.name === 'move_area') {
@@ -1117,6 +1269,64 @@ const createDryRunPatchResult = (
     mode: 'suggest',
     ...(maxOperations ? { maxOperations } : {}),
   })
+
+const applyAutoAcceptedStatusPatch = (
+  state: PageAppState,
+  patch: AgentPatch,
+  context: McpGatewayContext
+) => {
+  const writeClient: AgentClient = {
+    ...MCP_AGENT_CLIENT,
+    scopes: [...MCP_AGENT_CLIENT.scopes, 'page:write'],
+  }
+  const applied = applyAgentPatch(state, patch, writeClient, {
+    createActionId: context.createActionId,
+    now: context.now?.() ?? new Date().toISOString(),
+  })
+
+  if (!applied.ok) return applied
+
+  const operation = patch.operations[0]
+  const area =
+    operation && 'areaId' in operation
+      ? state.areas.find((candidate) => candidate.id === operation.areaId)
+      : null
+  const status =
+    operation?.op === 'updateAreaMetadata'
+      ? operation.patch.status
+      : undefined
+  const journalResult = createJournalEntry({
+    actorKind: 'agent',
+    actorName: MCP_AGENT_CLIENT.displayName,
+    createId: context.createJournalId,
+    knownAreaIds: state.areas.map((candidate) => candidate.id),
+    now: context.now?.() ?? new Date().toISOString(),
+    taskAreaId: area?.id ?? null,
+    text: `${MCP_AGENT_CLIENT.displayName} marked "${getAreaJournalLabel(area)}" ${status ?? 'open'}.`,
+  })
+
+  return {
+    ...applied,
+    state: {
+      ...applied.state,
+      journal: journalResult.ok
+        ? pruneJournalEntries([
+            ...(applied.state.journal ?? []),
+            journalResult.entry,
+          ])
+        : applied.state.journal,
+    },
+  }
+}
+
+const getAreaJournalLabel = (
+  area: PageAppState['areas'][number] | null | undefined
+) => {
+  if (!area) return 'unknown Area'
+  if (area.type === 'image') return area.alt || area.id
+
+  return area.text.split('\n')[0]?.trim().slice(0, 80) || area.id
+}
 
 const getPageFromArgs = async (
   args: Record<string, unknown>,

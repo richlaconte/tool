@@ -27,6 +27,7 @@ import {
   suggestImplementationMap,
   removeAgentPatchOperation,
   updateAgentAreaPatch,
+  updateAgentAreaStatusPatch,
   updateAgentAreaStylesPatch,
   validateAgentPatch,
   type AgentClient,
@@ -561,6 +562,79 @@ test('agent nest area patches apply through the shared nesting rules', () => {
           ?.parentId
       : null,
     'area-1'
+  )
+})
+
+test('agent status patches are reviewable and only update Area status metadata', () => {
+  const patch = updateAgentAreaStatusPatch(
+    state,
+    suggestClient,
+    'area-2',
+    'done',
+    {
+      createPatchId: () => 'patch-status',
+      now,
+    }
+  )
+  const dryRun = dryRunAgentPatch(state, patch, suggestClient, {
+    cssSupports,
+    mode: 'suggest',
+  })
+  const applied = applyAgentPatch(state, patch, writeClient, {
+    createActionId: () => 'action-status',
+    cssSupports,
+    now,
+  })
+
+  assert.equal(dryRun.validation.ok, true)
+  assert.equal(dryRun.applyAllowed, false)
+  assert.deepEqual(patch.operations, [
+    {
+      op: 'updateAreaMetadata',
+      areaId: 'area-2',
+      patch: {
+        status: 'done',
+      },
+    },
+  ])
+  assert.equal(applied.ok, true)
+  assert.equal(
+    applied.ok
+      ? applied.state.areas.find((area) => area.id === 'area-2')
+          ?.metadata?.status
+      : null,
+    'done'
+  )
+  assert.deepEqual(
+    applied.ok ? applied.auditRecord.undoPatch.operations : [],
+    [
+      {
+        op: 'updateAreaMetadata',
+        areaId: 'area-2',
+        patch: {},
+      },
+    ]
+  )
+
+  const invalidPatch: AgentPatch = {
+    ...patch,
+    operations: [
+      {
+        op: 'updateAreaMetadata',
+        areaId: 'area-1',
+        patch: {
+          kind: 'risk',
+        },
+      } as unknown as AgentPatch['operations'][number],
+    ],
+  }
+
+  assert.equal(
+    validateAgentPatch(state, invalidPatch, suggestClient, {
+      cssSupports,
+      mode: 'suggest',
+    }).ok,
+    false
   )
 })
 

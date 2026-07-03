@@ -110,6 +110,13 @@ export type AgentPatchOperation =
       styles: AgentStylePatch
     }
   | {
+      op: 'updateAreaMetadata'
+      areaId: string
+      patch: {
+        status?: AreaStatus
+      }
+    }
+  | {
       op: 'moveArea'
       areaId: string
       x: number
@@ -251,6 +258,8 @@ export const getAgentPage = (
       },
       mcp: {
         enabled: state.page.settings.mcp.enabled,
+        autoAcceptStatusUpdates:
+          state.page.settings.mcp.autoAcceptStatusUpdates,
       },
       shareLinks: null,
     },
@@ -624,6 +633,28 @@ export const updateAgentAreaStylesPatch = (
         op: 'updateAreaStyles',
         areaId,
         styles,
+      },
+    ],
+    options
+  )
+
+export const updateAgentAreaStatusPatch = (
+  state: PageAppState,
+  client: AgentClient,
+  areaId: string,
+  status: AreaStatus,
+  options: AgentSuggestionOptions = {}
+): AgentPatch =>
+  createAgentPatch(
+    state,
+    client,
+    [
+      {
+        op: 'updateAreaMetadata',
+        areaId,
+        patch: {
+          status,
+        },
       },
     ],
     options
@@ -1083,6 +1114,22 @@ const createAgentUndoOperation = (
     }
   }
 
+  if (operation.op === 'updateAreaMetadata') {
+    const area = state.areas.find(
+      (candidate) => candidate.id === operation.areaId
+    )
+
+    if (!area) return null
+
+    return {
+      op: 'updateAreaMetadata',
+      areaId: operation.areaId,
+      patch: {
+        ...(area.metadata?.status ? { status: area.metadata.status } : {}),
+      },
+    }
+  }
+
   if (operation.op === 'moveArea') {
     const area = state.areas.find(
       (candidate) => candidate.id === operation.areaId
@@ -1214,6 +1261,11 @@ const validateAgentOperation = (
     return
   }
 
+  if (operation.op === 'updateAreaMetadata') {
+    validateUpdateAreaMetadataOperation(state, operation, index, errors)
+    return
+  }
+
   if (operation.op === 'moveArea') {
     if (!hasArea(state, operation.areaId)) {
       errors.push(`Operation ${index + 1} references an unknown Area.`)
@@ -1240,6 +1292,35 @@ const validateAgentOperation = (
   }
 
   errors.push(`Operation ${index + 1} has an unsupported op.`)
+}
+
+const validateUpdateAreaMetadataOperation = (
+  state: PageAppState,
+  operation: Extract<AgentPatchOperation, { op: 'updateAreaMetadata' }>,
+  index: number,
+  errors: string[]
+) => {
+  if (!hasArea(state, operation.areaId)) {
+    errors.push(`Operation ${index + 1} references an unknown Area.`)
+  }
+
+  if (!isRecord(operation.patch)) {
+    errors.push(`Operation ${index + 1} metadata patch must be an object.`)
+    return
+  }
+
+  if (Object.keys(operation.patch).some((key) => key !== 'status')) {
+    errors.push(
+      `Operation ${index + 1} can only update Area status metadata.`
+    )
+  }
+
+  if (
+    operation.patch.status !== undefined &&
+    !AREA_STATUSES.includes(operation.patch.status as AreaStatus)
+  ) {
+    errors.push(`Operation ${index + 1} has an invalid Area status.`)
+  }
 }
 
 const validateCreateAreaOperation = (
@@ -1468,6 +1549,33 @@ const applyAgentOperation = (
     }
   }
 
+  if (operation.op === 'updateAreaMetadata') {
+    return {
+      ...state,
+      areas: state.areas.map((area) => {
+        if (area.id !== operation.areaId) return area
+
+        const metadata = {
+          ...(area.metadata ?? {
+            kind: 'task' as const,
+            tags: [],
+          }),
+        }
+
+        if (operation.patch.status === undefined) {
+          delete metadata.status
+        } else {
+          metadata.status = operation.patch.status
+        }
+
+        return {
+          ...area,
+          metadata,
+        }
+      }),
+    }
+  }
+
   if (operation.op === 'moveArea') {
     return {
       ...state,
@@ -1631,6 +1739,8 @@ const clonePageAppState = (state: PageAppState): PageAppState => ({
       },
       mcp: {
         enabled: state.page.settings.mcp.enabled,
+        autoAcceptStatusUpdates:
+          state.page.settings.mcp.autoAcceptStatusUpdates,
       },
       shareLinks: state.page.settings.shareLinks
         ? {
@@ -1658,6 +1768,15 @@ const clonePageAppState = (state: PageAppState): PageAppState => ({
   })),
   links: (state.links ?? []).map((link) => ({
     ...link,
+  })),
+  comments: (state.comments ?? []).map((comment) => ({
+    ...comment,
+  })),
+  journal: (state.journal ?? []).map((entry) => ({
+    ...entry,
+    actor: {
+      ...entry.actor,
+    },
   })),
 })
 

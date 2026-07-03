@@ -21,6 +21,7 @@ const state: PageAppState = {
       ...createDefaultPageState({ id: 'page-1', now }).settings,
       mcp: {
         enabled: true,
+        autoAcceptStatusUpdates: false,
       },
     },
   },
@@ -150,6 +151,8 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'create_area',
       'update_area',
       'update_area_styles',
+      'append_journal_entry',
+      'update_area_status',
       'move_area',
       'nest_area',
       'delete_area',
@@ -889,6 +892,157 @@ test('import_sdd reports warnings and no patch for empty markdown', async () => 
       warning.includes('No importable')
     )
   )
+})
+
+test('append_journal_entry validates and persists an append-only journal entry', async () => {
+  let savedState: PageAppState = state
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'append-journal',
+      method: 'tools/call',
+      params: {
+        name: 'append_journal_entry',
+        arguments: {
+          pageId: 'page-1',
+          taskAreaId: 'missing-area',
+          text: 'Investigating failing checks.',
+        },
+      },
+    },
+    {
+      ...context,
+      createJournalId: () => 'journal-mcp-1',
+      getPage: async () => savedState,
+      now: () => now,
+      savePageState: async (nextState) => {
+        savedState = nextState
+      },
+    }
+  )
+
+  assert.equal(response.error, undefined)
+  assert.equal(response.result.appended, true)
+  assert.deepEqual(response.result.entry, {
+    id: 'journal-mcp-1',
+    actor: {
+      kind: 'agent',
+      name: 'No-auth MCP client',
+    },
+    createdAt: now,
+    taskAreaId: null,
+    text: 'Investigating failing checks.',
+  })
+  assert.match(response.result.warnings[0], /missing-area/)
+  assert.deepEqual(savedState.journal, [response.result.entry])
+})
+
+test('append_journal_entry reports a JSON-RPC rate limit error without saving', async () => {
+  let saved = false
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'append-limited',
+      method: 'tools/call',
+      params: {
+        name: 'append_journal_entry',
+        arguments: {
+          pageId: 'page-1',
+          text: 'Too many updates.',
+        },
+      },
+    },
+    {
+      ...context,
+      checkJournalRateLimit: () => ({
+        ok: false,
+        retryAfterSeconds: 12,
+      }),
+      savePageState: async () => {
+        saved = true
+      },
+    }
+  )
+
+  assert.equal(response.error?.code, -32029)
+  assert.equal(response.error?.data.retryAfterSeconds, 12)
+  assert.equal(saved, false)
+})
+
+test('update_area_status returns a proposal unless status auto-accept is enabled', async () => {
+  const proposalResponse = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'status-proposal',
+      method: 'tools/call',
+      params: {
+        name: 'update_area_status',
+        arguments: {
+          pageId: 'page-1',
+          areaId: 'area-1',
+          status: 'done',
+        },
+      },
+    },
+    context
+  )
+  let savedState: PageAppState = {
+    ...state,
+    page: {
+      ...state.page,
+      settings: {
+        ...state.page.settings,
+        mcp: {
+          enabled: true,
+          autoAcceptStatusUpdates: true,
+        },
+      },
+    },
+  }
+  const autoAcceptResponse = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'status-auto',
+      method: 'tools/call',
+      params: {
+        name: 'update_area_status',
+        arguments: {
+          pageId: 'page-1',
+          areaId: 'area-1',
+          status: 'blocked',
+        },
+      },
+    },
+    {
+      ...context,
+      createActionId: () => 'action-status-auto',
+      createJournalId: () => 'journal-status-auto',
+      getPage: async () => savedState,
+      now: () => now,
+      savePageState: async (nextState) => {
+        savedState = nextState
+      },
+    }
+  )
+
+  assert.equal(proposalResponse.error, undefined)
+  assert.equal(proposalResponse.result.dryRun, true)
+  assert.equal(proposalResponse.result.applied, false)
+  assert.deepEqual(proposalResponse.result.patch.operations, [
+    {
+      op: 'updateAreaMetadata',
+      areaId: 'area-1',
+      patch: {
+        status: 'done',
+      },
+    },
+  ])
+
+  assert.equal(autoAcceptResponse.error, undefined)
+  assert.equal(autoAcceptResponse.result.applied, true)
+  assert.equal(autoAcceptResponse.result.auditRecord.id, 'action-status-auto')
+  assert.equal(savedState.areas[0].metadata?.status, 'blocked')
+  assert.match(savedState.journal?.[0]?.text ?? '', /marked .* blocked/)
 })
 
 test('export_sdd and import_sdd are recorded in the agent action audit trail', async () => {

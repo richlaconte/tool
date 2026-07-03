@@ -87,6 +87,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'page',
   },
   {
+    id: 'agent-journal',
+    title: 'Toggle agent journal',
+    description: 'Show recent human and agent progress notes',
+    aliases: ['journal', 'agent log', 'activity', 'progress'],
+    scope: 'page',
+  },
+  {
     id: 'export-sdd-bundle',
     title: 'Export SDD bundle',
     description: 'Download spec.md, plan.md, and tasks.md',

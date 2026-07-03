@@ -186,6 +186,11 @@ import {
 } from './contextKits'
 import { createAgentHandoffBrief } from './agentHandoff'
 import {
+  createJournalEntry,
+  sortJournalEntriesNewestFirst,
+  type JournalEntry,
+} from './agentJournal'
+import {
   exportPageAsMarkdown,
   MARKDOWN_MIME_TYPE,
   JSON_CANVAS_MIME_TYPE,
@@ -1064,6 +1069,12 @@ const getAgentOperationSummary = (operation: AgentPatchOperation) => {
     return `Style ${operation.areaId}`
   }
 
+  if (operation.op === 'updateAreaMetadata') {
+    return operation.patch.status
+      ? `Set ${operation.areaId} ${operation.patch.status}`
+      : `Clear ${operation.areaId} status`
+  }
+
   if (operation.op === 'moveArea') {
     return `Move ${operation.areaId}`
   }
@@ -1086,6 +1097,17 @@ const getUrlAltText = (url: string) => {
   } catch {
     return ''
   }
+}
+
+const formatJournalTime = (value: string) => {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleString(undefined, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  })
 }
 
 const requestImageAltText = (defaultAlt: string) =>
@@ -1115,6 +1137,9 @@ function App({
   )
   const [comments, setComments] = useState<AreaComment[]>(
     initialPageState.comments ?? []
+  )
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(
+    initialPageState.journal ?? []
   )
   const [page, setPage] = useState(initialPageState.page)
   const [pageHistory, setPageHistory] = useState(
@@ -1263,6 +1288,11 @@ function App({
     })
   const [copiedShareMode, setCopiedShareMode] =
     useState<ShareAccessMode | null>(null)
+  const [isAgentJournalOpen, setIsAgentJournalOpen] = useState(false)
+  const [journalDraft, setJournalDraft] = useState('')
+  const [lastReadJournalEntryId, setLastReadJournalEntryId] = useState<
+    string | null
+  >(initialPageState.journal?.at(-1)?.id ?? null)
   const nextAreaId = useRef(0)
   const nextAssetId = useRef(0)
   const nextThemeColorId = useRef(0)
@@ -1306,6 +1336,7 @@ function App({
     assets: initialPageState.assets,
     links: initialPageState.links ?? [],
     comments: initialPageState.comments ?? [],
+    journal: initialPageState.journal ?? [],
     page: initialPageState.page,
   })
   const latestCursorRef = useRef<PresenceState['cursor']>(null)
@@ -1349,9 +1380,10 @@ function App({
       assets,
       links,
       comments,
+      journal: journalEntries,
       page,
     }),
-    [areas, assets, comments, links, page]
+    [areas, assets, comments, journalEntries, links, page]
   )
   const handleRemoteCollaborativeState = useCallback(
     (nextState: PageAppState) => {
@@ -1361,6 +1393,7 @@ function App({
       setAssets(nextState.assets)
       setLinks(nextState.links ?? [])
       setComments(nextState.comments ?? [])
+      setJournalEntries(nextState.journal ?? [])
     },
     []
   )
@@ -1774,9 +1807,10 @@ function App({
       assets,
       links,
       comments,
+      journal: journalEntries,
       page,
     }
-  }, [areas, assets, comments, links, page])
+  }, [areas, assets, comments, journalEntries, links, page])
 
   useEffect(() => {
     collaborationProfileRef.current = collaborationProfile
@@ -2056,6 +2090,7 @@ function App({
       setAssets(message.state.assets)
       setLinks(message.state.links ?? [])
       setComments(message.state.comments ?? [])
+      setJournalEntries(message.state.journal ?? [])
     }
 
     const handleOnline = () => setCollaborationStatus('connected')
@@ -2254,7 +2289,14 @@ function App({
       try {
         localStorage.setItem(
           PAGE_STORAGE_KEY,
-          stringifyPageState({ areas, assets, comments, links, page })
+          stringifyPageState({
+            areas,
+            assets,
+            comments,
+            journal: journalEntries,
+            links,
+            page,
+          })
         )
         setSaveStatus('saved')
       } catch {
@@ -2266,7 +2308,7 @@ function App({
       window.clearTimeout(savingTimer)
       window.clearTimeout(saveTimer)
     }
-  }, [areas, assets, comments, links, page])
+  }, [areas, assets, comments, journalEntries, links, page])
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
@@ -2729,6 +2771,67 @@ function App({
         },
       },
     }))
+  }
+
+  const updateMcpAutoAcceptStatusUpdates = (enabled: boolean) => {
+    if (isViewOnly) return
+
+    setPage((currentPage) => ({
+      ...currentPage,
+      settings: {
+        ...currentPage.settings,
+        mcp: {
+          ...currentPage.settings.mcp,
+          autoAcceptStatusUpdates: enabled,
+        },
+      },
+    }))
+  }
+
+  const sortedJournalEntries = useMemo(
+    () => sortJournalEntriesNewestFirst(journalEntries),
+    [journalEntries]
+  )
+  const hasUnreadJournalEntries = Boolean(
+    journalEntries.at(-1) &&
+      journalEntries.at(-1)?.id !== lastReadJournalEntryId &&
+      !isAgentJournalOpen
+  )
+
+  const toggleAgentJournal = () => {
+    setIsAgentJournalOpen((isOpen) => {
+      const nextIsOpen = !isOpen
+
+      if (nextIsOpen || isOpen) {
+        setLastReadJournalEntryId(journalEntries.at(-1)?.id ?? null)
+      }
+
+      return nextIsOpen
+    })
+  }
+
+  const appendHumanJournalEntry = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (isViewOnly) return
+
+    const result = createJournalEntry({
+      actorKind: 'human',
+      actorName: collaborationProfile.userName,
+      knownAreaIds: areas.map((area) => area.id),
+      text: journalDraft,
+    })
+
+    if (!result.ok) {
+      setImportError(result.error)
+      return
+    }
+
+    setJournalEntries((currentEntries) => [
+      ...currentEntries,
+      result.entry,
+    ])
+    setJournalDraft('')
+    setImportError(null)
   }
 
   const updateThemeColors = (
@@ -3591,6 +3694,7 @@ function App({
         areas,
         assets,
         comments,
+        journal: journalEntries,
         links,
         page,
       },
@@ -3610,6 +3714,7 @@ function App({
         areas,
         assets,
         comments,
+        journal: journalEntries,
         links,
         page,
       },
@@ -3629,6 +3734,7 @@ function App({
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
     setComments(result.state.comments ?? [])
+    setJournalEntries(result.state.journal ?? [])
     setPage(result.state.page)
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
@@ -3661,6 +3767,7 @@ function App({
         areas,
         assets,
         comments,
+        journal: journalEntries,
         links,
         page,
       },
@@ -3685,6 +3792,7 @@ function App({
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
     setComments(result.state.comments ?? [])
+    setJournalEntries(result.state.journal ?? [])
     setPage(result.state.page)
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
@@ -4572,6 +4680,7 @@ function App({
     areas,
     assets,
     comments,
+    journal: journalEntries,
     links,
     page,
   })
@@ -4687,6 +4796,7 @@ function App({
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
     setComments(result.state.comments ?? [])
+    setJournalEntries(result.state.journal ?? [])
     setPage(result.state.page)
     setPageHistory((currentHistory) =>
       addPageHistoryEntry(
@@ -4734,6 +4844,7 @@ function App({
     setAssets(nextState.assets)
     setLinks(nextState.links ?? [])
     setComments(nextState.comments ?? [])
+    setJournalEntries(nextState.journal ?? [])
     setSelectedAreaId(nextState.selectedAreaId)
     setAutoFocusAreaId(nextState.selectedAreaId)
     setHasClickedCanvas(true)
@@ -4766,6 +4877,7 @@ function App({
             areas,
             assets,
             comments,
+            journal: journalEntries,
             links,
             page,
           },
@@ -4779,6 +4891,7 @@ function App({
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
     setComments(result.state.comments ?? [])
+    setJournalEntries(result.state.journal ?? [])
     setSelectedAreaId(null)
     setImportError(null)
   }
@@ -4796,6 +4909,7 @@ function App({
           areas,
           assets,
           comments,
+          journal: journalEntries,
           links,
           page,
         },
@@ -4807,6 +4921,7 @@ function App({
       setAssets(restoredState.assets)
       setLinks(restoredState.links ?? [])
       setComments(restoredState.comments ?? [])
+      setJournalEntries(restoredState.journal ?? [])
       setSelectedAreaId(null)
       setOpenDialogId(null)
       setImportError(null)
@@ -4818,6 +4933,7 @@ function App({
         areas,
         assets,
         comments,
+        journal: journalEntries,
         links,
         page,
       },
@@ -4838,6 +4954,7 @@ function App({
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
     setComments(result.state.comments ?? [])
+    setJournalEntries(result.state.journal ?? [])
     setAgentAuditRecords((currentRecords) => [
       result.auditRecord,
       ...currentRecords.slice(0, 9),
@@ -5280,6 +5397,17 @@ function App({
               {mcpAgentActivityLabel}
             </span>
           )}
+          <button
+            className={`page-persistence-button agent-journal-toggle${
+              hasUnreadJournalEntries
+                ? ' agent-journal-toggle--unread'
+                : ''
+            }`}
+            type="button"
+            onClick={toggleAgentJournal}
+          >
+            Agent journal
+          </button>
           <span
             aria-live="polite"
             className={`save-status save-status--${saveStatus}`}
@@ -5371,6 +5499,14 @@ function App({
               {getPresenceInitials(presence.userName)}
             </span>
           ))}
+          {mcpAgentActivityLabel && (
+            <span
+              className="presence-avatar presence-avatar--agent"
+              title={mcpAgentActivityLabel}
+            >
+              AI
+            </span>
+          )}
           {!isViewOnly && (
             <button
               type="button"
@@ -5918,6 +6054,78 @@ function App({
         />
       )}
 
+      {shouldShowEditorChrome && isAgentJournalOpen && (
+        <aside
+          aria-label="Agent journal"
+          className="agent-journal-panel"
+        >
+          <div className="agent-journal-header">
+            <div>
+              <strong>Agent journal</strong>
+              <span>{journalEntries.length} entries</span>
+            </div>
+            <button
+              aria-label="Close agent journal"
+              className="agent-journal-close"
+              type="button"
+              onClick={() => {
+                setLastReadJournalEntryId(journalEntries.at(-1)?.id ?? null)
+                setIsAgentJournalOpen(false)
+              }}
+            >
+              x
+            </button>
+          </div>
+          <div className="agent-journal-entries">
+            {sortedJournalEntries.length === 0 ? (
+              <p className="agent-journal-empty">
+                Agent and human progress notes will appear here.
+              </p>
+            ) : (
+              sortedJournalEntries.map((entry) => (
+                <article
+                  className={`agent-journal-entry agent-journal-entry--${entry.actor.kind}`}
+                  key={entry.id}
+                >
+                  <div className="agent-journal-entry-meta">
+                    <strong>{entry.actor.name}</strong>
+                    <span>{formatJournalTime(entry.createdAt)}</span>
+                  </div>
+                  <p>{entry.text}</p>
+                  {entry.taskAreaId && (
+                    <button
+                      className="agent-journal-area-link"
+                      type="button"
+                      onClick={() => jumpToArea(entry.taskAreaId ?? '')}
+                    >
+                      Jump to Area
+                    </button>
+                  )}
+                </article>
+              ))
+            )}
+          </div>
+          <form
+            className="agent-journal-composer"
+            onSubmit={appendHumanJournalEntry}
+          >
+            <label>
+              <span>Human note</span>
+              <textarea
+                rows={3}
+                value={journalDraft}
+                onChange={(event) =>
+                  setJournalDraft(event.currentTarget.value)
+                }
+              />
+            </label>
+            <button className="agent-proposal-button" type="submit">
+              Add note
+            </button>
+          </form>
+        </aside>
+      )}
+
       {shouldShowEditorChrome && deletedAreaSnapshot && (
         <div
           aria-live="polite"
@@ -6033,6 +6241,10 @@ function App({
             }
             if (option.id === 'agent-handoff') {
               setOpenDialogId(option.id)
+              return
+            }
+            if (option.id === 'agent-journal') {
+              toggleAgentJournal()
               return
             }
             if (option.id === 'export-sdd-bundle') {
@@ -7179,6 +7391,21 @@ function App({
                       }
                     />
                     <span>Allow MCP access</span>
+                  </label>
+                  <label className="page-style-control page-style-control--inline">
+                    <input
+                      aria-label="Auto-accept task status updates"
+                      checked={
+                        page.settings.mcp.autoAcceptStatusUpdates
+                      }
+                      type="checkbox"
+                      onChange={(e) =>
+                        updateMcpAutoAcceptStatusUpdates(
+                          e.currentTarget.checked
+                        )
+                      }
+                    />
+                    <span>Auto-accept task status updates</span>
                   </label>
                 </section>
                 <section className="page-style-section theme-color-editor">

@@ -1,6 +1,11 @@
 import type { AreaState, AssetState } from './App'
 import type { AreaComment } from './areaComments.ts'
 import {
+  MAX_EXPORTED_JOURNAL_ENTRIES,
+  normalizeJournalEntries,
+  type JournalEntry,
+} from './agentJournal.ts'
+import {
   isAreaKind,
   isAreaEvidenceKind,
   isAreaLinkKind,
@@ -26,6 +31,7 @@ export type SnapGridSettings = {
 
 export type McpSettings = {
   enabled: boolean
+  autoAcceptStatusUpdates: boolean
 }
 
 export type PageSettings = {
@@ -86,6 +92,7 @@ export type PageJsonSnapshot = {
   assets: AssetState[]
   links?: AreaLink[]
   comments?: AreaComment[]
+  journal?: JournalEntry[]
 }
 
 export type PageAppState = {
@@ -94,6 +101,7 @@ export type PageAppState = {
   assets: AssetState[]
   links?: AreaLink[]
   comments?: AreaComment[]
+  journal?: JournalEntry[]
 }
 
 export type ParsePageJsonResult =
@@ -142,6 +150,7 @@ export const createDefaultPageState = ({
     },
     mcp: {
       enabled: false,
+      autoAcceptStatusUpdates: false,
     },
     shareLinks: null,
   },
@@ -153,6 +162,12 @@ export const serializePageState = (
 ): PageJsonSnapshot => {
   const links = (state.links ?? []).map(cloneAreaLink)
   const comments = (state.comments ?? []).map(cloneAreaComment)
+  // The journal is a working log, not an audit trail: only the most
+  // recent entries travel in an exported snapshot to bound file size.
+  const journalEntries = state.journal ?? []
+  const exportedJournal = journalEntries
+    .slice(Math.max(0, journalEntries.length - MAX_EXPORTED_JOURNAL_ENTRIES))
+    .map((entry) => ({ ...entry, actor: { ...entry.actor } }))
 
   return {
     schemaVersion: PAGE_SCHEMA_VERSION,
@@ -172,6 +187,8 @@ export const serializePageState = (
         },
         mcp: {
           enabled: state.page.settings.mcp.enabled,
+          autoAcceptStatusUpdates:
+            state.page.settings.mcp.autoAcceptStatusUpdates,
         },
         shareLinks: state.page.settings.shareLinks
           ? {
@@ -228,6 +245,7 @@ export const serializePageState = (
     })),
     ...(links.length > 0 ? { links } : {}),
     ...(comments.length > 0 ? { comments } : {}),
+    ...(exportedJournal.length > 0 ? { journal: exportedJournal } : {}),
   }
 }
 
@@ -269,6 +287,7 @@ export const parsePageJson = (
   const assets = parseAssets(value.assets)
   const links = parseAreaLinks(value.links)
   const comments = parseAreaComments(value.comments)
+  const journal = normalizeJournalEntries(value.journal)
 
   if (!page || !areas || !assets || !links || !comments) {
     return {
@@ -285,6 +304,7 @@ export const parsePageJson = (
       assets,
       links,
       ...(comments.length > 0 ? { comments } : {}),
+      ...(journal.length > 0 ? { journal } : {}),
     },
   }
 }
@@ -355,6 +375,7 @@ const parseMcpSettings = (
   if (value === undefined) {
     return {
       enabled: false,
+      autoAcceptStatusUpdates: false,
     }
   }
 
@@ -364,6 +385,11 @@ const parseMcpSettings = (
 
   return {
     enabled: value.enabled,
+    // Legacy snapshots predate this field; default it off.
+    autoAcceptStatusUpdates:
+      typeof value.autoAcceptStatusUpdates === 'boolean'
+        ? value.autoAcceptStatusUpdates
+        : false,
   }
 }
 

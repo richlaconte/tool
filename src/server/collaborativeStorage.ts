@@ -1,6 +1,7 @@
 import type { Database as DatabaseConnection } from 'better-sqlite3'
 import * as Y from 'yjs'
 
+import { normalizeJournalEntries, type JournalEntry } from '../agentJournal.ts'
 import {
   isAreaKind,
   isAreaLinkKind,
@@ -30,6 +31,7 @@ export type StoredPageState = {
       }
       mcp: {
         enabled: boolean
+        autoAcceptStatusUpdates: boolean
       }
       shareLinks: null
     }
@@ -76,6 +78,7 @@ export type StoredPageState = {
     source?: GifAssetSource
   }>
   links: AreaLink[]
+  journal?: JournalEntry[]
 }
 
 type DocumentRow = {
@@ -112,6 +115,89 @@ export const getStoredCollaborativePageState = (
   return readPageStateFromDoc(doc, pageId)
 }
 
+export const saveStoredCollaborativePageState = (
+  database: DatabaseConnection,
+  state: StoredPageState & {
+    comments?: unknown[]
+    journal?: JournalEntry[]
+  }
+) => {
+  setupCollaborativeDocumentStorage(database)
+
+  const doc = createStoredPageDoc(state)
+
+  database
+    .prepare(
+      'insert or replace into documents (name, data) values (?, ?)'
+    )
+    .run(
+      `page:${state.page.id}`,
+      Buffer.from(Y.encodeStateAsUpdate(doc))
+    )
+}
+
+const createStoredPageDoc = (
+  state: StoredPageState & {
+    comments?: unknown[]
+    journal?: JournalEntry[]
+  }
+) => {
+  const doc = new Y.Doc()
+  const pageMap = doc.getMap('page')
+  const areasMap = doc.getMap<Y.Map<unknown>>('areas')
+  const assetsMap = doc.getMap<Y.Map<unknown>>('assets')
+  const linksMap = doc.getMap<Y.Map<unknown>>('links')
+  const commentsMap = doc.getMap<Y.Map<unknown>>('comments')
+  const journalArray = doc.getArray<Y.Map<unknown>>('journal')
+
+  pageMap.set('id', state.page.id)
+  pageMap.set('title', state.page.title)
+  pageMap.set('createdAt', state.page.createdAt)
+  pageMap.set('updatedAt', state.page.updatedAt)
+  pageMap.set('settings', state.page.settings)
+
+  for (const area of state.areas) {
+    const areaMap = createPlainYMap(area)
+    areaMap.set('styles', createStringMap(area.styles))
+
+    if ('text' in area) {
+      const text = new Y.Text()
+      text.insert(0, area.text)
+      areaMap.set('text', text)
+      areaMap.set('type', area.type ?? 'text')
+    }
+
+    areasMap.set(area.id, areaMap)
+  }
+
+  for (const asset of state.assets) {
+    assetsMap.set(asset.id, createPlainYMap(asset))
+  }
+
+  for (const link of state.links ?? []) {
+    linksMap.set(
+      link.id,
+      createPlainYMap(link as unknown as Record<string, unknown>)
+    )
+  }
+
+  for (const comment of state.comments ?? []) {
+    const commentRecord = readRecord(comment)
+    const commentId =
+      typeof commentRecord.id === 'string' ? commentRecord.id : ''
+
+    if (commentId) commentsMap.set(commentId, createPlainYMap(commentRecord))
+  }
+
+  for (const entry of state.journal ?? []) {
+    journalArray.push([
+      createPlainYMap(entry as unknown as Record<string, unknown>),
+    ])
+  }
+
+  return doc
+}
+
 const readPageStateFromDoc = (
   doc: Y.Doc,
   fallbackPageId: string
@@ -120,6 +206,7 @@ const readPageStateFromDoc = (
   areas: readAreasMap(doc.getMap<Y.Map<unknown>>('areas')),
   assets: readAssetsMap(doc.getMap<Y.Map<unknown>>('assets')),
   links: readLinksMap(doc.getMap<Y.Map<unknown>>('links')),
+  journal: readJournalArray(doc.getArray('journal')),
 })
 
 const readPageMap = (
@@ -155,10 +242,43 @@ const readPageMap = (
       },
       mcp: {
         enabled: readBoolean(readRecord(settings.mcp).enabled, false),
+        autoAcceptStatusUpdates: readBoolean(
+          readRecord(settings.mcp).autoAcceptStatusUpdates,
+          false
+        ),
       },
       shareLinks: null,
     },
   }
+}
+
+const readJournalArray = (journalArray: Y.Array<unknown>) =>
+  normalizeJournalEntries(
+    journalArray.toArray().map((entry) =>
+      entry instanceof Y.Map ? entry.toJSON() : entry
+    )
+  )
+
+const createPlainYMap = (record: Record<string, unknown>) => {
+  const map = new Y.Map<unknown>()
+
+  for (const [key, value] of Object.entries(record)) {
+    if (value !== undefined) {
+      map.set(key, value)
+    }
+  }
+
+  return map
+}
+
+const createStringMap = (record: Record<string, string>) => {
+  const map = new Y.Map<string>()
+
+  for (const [key, value] of Object.entries(record)) {
+    map.set(key, value)
+  }
+
+  return map
 }
 
 const readAreasMap = (areasMap: Y.Map<Y.Map<unknown>>) => {

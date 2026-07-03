@@ -3,6 +3,12 @@ import * as Y from 'yjs'
 import type { AreaState, AssetState, ImageAreaState, TextAreaState } from './App'
 import type { AreaComment } from './areaComments.ts'
 import {
+  MAX_JOURNAL_ENTRIES,
+  normalizeJournalEntries,
+  pruneJournalEntries,
+  type JournalEntry,
+} from './agentJournal.ts'
+import {
   isAreaKind,
   isAreaLinkKind,
   isAreaStatus,
@@ -22,6 +28,7 @@ const AREAS_MAP = 'areas'
 const ASSETS_MAP = 'assets'
 const LINKS_MAP = 'links'
 const COMMENTS_MAP = 'comments'
+const JOURNAL_ARRAY = 'journal'
 
 export const LOCAL_ORIGIN = 'local-user'
 export const AGENT_ORIGIN = 'agent'
@@ -39,7 +46,8 @@ export const isCollaborativePageDocEmpty = (doc: Y.Doc) =>
   getAreasMap(doc).size === 0 &&
   getAssetsMap(doc).size === 0 &&
   getLinksMap(doc).size === 0 &&
-  getCommentsMap(doc).size === 0
+  getCommentsMap(doc).size === 0 &&
+  getJournalArray(doc).length === 0
 
 export const replaceCollaborativePageDocState = (
   doc: Y.Doc,
@@ -52,12 +60,16 @@ export const replaceCollaborativePageDocState = (
     const assetsMap = getAssetsMap(doc)
     const linksMap = getLinksMap(doc)
     const commentsMap = getCommentsMap(doc)
+    const journalArray = getJournalArray(doc)
 
     pageMap.clear()
     areasMap.clear()
     assetsMap.clear()
     linksMap.clear()
     commentsMap.clear()
+    if (journalArray.length > 0) {
+      journalArray.delete(0, journalArray.length)
+    }
 
     writePageMap(pageMap, state.page)
 
@@ -75,6 +87,10 @@ export const replaceCollaborativePageDocState = (
 
     for (const comment of state.comments ?? []) {
       commentsMap.set(comment.id, createPlainMap(comment))
+    }
+
+    for (const entry of pruneJournalEntries(state.journal ?? [])) {
+      journalArray.push([createPlainMap(entry as Record<string, unknown>)])
     }
   }, origin)
 }
@@ -107,6 +123,11 @@ export const applyCollaborativePageStatePatch = (
       previousState.comments ?? [],
       nextState.comments ?? []
     )
+    patchJournalArray(
+      getJournalArray(doc),
+      previousState.journal ?? [],
+      nextState.journal ?? []
+    )
   }, origin)
 }
 
@@ -118,7 +139,35 @@ export const getPageStateFromCollaborativeDoc = (
   assets: readAssetsMap(getAssetsMap(doc)),
   links: readLinksMap(getLinksMap(doc)),
   comments: readCommentsMap(getCommentsMap(doc)),
+  journal: getJournalEntries(doc),
 })
+
+export const getJournalEntries = (doc: Y.Doc): JournalEntry[] =>
+  normalizeJournalEntries(
+    getJournalArray(doc)
+      .toArray()
+      .map((entry) =>
+        entry instanceof Y.Map ? entry.toJSON() : entry
+      )
+  )
+
+export const appendJournalEntry = (
+  doc: Y.Doc,
+  entry: JournalEntry,
+  origin: unknown = AGENT_ORIGIN
+) => {
+  doc.transact(() => {
+    const journalArray = getJournalArray(doc)
+
+    journalArray.push([createPlainMap(entry as unknown as Record<string, unknown>)])
+
+    const overflow = journalArray.length - MAX_JOURNAL_ENTRIES
+
+    if (overflow > 0) {
+      journalArray.delete(0, overflow)
+    }
+  }, origin)
+}
 
 export const getCollaborativeAreaText = (doc: Y.Doc, areaId: string) => {
   const areaMap = getAreasMap(doc).get(areaId)
@@ -361,6 +410,10 @@ const readPageSettings = (value: unknown): PageState['settings'] => {
     },
     mcp: {
       enabled: typeof mcp.enabled === 'boolean' ? mcp.enabled : false,
+      autoAcceptStatusUpdates:
+        typeof mcp.autoAcceptStatusUpdates === 'boolean'
+          ? mcp.autoAcceptStatusUpdates
+          : false,
     },
     shareLinks: null,
   }
@@ -721,6 +774,33 @@ const patchCommentsMap = (
   }
 }
 
+const patchJournalArray = (
+  journalArray: Y.Array<Y.Map<unknown>>,
+  previousEntries: JournalEntry[],
+  nextEntries: JournalEntry[]
+) => {
+  const prunedNextEntries = pruneJournalEntries(nextEntries)
+  const previousIds = previousEntries.map((entry) => entry.id).join('\n')
+  const nextIds = prunedNextEntries.map((entry) => entry.id).join('\n')
+
+  if (
+    previousIds === nextIds &&
+    journalArray.length === prunedNextEntries.length
+  ) {
+    return
+  }
+
+  if (journalArray.length > 0) {
+    journalArray.delete(0, journalArray.length)
+  }
+
+  for (const entry of prunedNextEntries) {
+    journalArray.push([
+      createPlainMap(entry as unknown as Record<string, unknown>),
+    ])
+  }
+}
+
 const readCommentsMap = (commentsMap: Y.Map<Y.Map<unknown>>) => {
   const comments: AreaComment[] = []
 
@@ -886,6 +966,9 @@ const getLinksMap = (doc: Y.Doc) =>
 
 const getCommentsMap = (doc: Y.Doc) =>
   doc.getMap<Y.Map<unknown>>(COMMENTS_MAP)
+
+const getJournalArray = (doc: Y.Doc) =>
+  doc.getArray<Y.Map<unknown>>(JOURNAL_ARRAY)
 
 const getAreaAndDescendantIds = (
   areasMap: Y.Map<Y.Map<unknown>>,

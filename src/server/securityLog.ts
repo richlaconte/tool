@@ -3,6 +3,7 @@ export type SecurityLogEventType =
   | 'collaboration-connection-limit'
   | 'collaboration-message-rate-limit'
   | 'collaboration-message-too-large'
+  | 'mcp-agent-journal-rate-limit'
 
 export type SecurityLogEvent = {
   type: SecurityLogEventType

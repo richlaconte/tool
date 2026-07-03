@@ -108,6 +108,7 @@ import {
   type AgentClient,
   type AgentPatch,
   type AgentPatchOperation,
+  type AgentScope,
 } from './agentInterface'
 import type { CssSlashCommand } from './cssSlashCommand'
 import { removeCssSlashCommand } from './cssSlashCommand'
@@ -424,6 +425,10 @@ const COMMAND_DIALOGS: Record<
     title: 'Agent proposal',
     body: 'Review suggested agent changes before applying them to the canvas.',
   },
+  'agent-connections': {
+    title: 'Agent connections',
+    body: 'Create scoped, revocable MCP tokens for agents that need this page.',
+  },
   'insert-context-kit': {
     title: 'Insert context kit',
     body: 'Choose a starter layout for a common developer context workflow.',
@@ -565,6 +570,25 @@ const LOCAL_AGENT_CLIENT: AgentClient = {
   id: 'local-agent',
   displayName: 'Cascadery Agent',
   scopes: ['page:read', 'page:search', 'page:suggest', 'page:write'],
+}
+
+type McpTokenConnection = {
+  id: string
+  pageId: string
+  scopes: AgentScope[]
+  label: string
+  createdAt: string
+  expiresAt: string | null
+  revokedAt: string | null
+  lastUsedAt: string | null
+}
+
+type McpActionSummary = {
+  id: string
+  toolName: string
+  clientDisplayName: string
+  createdAt: string
+  result: 'success' | 'error'
 }
 
 const MCP_STATUS_CLIENT: AgentClient = {
@@ -1236,6 +1260,22 @@ function App({
     label: string | null
     pageId: string
   } | null>(null)
+  const [mcpConnections, setMcpConnections] = useState<
+    McpTokenConnection[]
+  >([])
+  const [mcpConnectionActions, setMcpConnectionActions] = useState<
+    McpActionSummary[]
+  >([])
+  const [mcpConnectionLabel, setMcpConnectionLabel] = useState('')
+  const [mcpConnectionScopes, setMcpConnectionScopes] = useState<
+    AgentScope[]
+  >(['page:read', 'page:search', 'page:suggest'])
+  const [createdMcpToken, setCreatedMcpToken] = useState<string | null>(
+    null
+  )
+  const [mcpConnectionError, setMcpConnectionError] = useState<
+    string | null
+  >(null)
   const [, setHasClickedCanvas] = useState(false)
   const [themeColorName, setThemeColorName] = useState('')
   const [themeColorToken, setThemeColorToken] = useState('')
@@ -3685,6 +3725,137 @@ function App({
       }
     })
   }
+
+  const loadMcpConnections = useCallback(async () => {
+    if (!pageId || isViewOnly) return
+
+    try {
+      const response = await fetch(`/api/pages/${page.id}/mcp-tokens`)
+
+      if (!response.ok) {
+        throw new Error('Agent connections could not be loaded.')
+      }
+
+      const payload = (await response.json()) as {
+        actions?: McpActionSummary[]
+        tokens?: McpTokenConnection[]
+      }
+
+      setMcpConnections(Array.isArray(payload.tokens) ? payload.tokens : [])
+      setMcpConnectionActions(
+        Array.isArray(payload.actions) ? payload.actions : []
+      )
+      setMcpConnectionError(null)
+    } catch {
+      setMcpConnectionError('Agent connections could not be loaded.')
+    }
+  }, [isViewOnly, page.id, pageId])
+
+  const openAgentConnections = () => {
+    if (isViewOnly) return
+
+    setCreatedMcpToken(null)
+    setMcpConnectionError(null)
+    setOpenDialogId('agent-connections')
+    void loadMcpConnections()
+  }
+
+  const createMcpConnection = async () => {
+    if (!pageId || isViewOnly) return
+
+    try {
+      const response = await fetch(`/api/pages/${page.id}/mcp-tokens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          label: mcpConnectionLabel,
+          scopes: mcpConnectionScopes,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Agent token could not be created.')
+      }
+
+      const payload = (await response.json()) as {
+        token?: unknown
+        tokens?: McpTokenConnection[]
+      }
+
+      if (typeof payload.token !== 'string') {
+        throw new Error('Agent token response was invalid.')
+      }
+
+      setCreatedMcpToken(payload.token)
+      setMcpConnectionLabel('')
+      setMcpConnections(Array.isArray(payload.tokens) ? payload.tokens : [])
+      setMcpConnectionError(null)
+    } catch {
+      setMcpConnectionError('Agent token could not be created.')
+    }
+  }
+
+  const revokeMcpConnection = async (tokenId: string) => {
+    if (!pageId || isViewOnly) return
+
+    try {
+      const response = await fetch(`/api/pages/${page.id}/mcp-tokens`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Agent token could not be revoked.')
+      }
+
+      const payload = (await response.json()) as {
+        tokens?: McpTokenConnection[]
+      }
+
+      setMcpConnections(Array.isArray(payload.tokens) ? payload.tokens : [])
+      setMcpConnectionError(null)
+    } catch {
+      setMcpConnectionError('Agent token could not be revoked.')
+    }
+  }
+
+  const toggleMcpConnectionScope = (scope: AgentScope) => {
+    setMcpConnectionScopes((current) => {
+      const next = current.includes(scope)
+        ? current.filter((candidate) => candidate !== scope)
+        : [...current, scope]
+
+      return next.length > 0 ? next : ['page:read']
+    })
+  }
+
+  const mcpSetupSnippet = createdMcpToken
+    ? JSON.stringify(
+        {
+          mcpServers: {
+            cascadery: {
+              url: `${
+                typeof window === 'undefined'
+                  ? 'https://cascadery.com'
+                  : window.location.origin
+              }/api/mcp`,
+              headers: {
+                Authorization: `Bearer ${createdMcpToken}`,
+              },
+            },
+          },
+        },
+        null,
+        2
+      )
+    : ''
 
   const createAgentSuggestion = () => {
     if (isViewOnly) return
@@ -6180,6 +6351,10 @@ function App({
               setOpenDialogId(option.id)
               return
             }
+            if (option.id === 'agent-connections') {
+              openAgentConnections()
+              return
+            }
             if (option.id === 'toggle-snap-grid') {
               updateSnapGrid((current) => ({
                 enabled: !current.enabled,
@@ -6460,12 +6635,166 @@ function App({
                       onCopy={copyShareUrl}
                       onRegenerate={regenerateShareUrl}
                     />
+                    {pageId && !isViewOnly && (
+                      <button
+                        className="share-link-button share-link-button--secondary"
+                        type="button"
+                        onClick={openAgentConnections}
+                      >
+                        Agent connections
+                      </button>
+                    )}
                   </>
                 ) : (
                   <p>
                     Share links are available to the editor who creates
                     them.
                   </p>
+                )}
+              </div>
+            ) : openDialogId === 'agent-connections' ? (
+              <div className="agent-connections-dialog">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                {!pageId ? (
+                  <p>Agent tokens are available on shared canvases.</p>
+                ) : (
+                  <>
+                    {mcpConnectionError && (
+                      <p
+                        className="agent-connections-error"
+                        role="alert"
+                      >
+                        {mcpConnectionError}
+                      </p>
+                    )}
+                    <section className="agent-connections-section">
+                      <h3>Create agent token</h3>
+                      <label className="page-style-control">
+                        <span>Label</span>
+                        <input
+                          aria-label="Agent connection label"
+                          placeholder="Claude Code on laptop"
+                          type="text"
+                          value={mcpConnectionLabel}
+                          onChange={(e) =>
+                            setMcpConnectionLabel(
+                              e.currentTarget.value
+                            )
+                          }
+                        />
+                      </label>
+                      <div className="agent-connection-scopes">
+                        {(
+                          [
+                            ['page:read', 'Read this page'],
+                            ['page:search', 'Search Areas'],
+                            ['page:suggest', 'Suggest changes'],
+                            ['page:write', 'Edit directly'],
+                          ] as [AgentScope, string][]
+                        ).map(([scope, label]) => (
+                          <label
+                            className="page-style-control page-style-control--inline"
+                            key={scope}
+                          >
+                            <input
+                              checked={mcpConnectionScopes.includes(
+                                scope
+                              )}
+                              type="checkbox"
+                              onChange={() =>
+                                toggleMcpConnectionScope(scope)
+                              }
+                            />
+                            <span>{label}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {mcpConnectionScopes.includes('page:write') && (
+                        <p className="agent-connections-warning">
+                          Direct edit tokens can change this page without
+                          proposal review.
+                        </p>
+                      )}
+                      <button
+                        className="agent-proposal-button"
+                        type="button"
+                        onClick={createMcpConnection}
+                      >
+                        Create agent token
+                      </button>
+                    </section>
+                    {createdMcpToken && (
+                      <section className="agent-connections-section">
+                        <h3>Setup snippet</h3>
+                        <input
+                          aria-label="Created agent token"
+                          readOnly
+                          value={createdMcpToken}
+                        />
+                        <pre className="agent-connections-snippet">
+                          {mcpSetupSnippet}
+                        </pre>
+                      </section>
+                    )}
+                    <section className="agent-connections-section">
+                      <h3>Active tokens</h3>
+                      {mcpConnections.length > 0 ? (
+                        <div className="agent-token-list">
+                          {mcpConnections.map((connection) => (
+                            <div
+                              className="agent-token-row"
+                              key={connection.id}
+                            >
+                              <div>
+                                <strong>{connection.label}</strong>
+                                <span>
+                                  {connection.scopes.join(', ')}
+                                </span>
+                                <span>
+                                  Last used{' '}
+                                  {connection.lastUsedAt ?? 'never'}
+                                </span>
+                              </div>
+                              <button
+                                className="share-link-button share-link-button--secondary"
+                                disabled={Boolean(connection.revokedAt)}
+                                type="button"
+                                onClick={() =>
+                                  revokeMcpConnection(connection.id)
+                                }
+                              >
+                                Revoke
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p>No agent tokens yet.</p>
+                      )}
+                    </section>
+                    {mcpConnectionActions.length > 0 && (
+                      <section className="agent-connections-section">
+                        <h3>Recent agent audit</h3>
+                        <div className="agent-token-list">
+                          {mcpConnectionActions.map((action) => (
+                            <div
+                              className="agent-token-row"
+                              key={action.id}
+                            >
+                              <div>
+                                <strong>{action.toolName}</strong>
+                                <span>
+                                  {action.clientDisplayName} ·{' '}
+                                  {action.result}
+                                </span>
+                              </div>
+                              <span>{action.createdAt}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </>
                 )}
               </div>
             ) : openDialogId === 'set-area-type' ? (

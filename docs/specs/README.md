@@ -20,7 +20,6 @@ All Tier 1 specs are complete.
 
 ### Tier 2 — Spec-Driven Development and the Agent Round-Trip
 
-- [Remote MCP Hardening](2026-07-02-remote-mcp-hardening.md)
 - [Evidence Anchors v2: Repo-Linked Context](2026-07-02-evidence-anchors-v2.md)
 
 ### Tier 3 — Trust and Ownership
@@ -74,6 +73,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Offscreen Area Indicators](completed/2026-06-30-offscreen-area-indicators.md)
 - [Page Search and Navigation](completed/2026-07-02-page-search-navigation.md)
 - [Page JSON Persistence](completed/2026-06-26-page-json-persistence.md)
+- [Remote MCP Hardening](completed/2026-07-02-remote-mcp-hardening.md)
 - [Security and Privacy Baseline](completed/2026-06-26-cascadery-security-privacy.md)
 - [Share Links](completed/2026-06-26-share-links.md)
 - [Smooth Trackpad Zoom](completed/2026-06-29-smooth-trackpad-zoom.md)

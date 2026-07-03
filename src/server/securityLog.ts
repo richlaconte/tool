@@ -3,6 +3,7 @@ export type SecurityLogEventType =
   | 'collaboration-connection-limit'
   | 'collaboration-message-rate-limit'
   | 'collaboration-message-too-large'
+  | 'mcp-auth-denied'
   | 'mcp-agent-journal-rate-limit'
 
 export type SecurityLogEvent = {
@@ -13,6 +14,9 @@ export type SecurityLogEvent = {
   pageId?: string
   reason: string
   retryAfterSeconds?: number
+  scope?: string
+  tokenId?: string
+  toolName?: string
 }
 
 export type SecurityLogger = (event: SecurityLogEvent) => void

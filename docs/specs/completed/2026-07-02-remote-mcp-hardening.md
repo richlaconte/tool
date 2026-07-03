@@ -2,9 +2,10 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 2.3). Active.
-This spec gates any promotion of remote agent write access. Ship it before
-marketing the MCP endpoint beyond local/trusted use.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 2.3).
+Completed MVP on 2026-07-03. The gateway now requires scoped, page-bound
+bearer tokens for remote requests, while preserving an explicit loopback-only
+anonymous development mode behind `TOOL_MCP_ALLOW_ANONYMOUS`.
 
 ## Goal
 
@@ -168,3 +169,19 @@ direction while deferring a full OAuth authorization server.
   Recommend: keep distinct (it exists) but always co-grant in the UI.
 - Where the resource-metadata JSON route lives under Next App Router —
   implementer verifies against the current MCP spec revision before coding.
+
+## MVP Completion Notes
+
+- Implemented `mcp_tokens` with hash-only storage, default 90-day expiry,
+  per-page audience binding, revocation, and last-used timestamps.
+- `/api/mcp` now accepts `Authorization: Bearer ...`, returns 401 with
+  `WWW-Authenticate` and `/api/mcp/.well-known` metadata for missing or
+  invalid remote credentials, and logs denials as `mcp-auth-denied`.
+- The gateway enforces declared tool scopes, page audience, and per-scope
+  fixed-window limits before executing tools.
+- Added an edit-session-protected Agent connections dialog and
+  `/api/pages/[pageId]/mcp-tokens` API for minting, listing, and revoking
+  page-scoped tokens. Plaintext tokens are shown only on creation.
+- Full OAuth authorization-server work remains a future spec; this MVP keeps
+  the migration path open by using bearer semantics, scopes, audience binding,
+  expiry, revocation, and protected resource metadata.

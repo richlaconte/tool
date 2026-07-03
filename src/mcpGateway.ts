@@ -27,6 +27,7 @@ import {
   MAX_IMPORT_OPERATIONS,
   type AgentClient,
   type AgentPatch,
+  type AgentScope,
 } from './agentInterface.ts'
 import {
   createJournalEntry,
@@ -75,6 +76,17 @@ export type McpAgentActionRecord = {
   errorCode?: number
 }
 
+export type McpGatewaySecurityEvent = {
+  type: 'mcp-auth-denied'
+  clientId?: string
+  pageId?: string
+  reason: string
+  retryAfterSeconds?: number
+  scope?: AgentScope
+  tokenId?: string
+  toolName?: string
+}
+
 type McpResourceDefinition = {
   uri: string
   name: string
@@ -83,6 +95,12 @@ type McpResourceDefinition = {
 }
 
 export type McpGatewayContext = {
+  authorizedPageId?: string
+  checkToolRateLimit?: (
+    scope: AgentScope
+  ) =>
+    | { ok: true }
+    | { ok: false; retryAfterSeconds: number }
   checkJournalRateLimit?: (
     pageId: string
   ) =>
@@ -94,9 +112,11 @@ export type McpGatewayContext = {
   ) => Promise<AgentPatch>
   createActionId?: () => string
   createJournalId?: () => string
+  client?: AgentClient
   getPage: (pageId: string) => Promise<PageAppState | null>
   listAgentActions?: (pageId: string) => Promise<McpAgentActionRecord[]>
   listPages: () => Promise<PageAppState[]>
+  logSecurityEvent?: (event: McpGatewaySecurityEvent) => void
   now?: () => string
   recordAgentAction?: (record: McpAgentActionRecord) => Promise<void>
   savePageState?: (state: PageAppState) => Promise<void>
@@ -114,6 +134,7 @@ const JSON_MIME_TYPE = 'application/json'
 const toolDefinitions = [
   {
     name: 'list_pages',
+    minimumScope: 'page:read',
     description: 'List Cascadery pages visible to the no-auth MCP endpoint.',
     inputSchema: {
       type: 'object',
@@ -122,6 +143,7 @@ const toolDefinitions = [
   },
   {
     name: 'get_page',
+    minimumScope: 'page:read',
     description: 'Get one Cascadery page as structured JSON.',
     inputSchema: {
       type: 'object',
@@ -135,6 +157,7 @@ const toolDefinitions = [
   },
   {
     name: 'get_area',
+    minimumScope: 'page:read',
     description: 'Get one Cascadery Area by stable id.',
     inputSchema: {
       type: 'object',
@@ -151,6 +174,7 @@ const toolDefinitions = [
   },
   {
     name: 'search_areas',
+    minimumScope: 'page:search',
     description: 'Search Area ids and text within one Cascadery page.',
     inputSchema: {
       type: 'object',
@@ -167,6 +191,7 @@ const toolDefinitions = [
   },
   {
     name: 'summarize_page',
+    minimumScope: 'page:read',
     description: 'Summarize page structure and extracted decision markers.',
     inputSchema: {
       type: 'object',
@@ -180,6 +205,7 @@ const toolDefinitions = [
   },
   {
     name: 'extract_decisions',
+    minimumScope: 'page:read',
     description: 'Extract lines prefixed with Decision: from text Areas.',
     inputSchema: {
       type: 'object',
@@ -193,6 +219,7 @@ const toolDefinitions = [
   },
   {
     name: 'extract_open_questions',
+    minimumScope: 'page:read',
     description:
       'Extract lines prefixed with Open question: or Question: from text Areas.',
     inputSchema: {
@@ -207,6 +234,7 @@ const toolDefinitions = [
   },
   {
     name: 'suggest_areas',
+    minimumScope: 'page:suggest',
     description: 'Return a patch proposing useful new Areas without applying it.',
     inputSchema: {
       type: 'object',
@@ -220,6 +248,7 @@ const toolDefinitions = [
   },
   {
     name: 'suggest_area_updates',
+    minimumScope: 'page:suggest',
     description: 'Return a patch proposing Area style updates without applying it.',
     inputSchema: {
       type: 'object',
@@ -233,6 +262,7 @@ const toolDefinitions = [
   },
   {
     name: 'suggest_board_organization',
+    minimumScope: 'page:suggest',
     description:
       'Return a patch proposing a readable board arrangement without applying it.',
     inputSchema: {
@@ -247,6 +277,7 @@ const toolDefinitions = [
   },
   {
     name: 'suggest_decision_log',
+    minimumScope: 'page:suggest',
     description: 'Return a deterministic decision-log patch without applying it.',
     inputSchema: {
       type: 'object',
@@ -260,6 +291,7 @@ const toolDefinitions = [
   },
   {
     name: 'suggest_implementation_map',
+    minimumScope: 'page:suggest',
     description:
       'Return a patch proposing an implementation map without applying it.',
     inputSchema: {
@@ -274,6 +306,7 @@ const toolDefinitions = [
   },
   {
     name: 'ai_suggest_decision_log',
+    minimumScope: 'page:suggest',
     description: 'Use the configured GLM provider to return a decision-log patch.',
     inputSchema: {
       type: 'object',
@@ -287,6 +320,7 @@ const toolDefinitions = [
   },
   {
     name: 'create_area',
+    minimumScope: 'page:write',
     description: 'Return a dry-run patch for creating a text Area.',
     inputSchema: {
       type: 'object',
@@ -321,6 +355,7 @@ const toolDefinitions = [
   },
   {
     name: 'update_area',
+    minimumScope: 'page:write',
     description: 'Return a dry-run patch for updating Area text or geometry.',
     inputSchema: {
       type: 'object',
@@ -352,6 +387,7 @@ const toolDefinitions = [
   },
   {
     name: 'update_area_styles',
+    minimumScope: 'page:write',
     description: 'Return a dry-run patch for updating Area CSS styles.',
     inputSchema: {
       type: 'object',
@@ -371,6 +407,7 @@ const toolDefinitions = [
   },
   {
     name: 'append_journal_entry',
+    minimumScope: 'page:suggest',
     description:
       'Append a visible progress note to the page agent journal without changing canvas content.',
     inputSchema: {
@@ -391,6 +428,7 @@ const toolDefinitions = [
   },
   {
     name: 'update_area_status',
+    minimumScope: 'page:write',
     description:
       'Return or auto-apply a status-only Area metadata patch for task progress.',
     inputSchema: {
@@ -411,6 +449,7 @@ const toolDefinitions = [
   },
   {
     name: 'move_area',
+    minimumScope: 'page:write',
     description: 'Return a dry-run patch for moving an Area.',
     inputSchema: {
       type: 'object',
@@ -433,6 +472,7 @@ const toolDefinitions = [
   },
   {
     name: 'nest_area',
+    minimumScope: 'page:write',
     description: 'Return a dry-run patch for nesting or unnesting an Area.',
     inputSchema: {
       type: 'object',
@@ -452,6 +492,7 @@ const toolDefinitions = [
   },
   {
     name: 'delete_area',
+    minimumScope: 'page:write',
     description: 'Return a dry-run patch for deleting an Area.',
     inputSchema: {
       type: 'object',
@@ -468,6 +509,7 @@ const toolDefinitions = [
   },
   {
     name: 'apply_patch',
+    minimumScope: 'page:write',
     description:
       'Dry-run validate an agent patch. Direct apply is not enabled on the no-auth endpoint.',
     inputSchema: {
@@ -488,6 +530,7 @@ const toolDefinitions = [
   },
   {
     name: 'export_sdd',
+    minimumScope: 'page:read',
     description:
       'Compile the page into spec.md, plan.md, and tasks.md Markdown for spec-driven development.',
     inputSchema: {
@@ -502,6 +545,7 @@ const toolDefinitions = [
   },
   {
     name: 'import_sdd',
+    minimumScope: 'page:suggest',
     description:
       'Turn spec/plan/tasks Markdown into a reviewable patch that lays it out as Areas. Never applies directly.',
     inputSchema: {
@@ -583,13 +627,32 @@ const callTool = async (
   }
 
   const args = isRecord(params.arguments) ? params.arguments : {}
+  const toolDefinition = getToolDefinition(params.name)
+
+  if (!toolDefinition) {
+    return errorResponse(id, -32601, 'Tool not found.')
+  }
+
+  const authorization = authorizeMcpAccess({
+    args,
+    context,
+    pageId: typeof args.pageId === 'string' ? args.pageId : undefined,
+    scope: toolDefinition.minimumScope,
+    toolName: params.name,
+  })
+
+  if (!authorization.ok) {
+    return authorization.response(id)
+  }
+
+  const client = getMcpClient(context)
 
   if (params.name === 'list_pages') {
     return resultResponse(
       id,
       listAgentPages(
-        (await context.listPages()).filter(isPageMcpEnabled),
-        MCP_AGENT_CLIENT
+        filterVisiblePages(await context.listPages(), context),
+        client
       )
     )
   }
@@ -598,7 +661,7 @@ const callTool = async (
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
 
-    return resultResponse(id, getAgentPage(state, MCP_AGENT_CLIENT))
+    return resultResponse(id, getAgentPage(state, client))
   }
 
   if (params.name === 'get_area') {
@@ -608,7 +671,7 @@ const callTool = async (
     const result = getAgentArea(
       state,
       typeof args.areaId === 'string' ? args.areaId : '',
-      MCP_AGENT_CLIENT
+      client
     )
 
     if (!result.area) return areaNotFoundResponse(id)
@@ -625,7 +688,7 @@ const callTool = async (
       searchAgentAreas(
         state,
         typeof args.query === 'string' ? args.query : '',
-        MCP_AGENT_CLIENT
+        client
       )
     )
   }
@@ -634,14 +697,14 @@ const callTool = async (
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
 
-    return resultResponse(id, summarizeAgentPage(state, MCP_AGENT_CLIENT))
+    return resultResponse(id, summarizeAgentPage(state, client))
   }
 
   if (params.name === 'extract_decisions') {
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
 
-    return resultResponse(id, extractAgentDecisions(state, MCP_AGENT_CLIENT))
+    return resultResponse(id, extractAgentDecisions(state, client))
   }
 
   if (params.name === 'extract_open_questions') {
@@ -650,7 +713,7 @@ const callTool = async (
 
     return resultResponse(
       id,
-      extractAgentOpenQuestions(state, MCP_AGENT_CLIENT)
+      extractAgentOpenQuestions(state, client)
     )
   }
 
@@ -658,14 +721,14 @@ const callTool = async (
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
 
-    return resultResponse(id, suggestAreas(state, MCP_AGENT_CLIENT))
+    return resultResponse(id, suggestAreas(state, client))
   }
 
   if (params.name === 'suggest_area_updates') {
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
 
-    return resultResponse(id, suggestAreaUpdates(state, MCP_AGENT_CLIENT))
+    return resultResponse(id, suggestAreaUpdates(state, client))
   }
 
   if (params.name === 'suggest_board_organization') {
@@ -674,7 +737,7 @@ const callTool = async (
 
     return resultResponse(
       id,
-      suggestBoardOrganization(state, MCP_AGENT_CLIENT)
+      suggestBoardOrganization(state, client)
     )
   }
 
@@ -684,7 +747,7 @@ const callTool = async (
 
     return resultResponse(
       id,
-      suggestDecisionLog(state, MCP_AGENT_CLIENT)
+      suggestDecisionLog(state, client)
     )
   }
 
@@ -694,7 +757,7 @@ const callTool = async (
 
     return resultResponse(
       id,
-      suggestImplementationMap(state, MCP_AGENT_CLIENT)
+      suggestImplementationMap(state, client)
     )
   }
 
@@ -707,7 +770,7 @@ const callTool = async (
 
     return resultResponse(
       id,
-      await context.createAiDecisionLogPatch(state, MCP_AGENT_CLIENT)
+      await context.createAiDecisionLogPatch(state, client)
     )
   }
 
@@ -719,7 +782,7 @@ const callTool = async (
       id,
       createDryRunPatchResult(
         state,
-        createAgentAreaPatch(state, MCP_AGENT_CLIENT, {
+        createAgentAreaPatch(state, client, {
           text: typeof args.text === 'string' ? args.text : '',
           x: readNumber(args.x),
           y: readNumber(args.y),
@@ -727,7 +790,8 @@ const callTool = async (
           height: readNumber(args.height),
           parentId: readNullableString(args.parentId),
           styles: readStyles(args.styles),
-        })
+        }),
+        context
       )
     )
   }
@@ -742,10 +806,11 @@ const callTool = async (
         state,
         updateAgentAreaPatch(
           state,
-          MCP_AGENT_CLIENT,
+          client,
           typeof args.areaId === 'string' ? args.areaId : '',
           readAreaPatch(args)
-        )
+        ),
+        context
       )
     )
   }
@@ -760,10 +825,11 @@ const callTool = async (
         state,
         updateAgentAreaStylesPatch(
           state,
-          MCP_AGENT_CLIENT,
+          client,
           typeof args.areaId === 'string' ? args.areaId : '',
           readStyles(args.styles)
-        )
+        ),
+        context
       )
     )
   }
@@ -789,7 +855,7 @@ const callTool = async (
 
     const result = createJournalEntry({
       actorKind: 'agent',
-      actorName: MCP_AGENT_CLIENT.displayName,
+      actorName: client.displayName,
       createId: context.createJournalId,
       knownAreaIds: state.areas.map((area) => area.id),
       now: context.now?.() ?? new Date().toISOString(),
@@ -832,7 +898,7 @@ const callTool = async (
 
     const patch = updateAgentAreaStatusPatch(
       state,
-      MCP_AGENT_CLIENT,
+      client,
       typeof args.areaId === 'string' ? args.areaId : '',
       status as AreaStatus,
       {
@@ -843,7 +909,7 @@ const callTool = async (
     )
 
     if (!state.page.settings.mcp.autoAcceptStatusUpdates) {
-      return resultResponse(id, createDryRunPatchResult(state, patch))
+      return resultResponse(id, createDryRunPatchResult(state, patch, context))
     }
 
     if (!context.savePageState) {
@@ -873,11 +939,12 @@ const callTool = async (
         state,
         moveAgentAreaPatch(
           state,
-          MCP_AGENT_CLIENT,
+          client,
           typeof args.areaId === 'string' ? args.areaId : '',
           readNumber(args.x),
           readNumber(args.y)
-        )
+        ),
+        context
       )
     )
   }
@@ -892,10 +959,11 @@ const callTool = async (
         state,
         nestAgentAreaPatch(
           state,
-          MCP_AGENT_CLIENT,
+          client,
           typeof args.areaId === 'string' ? args.areaId : '',
           readNullableString(args.parentId)
-        )
+        ),
+        context
       )
     )
   }
@@ -910,9 +978,10 @@ const callTool = async (
         state,
         deleteAgentAreaPatch(
           state,
-          MCP_AGENT_CLIENT,
+          client,
           typeof args.areaId === 'string' ? args.areaId : ''
-        )
+        ),
+        context
       )
     )
   }
@@ -930,7 +999,7 @@ const callTool = async (
 
     return resultResponse(
       id,
-      createDryRunPatchResult(state, args.patch as AgentPatch)
+      createDryRunPatchResult(state, args.patch as AgentPatch, context)
     )
   }
 
@@ -952,7 +1021,7 @@ const callTool = async (
     const { patch, warnings, createCount, updateCount } =
       buildSddImportPatch(
         state,
-        MCP_AGENT_CLIENT,
+        client,
         typeof args.markdown === 'string' ? args.markdown : ''
       )
 
@@ -970,7 +1039,7 @@ const callTool = async (
     }
 
     return resultResponse(id, {
-      ...createDryRunPatchResult(state, patch, {
+      ...createDryRunPatchResult(state, patch, context, {
         maxOperations: MAX_IMPORT_OPERATIONS,
       }),
       warnings,
@@ -978,7 +1047,6 @@ const callTool = async (
       updateCount,
     })
   }
-
   return errorResponse(id, -32601, 'Tool not found.')
 }
 
@@ -997,13 +1065,14 @@ const recordMcpToolAction = async (
 
   const args = isRecord(params.arguments) ? params.arguments : {}
   const pageId = typeof args.pageId === 'string' ? args.pageId : null
+  const client = getMcpClient(context)
 
   await context.recordAgentAction({
     id: context.createActionId?.() ?? createDefaultMcpActionId(),
     pageId,
     toolName: params.name,
-    clientId: MCP_AGENT_CLIENT.id,
-    clientDisplayName: MCP_AGENT_CLIENT.displayName,
+    clientId: client.id,
+    clientDisplayName: client.displayName,
     operationCount: getMcpToolOperationCount(response.result),
     createdAt: context.now?.() ?? new Date().toISOString(),
     result: response.error ? 'error' : 'success',
@@ -1050,13 +1119,24 @@ const readResource = async (
     return errorResponse(id, -32602, 'Resource read params are invalid.')
   }
 
+  const client = getMcpClient(context)
+  const listAuthorization = authorizeMcpAccess({
+    context,
+    scope: 'page:read',
+    toolName: 'resources/list',
+  })
+
+  if (!listAuthorization.ok) {
+    return listAuthorization.response(id)
+  }
+
   if (params.uri === CASCADERY_RESOURCE_PREFIX) {
     return resourceResponse(
       id,
       params.uri,
       listAgentPages(
-        (await context.listPages()).filter(isPageMcpEnabled),
-        MCP_AGENT_CLIENT
+        filterVisiblePages(await context.listPages(), context),
+        client
       )
     )
   }
@@ -1067,11 +1147,22 @@ const readResource = async (
     return resourceNotFoundResponse(id)
   }
 
+  const resourceAuthorization = authorizeMcpAccess({
+    context,
+    pageId: parsedResource.pageId,
+    scope: 'page:read',
+    toolName: 'resources/read',
+  })
+
+  if (!resourceAuthorization.ok) {
+    return resourceAuthorization.response(id)
+  }
+
   const state = await context.getPage(parsedResource.pageId)
 
   if (!state || !isPageMcpEnabled(state)) return pageNotFoundResponse(id)
 
-  const pageResource = getAgentPage(state, MCP_AGENT_CLIENT)
+  const pageResource = getAgentPage(state, client)
 
   if (parsedResource.kind === 'page') {
     return resourceResponse(id, params.uri, pageResource)
@@ -1263,9 +1354,10 @@ const resourceResponse = (
 const createDryRunPatchResult = (
   state: PageAppState,
   patch: AgentPatch,
+  context: McpGatewayContext,
   { maxOperations }: { maxOperations?: number } = {}
 ) =>
-  dryRunAgentPatch(state, patch, MCP_AGENT_CLIENT, {
+  dryRunAgentPatch(state, patch, getMcpClient(context), {
     mode: 'suggest',
     ...(maxOperations ? { maxOperations } : {}),
   })
@@ -1275,9 +1367,10 @@ const applyAutoAcceptedStatusPatch = (
   patch: AgentPatch,
   context: McpGatewayContext
 ) => {
+  const client = getMcpClient(context)
   const writeClient: AgentClient = {
-    ...MCP_AGENT_CLIENT,
-    scopes: [...MCP_AGENT_CLIENT.scopes, 'page:write'],
+    ...client,
+    scopes: Array.from(new Set([...client.scopes, 'page:write'])),
   }
   const applied = applyAgentPatch(state, patch, writeClient, {
     createActionId: context.createActionId,
@@ -1297,12 +1390,12 @@ const applyAutoAcceptedStatusPatch = (
       : undefined
   const journalResult = createJournalEntry({
     actorKind: 'agent',
-    actorName: MCP_AGENT_CLIENT.displayName,
+    actorName: client.displayName,
     createId: context.createJournalId,
     knownAreaIds: state.areas.map((candidate) => candidate.id),
     now: context.now?.() ?? new Date().toISOString(),
     taskAreaId: area?.id ?? null,
-    text: `${MCP_AGENT_CLIENT.displayName} marked "${getAreaJournalLabel(area)}" ${status ?? 'open'}.`,
+    text: `${client.displayName} marked "${getAreaJournalLabel(area)}" ${status ?? 'open'}.`,
   })
 
   return {
@@ -1343,6 +1436,124 @@ const getPageFromArgs = async (
 
 const isPageMcpEnabled = (state: PageAppState) =>
   state.page.settings.mcp.enabled
+
+const getMcpClient = (context: McpGatewayContext) =>
+  context.client ?? MCP_AGENT_CLIENT
+
+const getToolDefinition = (toolName: string) =>
+  toolDefinitions.find((tool) => tool.name === toolName) as
+    | (typeof toolDefinitions)[number]
+    | undefined
+
+const filterVisiblePages = (
+  states: PageAppState[],
+  context: McpGatewayContext
+) =>
+  states.filter(
+    (state) =>
+      isPageMcpEnabled(state) &&
+      (!context.authorizedPageId ||
+        state.page.id === context.authorizedPageId)
+  )
+
+const authorizeMcpAccess = ({
+  context,
+  pageId,
+  scope,
+  toolName,
+}: {
+  args?: Record<string, unknown>
+  context: McpGatewayContext
+  pageId?: string
+  scope: AgentScope
+  toolName: string
+}):
+  | { ok: true }
+  | {
+      ok: false
+      response: (id: string | number | null) => McpJsonRpcResponse
+    } => {
+  const client = getMcpClient(context)
+  const shouldEnforceScopes = Boolean(context.client)
+
+  if (
+    context.authorizedPageId &&
+    pageId &&
+    pageId !== context.authorizedPageId
+  ) {
+    logMcpDenial(context, {
+      clientId: client.id,
+      pageId,
+      reason: 'wrong-page',
+      scope,
+      tokenId: context.client?.id,
+      toolName,
+    })
+
+    return {
+      ok: false,
+      response: (id) =>
+        errorResponse(id, -32003, 'MCP token is not valid for this page.'),
+    }
+  }
+
+  if (shouldEnforceScopes && !client.scopes.includes(scope)) {
+    logMcpDenial(context, {
+      clientId: client.id,
+      pageId,
+      reason: 'insufficient-scope',
+      scope,
+      tokenId: context.client?.id,
+      toolName,
+    })
+
+    return {
+      ok: false,
+      response: (id) =>
+        errorResponse(
+          id,
+          -32003,
+          `MCP token is missing required scope ${scope}.`
+        ),
+    }
+  }
+
+  const rateLimit = context.checkToolRateLimit?.(scope) ?? {
+    ok: true as const,
+  }
+
+  if (!rateLimit.ok) {
+    logMcpDenial(context, {
+      clientId: client.id,
+      pageId,
+      reason: 'rate-limit',
+      retryAfterSeconds: rateLimit.retryAfterSeconds,
+      scope,
+      tokenId: context.client?.id,
+      toolName,
+    })
+
+    return {
+      ok: false,
+      response: (id) =>
+        errorResponse(id, -32029, 'MCP rate limit exceeded.', {
+          retryAfterSeconds: rateLimit.retryAfterSeconds,
+        }),
+    }
+  }
+
+  return { ok: true }
+}
+
+const logMcpDenial = (
+  context: McpGatewayContext,
+  event: Omit<McpGatewaySecurityEvent, 'type'>
+) => {
+  context.logSecurityEvent?.({
+    type: 'mcp-auth-denied',
+    ...event,
+  })
+}
 
 const readAreaPatch = (args: Record<string, unknown>) => {
   const patch: Record<string, string | number> = {}

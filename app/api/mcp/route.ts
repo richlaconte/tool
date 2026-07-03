@@ -1,4 +1,5 @@
 import type { AgentClient, AgentPatch } from '../../../src/agentInterface'
+import type { AgentScope } from '../../../src/agentInterface'
 import {
   handleMcpJsonRpcRequest,
   MCP_JSON_RPC_VERSION,
@@ -27,14 +28,13 @@ import {
   listMcpAgentActions,
   recordMcpAgentAction,
 } from '../../../src/server/mcpAgentActions'
+import { validateMcpToken } from '../../../src/server/mcpTokens'
 import { createConsoleSecurityLogger } from '../../../src/server/securityLog'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const rateLimiter = createFixedWindowRateLimiter(
-  getRateLimitConfigFromEnv()
-)
+const scopedRateLimiters = createScopedMcpRateLimiters()
 const journalRateLimiter = createFixedWindowRateLimiter({
   limit: 30,
   windowMs: 60_000,
@@ -59,21 +59,19 @@ export const POST = async (request: Request) => {
     )
   }
 
-  const rateLimit = rateLimiter.check(getClientRateLimitKey(request))
+  const database = createDatabase()
+  const clientRateLimitKey = getClientRateLimitKey(request)
+  const authorization = authorizeMcpRequest(request, database)
 
-  if (!rateLimit.ok) {
-    return Response.json(
-      createJsonRpcError(null, -32029, 'MCP rate limit exceeded.'),
-      {
-        headers: {
-          'Retry-After': `${rateLimit.retryAfterSeconds}`,
-          'X-RateLimit-Limit': `${rateLimit.limit}`,
-          'X-RateLimit-Remaining': `${rateLimit.remaining}`,
-          'X-RateLimit-Reset': `${Math.ceil(rateLimit.resetAt / 1000)}`,
-        },
-        status: 429,
-      }
-    )
+  if (!authorization.ok) {
+    securityLogger({
+      type: 'mcp-auth-denied',
+      pageId: authorization.pageId,
+      reason: authorization.reason,
+      tokenId: authorization.tokenId,
+    })
+
+    return createUnauthorizedResponse(authorization.reason)
   }
 
   let rpcRequest: McpJsonRpcRequest
@@ -89,10 +87,23 @@ export const POST = async (request: Request) => {
     )
   }
 
-  const database = createDatabase()
   const glmConfig = getGlmProviderConfigFromEnv()
-  const clientRateLimitKey = getClientRateLimitKey(request)
+  const rateLimitKey = authorization.client?.id ?? clientRateLimitKey
   const response = await handleMcpJsonRpcRequest(rpcRequest, {
+    authorizedPageId: authorization.pageId,
+    checkToolRateLimit: (scope) => {
+      const bucket = getRateLimitBucket(scope)
+      const result = scopedRateLimiters[bucket].check(
+        `${rateLimitKey}:${bucket}`
+      )
+
+      if (result.ok) return { ok: true }
+
+      return {
+        ok: false,
+        retryAfterSeconds: result.retryAfterSeconds,
+      }
+    },
     checkJournalRateLimit: (pageId) => {
       const result = journalRateLimiter.check(
         `${clientRateLimitKey}:${pageId}`
@@ -118,6 +129,7 @@ export const POST = async (request: Request) => {
       : undefined,
     createActionId: () => `mcp_action_${crypto.randomUUID()}`,
     createJournalId: () => `journal_${crypto.randomUUID()}`,
+    client: authorization.client,
     getPage: async (pageId) => getPageState(database, pageId),
     listAgentActions: async (pageId) =>
       listMcpAgentActions(database, pageId),
@@ -137,6 +149,7 @@ export const POST = async (request: Request) => {
         JSON.stringify(record)
       )
     },
+    logSecurityEvent: securityLogger,
     savePageState: async (state) => {
       saveStoredCollaborativePageState(database, {
         ...state,
@@ -151,13 +164,7 @@ export const POST = async (request: Request) => {
     },
   })
 
-  return Response.json(response, {
-    headers: {
-      'X-RateLimit-Limit': `${rateLimit.limit}`,
-      'X-RateLimit-Remaining': `${rateLimit.remaining}`,
-      'X-RateLimit-Reset': `${Math.ceil(rateLimit.resetAt / 1000)}`,
-    },
-  })
+  return Response.json(response)
 }
 
 const getPageState = (
@@ -244,6 +251,123 @@ const getClientRateLimitKey = (request: Request) =>
   request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
   request.headers.get('x-real-ip') ||
   'unknown-client'
+
+const authorizeMcpRequest = (
+  request: Request,
+  database: ReturnType<typeof createDatabase>
+):
+  | {
+      ok: true
+      client?: AgentClient
+      pageId?: string
+    }
+  | {
+      ok: false
+      pageId?: string
+      reason: string
+      tokenId?: string
+    } => {
+  const bearerToken = readBearerToken(request)
+
+  if (!bearerToken) {
+    if (
+      process.env.TOOL_MCP_ALLOW_ANONYMOUS === 'true' &&
+      isLoopbackRequest(request)
+    ) {
+      return { ok: true }
+    }
+
+    return {
+      ok: false,
+      reason: 'missing-token',
+    }
+  }
+
+  const validation = validateMcpToken(database, bearerToken)
+
+  if (!validation.ok) {
+    return {
+      ok: false,
+      pageId: validation.pageId,
+      reason: validation.reason,
+      tokenId: validation.tokenId,
+    }
+  }
+
+  return {
+    ok: true,
+    client: validation.client,
+    pageId: validation.token.pageId,
+  }
+}
+
+const readBearerToken = (request: Request) => {
+  const header = request.headers.get('Authorization') ?? ''
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim())
+
+  return match?.[1] ?? null
+}
+
+const createUnauthorizedResponse = (reason: string) =>
+  Response.json(createJsonRpcError(null, -32001, 'MCP authorization failed.'), {
+    headers: {
+      'WWW-Authenticate': `Bearer realm="cascadery-mcp", error="invalid_token", error_description="${reason}", resource_metadata="/api/mcp/.well-known"`,
+    },
+    status: 401,
+  })
+
+const isLoopbackRequest = (request: Request) => {
+  const forwardedFor = request.headers.get('x-forwarded-for')
+  const realIp = request.headers.get('x-real-ip')
+  const host = request.headers.get('host') ?? new URL(request.url).host
+  const hostname = host.split(':')[0]
+
+  return [forwardedFor, realIp, hostname].some((value) =>
+    value ? isLoopbackAddress(value.trim()) : false
+  )
+}
+
+const isLoopbackAddress = (value: string) =>
+  value === 'localhost' ||
+  value === '127.0.0.1' ||
+  value === '::1' ||
+  value.startsWith('127.')
+
+type McpRateLimitBucket = 'read' | 'suggest' | 'write'
+
+export function createScopedMcpRateLimiters() {
+  return {
+    read: createFixedWindowRateLimiter(
+      getScopedRateLimitConfigFromEnv('READ')
+    ),
+    suggest: createFixedWindowRateLimiter(
+      getScopedRateLimitConfigFromEnv('SUGGEST')
+    ),
+    write: createFixedWindowRateLimiter(
+      getScopedRateLimitConfigFromEnv('WRITE')
+    ),
+  }
+}
+
+const getRateLimitBucket = (scope: AgentScope): McpRateLimitBucket => {
+  if (scope === 'page:write') return 'write'
+  if (scope === 'page:suggest') return 'suggest'
+
+  return 'read'
+}
+
+function getScopedRateLimitConfigFromEnv(
+  scope: 'READ' | 'SUGGEST' | 'WRITE'
+) {
+  return getRateLimitConfigFromEnv({
+    TOOL_MCP_RATE_LIMIT_MAX:
+      process.env[`TOOL_MCP_${scope}_RATE_LIMIT_MAX`] ??
+      process.env.TOOL_MCP_RATE_LIMIT_MAX,
+    TOOL_MCP_RATE_LIMIT_WINDOW_MS:
+      process.env[`TOOL_MCP_${scope}_RATE_LIMIT_WINDOW_MS`] ??
+      process.env.TOOL_MCP_RATE_LIMIT_WINDOW_MS,
+  })
+}
 
 const createJsonRpcError = (
   id: string | number | null,

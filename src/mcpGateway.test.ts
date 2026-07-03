@@ -161,6 +161,191 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'import_sdd',
     ]
   )
+  assert.deepEqual(
+    tools.result.tools.map(
+      (tool: { name: string; minimumScope: string }) => [
+        tool.name,
+        tool.minimumScope,
+      ]
+    ),
+    [
+      ['list_pages', 'page:read'],
+      ['get_page', 'page:read'],
+      ['get_area', 'page:read'],
+      ['search_areas', 'page:search'],
+      ['summarize_page', 'page:read'],
+      ['extract_decisions', 'page:read'],
+      ['extract_open_questions', 'page:read'],
+      ['suggest_areas', 'page:suggest'],
+      ['suggest_area_updates', 'page:suggest'],
+      ['suggest_board_organization', 'page:suggest'],
+      ['suggest_decision_log', 'page:suggest'],
+      ['suggest_implementation_map', 'page:suggest'],
+      ['ai_suggest_decision_log', 'page:suggest'],
+      ['create_area', 'page:write'],
+      ['update_area', 'page:write'],
+      ['update_area_styles', 'page:write'],
+      ['append_journal_entry', 'page:suggest'],
+      ['update_area_status', 'page:write'],
+      ['move_area', 'page:write'],
+      ['nest_area', 'page:write'],
+      ['delete_area', 'page:write'],
+      ['apply_patch', 'page:write'],
+      ['export_sdd', 'page:read'],
+      ['import_sdd', 'page:suggest'],
+    ]
+  )
+})
+
+test('MCP gateway enforces token scopes and page audience before tools run', async () => {
+  const securityEvents: unknown[] = []
+  const readClient = {
+    id: 'mcp-token-read',
+    displayName: 'Read token',
+    scopes: ['page:read'] as const,
+  }
+  const hardenedContext: McpGatewayContext = {
+    ...context,
+    authorizedPageId: 'page-1',
+    client: readClient,
+    logSecurityEvent: (event) => {
+      securityEvents.push(event)
+    },
+  }
+
+  const readable = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'read-ok',
+      method: 'tools/call',
+      params: {
+        name: 'get_page',
+        arguments: {
+          pageId: 'page-1',
+        },
+      },
+    },
+    hardenedContext
+  )
+  const deniedByScope = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'write-denied',
+      method: 'tools/call',
+      params: {
+        name: 'create_area',
+        arguments: {
+          pageId: 'page-1',
+          text: 'Denied',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        },
+      },
+    },
+    hardenedContext
+  )
+  const deniedByAudience = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'wrong-page',
+      method: 'tools/call',
+      params: {
+        name: 'get_page',
+        arguments: {
+          pageId: 'page-2',
+        },
+      },
+    },
+    hardenedContext
+  )
+
+  assert.equal(readable.result.page.id, 'page-1')
+  assert.equal(readable.result.permissionMode.scopes[0], 'page:read')
+  assert.equal(deniedByScope.error?.code, -32003)
+  assert.equal(deniedByAudience.error?.code, -32003)
+  assert.deepEqual(
+    securityEvents.map((event) =>
+      event && typeof event === 'object'
+        ? {
+            reason: (event as { reason?: string }).reason,
+            toolName: (event as { toolName?: string }).toolName,
+          }
+        : event
+    ),
+    [
+      {
+        reason: 'insufficient-scope',
+        toolName: 'create_area',
+      },
+      {
+        reason: 'wrong-page',
+        toolName: 'get_page',
+      },
+    ]
+  )
+})
+
+test('MCP gateway applies per-scope rate limits independently', async () => {
+  const securityEvents: unknown[] = []
+  const hardenedContext: McpGatewayContext = {
+    ...context,
+    authorizedPageId: 'page-1',
+    checkToolRateLimit: (scope) =>
+      scope === 'page:write'
+        ? { ok: false, retryAfterSeconds: 12 }
+        : { ok: true },
+    client: {
+      id: 'mcp-token-write',
+      displayName: 'Write token',
+      scopes: ['page:read', 'page:write'],
+    },
+    logSecurityEvent: (event) => {
+      securityEvents.push(event)
+    },
+  }
+
+  const read = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'read',
+      method: 'tools/call',
+      params: {
+        name: 'get_page',
+        arguments: {
+          pageId: 'page-1',
+        },
+      },
+    },
+    hardenedContext
+  )
+  const write = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'write',
+      method: 'tools/call',
+      params: {
+        name: 'create_area',
+        arguments: {
+          pageId: 'page-1',
+          text: 'Limited',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        },
+      },
+    },
+    hardenedContext
+  )
+
+  assert.equal(read.error, undefined)
+  assert.equal(write.error?.code, -32029)
+  assert.deepEqual(write.error?.data, {
+    retryAfterSeconds: 12,
+  })
+  assert.equal((securityEvents[0] as { reason: string }).reason, 'rate-limit')
 })
 
 test('MCP resources list and read page context without leaking raw assets', async () => {

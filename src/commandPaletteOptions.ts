@@ -45,6 +45,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'agent-connections',
+    title: 'Agent connections',
+    description: 'Create and revoke scoped MCP tokens for this page',
+    aliases: ['mcp tokens', 'agent token', 'connections', 'api access'],
+    scope: 'page',
+  },
+  {
     id: 'history',
     title: 'History',
     description: 'Review recent changes and undo reversible patches',

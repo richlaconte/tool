@@ -72,5 +72,24 @@ export const setupDatabase = (database: ToolDatabase) => {
 
     create index if not exists mcp_agent_actions_page_lookup
       on mcp_agent_actions(page_id, created_at);
+
+    create table if not exists mcp_tokens (
+      id text primary key,
+      token_hash text not null unique,
+      page_id text not null,
+      scopes text not null,
+      label text not null,
+      created_at text not null,
+      expires_at text,
+      revoked_at text,
+      last_used_at text,
+      foreign key (page_id) references pages(id)
+    );
+
+    create index if not exists mcp_tokens_page_lookup
+      on mcp_tokens(page_id, revoked_at, created_at);
+
+    create index if not exists mcp_tokens_hash_lookup
+      on mcp_tokens(token_hash);
   `)
 }

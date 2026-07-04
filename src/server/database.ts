@@ -91,5 +91,12 @@ export const setupDatabase = (database: ToolDatabase) => {
 
     create index if not exists mcp_tokens_hash_lookup
       on mcp_tokens(token_hash);
+
+    create table if not exists code_snippets (
+      url_hash text primary key,
+      payload_json text not null,
+      fetched_at text not null,
+      status text not null check (status in ('success', 'error'))
+    );
   `)
 }

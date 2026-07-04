@@ -162,6 +162,58 @@ test('agent handoff brief groups typed areas and includes evidence', () => {
   assert.doesNotMatch(brief.markdown, /private-image-bits/)
 })
 
+test('agent handoff embeds available resolved evidence snippets', () => {
+  const permalink =
+    'https://github.com/cascadery/tool/blob/0123456789abcdef0123456789abcdef01234567/src/checkout.ts#L2-L3'
+  const brief = createAgentHandoffBrief(
+    {
+      ...state,
+      areas: state.areas.map((area) =>
+        area.id === 'goal-1'
+          ? {
+              ...area,
+              metadata: {
+                ...area.metadata,
+                evidence: [
+                  {
+                    id: 'evidence-code',
+                    kind: 'url',
+                    label: 'checkout.ts',
+                    target: permalink,
+                    createdAt: now,
+                  },
+                ],
+              },
+            }
+          : area
+      ),
+    },
+    {
+      resolvedEvidence: {
+        [permalink]: {
+          url: permalink,
+          path: 'src/checkout.ts',
+          startLine: 2,
+          requestedStartLine: 2,
+          requestedEndLine: 3,
+          language: 'ts',
+          fetchedAt: now,
+          truncated: false,
+          isImmutableRef: true,
+          lines: [
+            { number: 2, text: 'export const checkout = () => {' },
+            { number: 3, text: '  return true' },
+          ],
+        },
+      },
+    }
+  )
+
+  assert.match(brief.markdown, /\/\/ src\/checkout\.ts:2-3/)
+  assert.match(brief.markdown, /```ts\n\/\/ src\/checkout\.ts:2-3/)
+  assert.match(brief.markdown, /export const checkout/)
+})
+
 test('agent handoff warnings identify missing execution context', () => {
   const warnings = getAgentHandoffWarnings({
     ...state,

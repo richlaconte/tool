@@ -23,6 +23,7 @@ import {
   getStoredCollaborativePageState,
   saveStoredCollaborativePageState,
 } from '../../../src/server/collaborativeStorage'
+import { resolveCodeSnippet } from '../../../src/server/codeSnippets'
 import { createDefaultPageState, type PageAppState } from '../../../src/pagePersistence'
 import {
   listMcpAgentActions,
@@ -148,6 +149,11 @@ export const POST = async (request: Request) => {
         'cascadery.mcp.agent_action',
         JSON.stringify(record)
       )
+    },
+    resolveEvidence: async (target) => {
+      const result = await resolveCodeSnippet(database, target)
+
+      return result.ok ? result.snippet : null
     },
     logSecurityEvent: securityLogger,
     savePageState: async (state) => {

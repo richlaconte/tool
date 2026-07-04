@@ -33,6 +33,7 @@ import {
   createJournalEntry,
   pruneJournalEntries,
 } from './agentJournal.ts'
+import { parseCodeReference, type ResolvedCodeSnippet } from './codeReferences.ts'
 import { createAgentHandoffBrief } from './agentHandoff.ts'
 import { compileSddBundle } from './sddExport.ts'
 import { buildSddImportPatch } from './sddImport.ts'
@@ -119,6 +120,9 @@ export type McpGatewayContext = {
   logSecurityEvent?: (event: McpGatewaySecurityEvent) => void
   now?: () => string
   recordAgentAction?: (record: McpAgentActionRecord) => Promise<void>
+  resolveEvidence?: (
+    target: string
+  ) => Promise<ResolvedCodeSnippet | null>
   savePageState?: (state: PageAppState) => Promise<void>
 }
 
@@ -661,7 +665,10 @@ const callTool = async (
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
 
-    return resultResponse(id, getAgentPage(state, client))
+    return resultResponse(
+      id,
+      await withResolvedEvidence(getAgentPage(state, client), context)
+    )
   }
 
   if (params.name === 'get_area') {
@@ -676,7 +683,18 @@ const callTool = async (
 
     if (!result.area) return areaNotFoundResponse(id)
 
-    return resultResponse(id, result)
+    return resultResponse(
+      id,
+      result.area
+        ? {
+            ...result,
+            area: await withResolvedEvidenceForArea(
+              result.area,
+              context
+            ),
+          }
+        : result
+    )
   }
 
   if (params.name === 'search_areas') {
@@ -1097,6 +1115,58 @@ const getMcpToolOperationCount = (result: unknown) => {
   }
 
   return 0
+}
+
+const withResolvedEvidence = async (
+  pageResource: ReturnType<typeof getAgentPage>,
+  context: McpGatewayContext
+) => ({
+  ...pageResource,
+  areas: await Promise.all(
+    pageResource.areas.map((area) =>
+      withResolvedEvidenceForArea(area, context)
+    )
+  ),
+})
+
+const withResolvedEvidenceForArea = async (
+  area: ReturnType<typeof getAgentPage>['areas'][number],
+  context: McpGatewayContext
+) => {
+  if (!context.resolveEvidence) return area
+
+  const evidence = area.metadata?.evidence ?? []
+  const parseableEvidence = evidence
+    .filter((reference) => parseCodeReference(reference.target))
+    .slice(0, 5)
+  const resolvedEvidence = (
+    await Promise.all(
+      parseableEvidence.map(async (reference) => {
+        const snippet = await context.resolveEvidence?.(reference.target)
+
+        return snippet
+          ? {
+              referenceId: reference.id,
+              snippet,
+            }
+          : null
+      })
+    )
+  ).filter(
+    (
+      reference
+    ): reference is {
+      referenceId: string
+      snippet: ResolvedCodeSnippet
+    } => reference !== null
+  )
+
+  return resolvedEvidence.length > 0
+    ? {
+        ...area,
+        resolvedEvidence,
+      }
+    : area
 }
 
 const createDefaultMcpActionId = () => {

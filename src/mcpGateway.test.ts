@@ -434,6 +434,87 @@ test('MCP resources list and read page context without leaking raw assets', asyn
   assert.doesNotMatch(JSON.stringify(jsonCanvas), /secret-binary/)
 })
 
+test('MCP get_area includes capped resolved code evidence', async () => {
+  const permalink =
+    'https://github.com/cascadery/tool/blob/0123456789abcdef0123456789abcdef01234567/src/mcpGateway.ts#L2-L3'
+  const stateWithCodeEvidence: PageAppState = {
+    ...state,
+    areas: state.areas.map((area) =>
+      area.id === 'area-1'
+        ? {
+            ...area,
+            metadata: {
+              ...area.metadata,
+              evidence: [
+                {
+                  id: 'evidence-code',
+                  kind: 'url',
+                  label: 'mcpGateway.ts',
+                  target: permalink,
+                  createdAt: now,
+                },
+              ],
+            },
+          }
+        : area
+    ),
+  }
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'resolved-evidence',
+      method: 'tools/call',
+      params: {
+        name: 'get_area',
+        arguments: {
+          pageId: 'page-1',
+          areaId: 'area-1',
+        },
+      },
+    },
+    {
+      getPage: async () => stateWithCodeEvidence,
+      listPages: async () => [stateWithCodeEvidence],
+      resolveEvidence: async () => ({
+        url: permalink,
+        path: 'src/mcpGateway.ts',
+        startLine: 2,
+        requestedStartLine: 2,
+        requestedEndLine: 3,
+        language: 'ts',
+        fetchedAt: now,
+        truncated: false,
+        isImmutableRef: true,
+        lines: [
+          { number: 2, text: 'export const gateway = true' },
+          { number: 3, text: 'export const done = true' },
+        ],
+      }),
+    }
+  )
+
+  assert.deepEqual(response.result.area.resolvedEvidence, [
+    {
+      referenceId: 'evidence-code',
+      snippet: {
+        url: permalink,
+        path: 'src/mcpGateway.ts',
+        startLine: 2,
+        requestedStartLine: 2,
+        requestedEndLine: 3,
+        language: 'ts',
+        fetchedAt: now,
+        truncated: false,
+        isImmutableRef: true,
+        lines: [
+          { number: 2, text: 'export const gateway = true' },
+          { number: 3, text: 'export const done = true' },
+        ],
+      },
+    },
+  ])
+})
+
 test('MCP page setting hides disabled pages and blocks page tools', async () => {
   const disabledState: PageAppState = {
     ...state,

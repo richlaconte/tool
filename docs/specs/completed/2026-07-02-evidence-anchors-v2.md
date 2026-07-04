@@ -2,8 +2,19 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 2.4). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 2.4). Completed MVP
+on 2026-07-04.
 Depends on the Markdown/code spec (Tier 1.2) for the `codeHighlight` module.
+
+## Completion Notes
+
+- GitHub and GitLab code permalinks parse into bounded, highlighted snippets.
+- Snippets resolve through a rate-limited server endpoint with SQLite caching
+  and public-repo-only allowlisting.
+- Area evidence chips expose expandable previews and drift hints for mutable
+  refs.
+- Handoff briefs, Markdown export, and MCP page/area resources can include
+  already-resolved snippets while preserving synchronous/export-safe fallbacks.
 
 ## Goal
 

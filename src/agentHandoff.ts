@@ -1,5 +1,9 @@
 import type { AreaState, TextAreaState } from './App'
 import { getAreaMetadata } from './areaMetadata.ts'
+import {
+  formatSnippetHeader,
+  type ResolvedCodeSnippet,
+} from './codeReferences.ts'
 import type { PageAppState } from './pagePersistence.ts'
 
 export type AgentHandoffBrief = {
@@ -7,11 +11,16 @@ export type AgentHandoffBrief = {
   warnings: string[]
 }
 
+export type AgentHandoffOptions = {
+  resolvedEvidence?: Record<string, ResolvedCodeSnippet>
+}
+
 const SUGGESTED_AGENT_INSTRUCTIONS =
   'Use this canvas as the source of truth. Implement only the scoped changes. Preserve existing user work. Run the listed verification commands before reporting completion.'
 
 export const createAgentHandoffBrief = (
-  state: PageAppState
+  state: PageAppState,
+  options: AgentHandoffOptions = {}
 ): AgentHandoffBrief => {
   const warnings = getAgentHandoffWarnings(state)
   const lines = [
@@ -46,7 +55,11 @@ export const createAgentHandoffBrief = (
     'Validation Plan',
     getTextMatches(state.areas, /\btest\b|\bverify\b|\bvalidation\b/i)
   )
-  appendSection(lines, 'Evidence and References', getEvidenceLines(state))
+  appendSection(
+    lines,
+    'Evidence and References',
+    getEvidenceLines(state, options)
+  )
   appendSection(lines, 'Relevant Areas', getRelevantAreaLines(state.areas))
   appendSection(lines, 'Relationships', getRelationshipLines(state))
 
@@ -148,7 +161,10 @@ const getTextMatches = (areas: AreaState[], pattern: RegExp) =>
     .filter((area) => pattern.test(area.text))
     .map(formatAreaLine)
 
-const getEvidenceLines = (state: PageAppState) => {
+const getEvidenceLines = (
+  state: PageAppState,
+  options: AgentHandoffOptions
+) => {
   const lines: string[] = []
 
   for (const area of state.areas) {
@@ -166,6 +182,10 @@ const getEvidenceLines = (state: PageAppState) => {
       lines.push(
         `- ${evidence.kind}: ${evidence.label} (\`${evidence.target}\`, ${area.id})`
       )
+      const snippet = options.resolvedEvidence?.[evidence.target]
+      if (snippet) {
+        lines.push('', formatResolvedSnippet(snippet), '')
+      }
     }
   }
 
@@ -212,3 +232,15 @@ const firstLine = (text: string) =>
     .split(/\r?\n/)
     .map((line) => line.trim())
     .find(Boolean) ?? ''
+
+const formatResolvedSnippet = (snippet: ResolvedCodeSnippet) => {
+  const header = formatSnippetHeader(snippet)
+  const code = snippet.lines.map((line) => line.text).join('\n')
+
+  return [
+    `\`\`\`${snippet.language}`,
+    `// ${header}`,
+    code,
+    '```',
+  ].join('\n')
+}

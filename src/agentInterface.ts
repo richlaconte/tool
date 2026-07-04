@@ -14,6 +14,7 @@ import {
   type AreaMetadata,
   type AreaStatus,
 } from './areaMetadata.ts'
+import type { ResolvedCodeSnippet } from './codeReferences.ts'
 import { reparentArea } from './nestedAreas.ts'
 import type { PageAppState, PageState } from './pagePersistence'
 
@@ -43,6 +44,10 @@ export type AgentAreaResource = {
   metadata?: AreaMetadata
   comments?: AreaComment[]
   unresolvedCommentCount?: number
+  resolvedEvidence?: Array<{
+    referenceId: string
+    snippet: ResolvedCodeSnippet
+  }>
   styles: Record<string, string>
   createdAt?: string
   updatedAt?: string

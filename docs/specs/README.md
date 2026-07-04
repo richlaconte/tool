@@ -20,7 +20,7 @@ All Tier 1 specs are complete.
 
 ### Tier 2 — Spec-Driven Development and the Agent Round-Trip
 
-- [Evidence Anchors v2: Repo-Linked Context](2026-07-02-evidence-anchors-v2.md)
+All Tier 2 specs are complete.
 
 ### Tier 3 — Trust and Ownership
 
@@ -61,6 +61,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)
 - [Context Kits and Guided Empty State](completed/2026-06-29-context-kits-and-guided-empty-state.md)
 - [Evidence Anchors and Code References](completed/2026-06-29-evidence-anchors-and-code-references.md)
+- [Evidence Anchors v2: Repo-Linked Context](completed/2026-07-02-evidence-anchors-v2.md)
 - [Empty State Zoom Options](completed/2026-06-30-empty-state-zoom-options.md)
 - [GIF Search and Insertion](completed/2026-06-30-gif-search-insertion.md)
 - [Image Support](completed/2026-06-26-image-support.md)

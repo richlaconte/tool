@@ -204,6 +204,60 @@ test('Markdown export groups typed Areas and preserves text', () => {
   )
 })
 
+test('Markdown export embeds already-resolved code evidence snippets', () => {
+  const permalink =
+    'https://github.com/cascadery/tool/blob/0123456789abcdef0123456789abcdef01234567/src/server/collaborationServer.ts#L4-L5'
+  const markdown = exportPageAsMarkdown(
+    {
+      ...state,
+      areas: state.areas.map((area) =>
+        area.id === 'decision-1'
+          ? {
+              ...area,
+              metadata: {
+                ...area.metadata,
+                evidence: [
+                  {
+                    id: 'evidence-code',
+                    kind: 'url',
+                    label: 'collaborationServer.ts',
+                    target: permalink,
+                    createdAt: now,
+                  },
+                ],
+              },
+            }
+          : area
+      ),
+    },
+    {
+      resolvedEvidence: {
+        [permalink]: {
+          url: permalink,
+          path: 'src/server/collaborationServer.ts',
+          startLine: 4,
+          requestedStartLine: 4,
+          requestedEndLine: 5,
+          language: 'ts',
+          fetchedAt: now,
+          truncated: false,
+          isImmutableRef: true,
+          lines: [
+            { number: 4, text: 'export const createServer = () => {' },
+            { number: 5, text: '  return true' },
+          ],
+        },
+      },
+    }
+  )
+
+  assert.match(
+    markdown,
+    /```ts\n\/\/ src\/server\/collaborationServer\.ts:4-5/
+  )
+  assert.match(markdown, /export const createServer/)
+})
+
 test('Markdown export can include Area comment threads', () => {
   const markdown = exportPageAsMarkdown(state, {
     includeComments: true,

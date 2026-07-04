@@ -1,6 +1,10 @@
 import type { AreaState, AssetState } from './App'
 import { getAreaThread } from './areaComments.ts'
 import { getAreaMetadata } from './areaMetadata.ts'
+import {
+  formatSnippetHeader,
+  type ResolvedCodeSnippet,
+} from './codeReferences.ts'
 import { getAreaAbsolutePosition } from './nestedAreas.ts'
 import {
   serializePageState,
@@ -89,6 +93,7 @@ export const exportPageAsMarkdown = (
   state: PageAppState,
   options: {
     includeComments?: boolean
+    resolvedEvidence?: Record<string, ResolvedCodeSnippet>
   } = {}
 ) => {
   const lines = [`# ${state.page.title || 'Untitled page'}`, '']
@@ -103,7 +108,7 @@ export const exportPageAsMarkdown = (
     lines.push(`## ${group.title}`, '')
 
     for (const area of groupAreas) {
-      lines.push(...renderAreaMarkdown(area, state.assets), '')
+      lines.push(...renderAreaMarkdown(area, state.assets, options), '')
     }
   }
 
@@ -199,7 +204,10 @@ const renderRelationshipDetails = (
 
 const renderAreaMarkdown = (
   area: AreaState,
-  assets: AssetState[]
+  assets: AssetState[],
+  options: {
+    resolvedEvidence?: Record<string, ResolvedCodeSnippet>
+  } = {}
 ) => {
   const metadata = getAreaMetadata(area)
   const lines = [
@@ -221,6 +229,10 @@ const renderAreaMarkdown = (
       lines.push(
         `- ${evidence.kind}: ${evidence.label} (\`${evidence.target}\`)`
       )
+      const snippet = options.resolvedEvidence?.[evidence.target]
+      if (snippet) {
+        lines.push('', formatResolvedSnippet(snippet))
+      }
     }
   }
 
@@ -240,6 +252,18 @@ const renderAreaMarkdown = (
   }
 
   return [...lines, '', area.text]
+}
+
+const formatResolvedSnippet = (snippet: ResolvedCodeSnippet) => {
+  const header = formatSnippetHeader(snippet)
+  const code = snippet.lines.map((line) => line.text).join('\n')
+
+  return [
+    `\`\`\`${snippet.language}`,
+    `// ${header}`,
+    code,
+    '```',
+  ].join('\n')
 }
 
 const toJsonCanvasNode = (

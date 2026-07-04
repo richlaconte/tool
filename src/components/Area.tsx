@@ -23,6 +23,12 @@ import {
   type EvidenceSlashCommandCandidate,
 } from '../areaEvidence'
 import {
+  formatSnippetHeader,
+  parseCodeReference,
+  type ResolvedCodeSnippet,
+} from '../codeReferences'
+import { highlightCode } from '../codeHighlight'
+import {
   findCssSlashCommand,
   type CssSlashCommand,
 } from '../cssSlashCommand'
@@ -919,50 +925,182 @@ const EvidenceChips = ({
 }) => (
   <div className="area-evidence" aria-label="Area evidence">
     {evidence.map((reference) => (
-      <span className="area-evidence-chip" key={reference.id}>
-        {reference.kind === 'url' ? (
-          <a
-            href={reference.target}
-            rel="noreferrer"
-            target="_blank"
-            title={reference.target}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            {getAreaEvidenceLabel(reference)}
-          </a>
-        ) : (
-          <button
-            type="button"
-            title={reference.target}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              void navigator.clipboard?.writeText(reference.target)
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            {getAreaEvidenceLabel(reference)}
-          </button>
-        )}
-        {!isReadOnly && isSelected && (
-          <button
-            aria-label={`Remove evidence ${getAreaEvidenceLabel(reference)}`}
-            className="area-evidence-remove"
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              onRemoveEvidence(areaId, reference.id)
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            x
-          </button>
-        )}
-      </span>
+      <EvidenceChip
+        areaId={areaId}
+        isReadOnly={isReadOnly}
+        isSelected={isSelected}
+        key={reference.id}
+        reference={reference}
+        onRemoveEvidence={onRemoveEvidence}
+      />
     ))}
   </div>
 )
+
+const EvidenceChip = ({
+  areaId,
+  isReadOnly,
+  isSelected,
+  onRemoveEvidence,
+  reference,
+}: {
+  areaId: string
+  isReadOnly: boolean
+  isSelected: boolean
+  onRemoveEvidence: (areaId: string, evidenceId: string) => void
+  reference: AreaEvidenceReference
+}) => {
+  const parsedReference = parseCodeReference(reference.target)
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [snippet, setSnippet] = useState<ResolvedCodeSnippet | null>(
+    null
+  )
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (!isExpanded || !parsedReference || snippet || failed) return
+
+    const controller = new AbortController()
+
+    void fetch(
+      `/api/code-snippet?url=${encodeURIComponent(reference.target)}`,
+      {
+        signal: controller.signal,
+      }
+    )
+      .then((response) => {
+        if (!response.ok) throw new Error('Snippet unavailable.')
+
+        return response.json() as Promise<ResolvedCodeSnippet>
+      })
+      .then((nextSnippet) => {
+        setSnippet(nextSnippet)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true)
+      })
+
+    return () => controller.abort()
+  }, [failed, isExpanded, parsedReference, reference.target, snippet])
+
+  return (
+    <span className="area-evidence-chip">
+      {parsedReference ? (
+        <button
+          aria-expanded={isExpanded}
+          type="button"
+          title={reference.target}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setIsExpanded((current) => !current)
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {getAreaEvidenceLabel(reference)}
+        </button>
+      ) : reference.kind === 'url' ? (
+        <a
+          href={reference.target}
+          rel="noreferrer"
+          target="_blank"
+          title={reference.target}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {getAreaEvidenceLabel(reference)}
+        </a>
+      ) : (
+        <button
+          type="button"
+          title={reference.target}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            void navigator.clipboard?.writeText(reference.target)
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {getAreaEvidenceLabel(reference)}
+        </button>
+      )}
+      {parsedReference && !parsedReference.isImmutableRef && (
+        <span
+          className="area-evidence-drift"
+          title="Branch refs can drift. Commit permalinks stay stable."
+        >
+          ref may drift
+        </span>
+      )}
+      {!isReadOnly && isSelected && (
+        <button
+          aria-label={`Remove evidence ${getAreaEvidenceLabel(reference)}`}
+          className="area-evidence-remove"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onRemoveEvidence(areaId, reference.id)
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          x
+        </button>
+      )}
+      {isExpanded && parsedReference && (
+        <CodeEvidencePreview failed={failed} snippet={snippet} />
+      )}
+    </span>
+  )
+}
+
+const CodeEvidencePreview = ({
+  failed,
+  snippet,
+}: {
+  failed: boolean
+  snippet: ResolvedCodeSnippet | null
+}) => {
+  if (failed) {
+    return (
+      <span className="area-evidence-snippet">
+        Preview unavailable.
+      </span>
+    )
+  }
+
+  if (!snippet) {
+    return <span className="area-evidence-snippet">Loading…</span>
+  }
+
+  return (
+    <span className="area-evidence-snippet">
+      <span className="area-evidence-snippet-header">
+        {formatSnippetHeader(snippet)}
+      </span>
+      <code>
+        {snippet.lines.map((line) => (
+          <span className="area-evidence-snippet-line" key={line.number}>
+            <span className="area-evidence-snippet-number">
+              {line.number}
+            </span>
+            <span>
+              {highlightCode(line.text, snippet.language).map(
+                (token, index) => (
+                  <span
+                    className={`code-token code-token--${token.kind}`}
+                    key={`${line.number}-${index}`}
+                  >
+                    {token.text}
+                  </span>
+                )
+              )}
+            </span>
+          </span>
+        ))}
+      </code>
+    </span>
+  )
+}
 
 const GripIcon = () => (
   <svg

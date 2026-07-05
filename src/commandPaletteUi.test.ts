@@ -13,6 +13,16 @@ test('command palette scrolls the selected overflow option into view', async () 
   assert.match(source, /block: 'nearest'/)
 })
 
+test('command palette hover updates the active option before scroll alignment', async () => {
+  const source = await readFile(
+    new URL('./components/CommandPalette.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /onPointerEnter/)
+  assert.match(source, /setSelectedIndex\(optionIndex\)/)
+})
+
 test('command palette exposes option selection semantics', async () => {
   const source = await readFile(
     new URL('./components/CommandPalette.tsx', import.meta.url),

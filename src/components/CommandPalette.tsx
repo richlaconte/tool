@@ -219,6 +219,9 @@ const CommandPalette = ({
                 onClick={() => {
                   if (!option.disabled) onOpenOption(option)
                 }}
+                onPointerEnter={() => {
+                  if (!option.disabled) setSelectedIndex(optionIndex)
+                }}
                 role="option"
                 type="button"
               >

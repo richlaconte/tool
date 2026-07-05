@@ -24,7 +24,6 @@ All Tier 2 specs are complete.
 
 ### Tier 3 — Trust and Ownership
 
-- [Offline Resilience and Local-First Cache](2026-07-02-offline-resilience.md)
 - [JSON Canvas Interoperability](2026-07-02-json-canvas-interop.md)
 - [Named Snapshots and Visual Diff](2026-07-02-named-snapshots-visual-diff.md)
 
@@ -71,6 +70,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Multi-Select and Group Manipulation](completed/2026-07-02-multi-select-group-manipulation.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)
+- [Offline Resilience and Local-First Cache](completed/2026-07-02-offline-resilience.md)
 - [Offscreen Area Indicators](completed/2026-06-30-offscreen-area-indicators.md)
 - [Page Search and Navigation](completed/2026-07-02-page-search-navigation.md)
 - [Page JSON Persistence](completed/2026-06-26-page-json-persistence.md)

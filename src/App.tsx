@@ -233,6 +233,7 @@ import {
   resolveThemeColorTokens,
   type ThemeColorToken,
 } from './themeColors'
+import { getOfflineSyncStatus } from './offlinePageCache'
 import { useCollaborativePageSync } from './useCollaborativePage'
 import {
   getLatestMcpAgentActivity,
@@ -277,8 +278,14 @@ export type AssetState = {
   source?: GifAssetSource
 }
 
-type SaveStatus = 'saved' | 'saving' | 'offline-changes'
-type CollaborationStatus = 'connected' | 'offline'
+type SaveStatus =
+  | 'saved'
+  | 'saving'
+  | 'syncing'
+  | 'saved-locally'
+  | 'offline-changes'
+  | 'offline-unavailable'
+type CollaborationStatus = 'connected' | 'syncing' | 'offline'
 type PresenceCssProperties = CSSProperties & {
   '--presence-color': string
 }
@@ -814,6 +821,13 @@ const getHistoryEventTimeLabel = (createdAt: string) => {
 
 const getSaveStatusLabel = (saveStatus: SaveStatus) => {
   if (saveStatus === 'saving') return 'Saving...'
+  if (saveStatus === 'syncing') return 'Syncing...'
+  if (saveStatus === 'saved-locally') {
+    return 'Offline — changes saved on this device'
+  }
+  if (saveStatus === 'offline-unavailable') {
+    return 'Offline — local cache unavailable'
+  }
   if (saveStatus === 'offline-changes') return 'Offline changes'
 
   return 'Saved'
@@ -824,6 +838,8 @@ const getCollaborationStatusLabel = (
 ) =>
   collaborationStatus === 'connected'
     ? 'Connected'
+    : collaborationStatus === 'syncing'
+      ? 'Syncing...'
     : 'Offline'
 
 const getPresenceInitials = (userName: string) =>
@@ -1467,11 +1483,16 @@ function App({
   const displayedRemotePresences = isServerCollaborationEnabled
     ? collaborativeSync.remotePresences
     : remotePresences
+  const serverSyncStatus = getOfflineSyncStatus({
+    connectionStatus: collaborativeSync.connectionStatus,
+    offlineCacheStatus: collaborativeSync.offlineCacheStatus,
+  })
   const displayedCollaborationStatus = isServerCollaborationEnabled
-    ? collaborativeSync.connectionStatus === 'connected'
-      ? 'connected'
-      : 'offline'
+    ? serverSyncStatus.collaborationStatus
     : collaborationStatus
+  const displayedSaveStatus = isServerCollaborationEnabled
+    ? serverSyncStatus.saveStatus
+    : saveStatus
   const mcpAgentActivityLabel =
     page.settings.mcp.enabled && mcpAgentActivity?.pageId === page.id
       ? mcpAgentActivity.label
@@ -2317,6 +2338,17 @@ function App({
       ),
     } satisfies CollaborationMessage)
   }, [collaborationProfile, selectedAreaIds])
+
+  useEffect(() => {
+    if (!isServerCollaborationEnabled) return
+    if (collaborativeSync.connectionStatus !== 'connected') return
+
+    publishPresence()
+  }, [
+    collaborativeSync.connectionStatus,
+    isServerCollaborationEnabled,
+    publishPresence,
+  ])
 
   useEffect(() => {
     const pruneTimer = window.setInterval(() => {
@@ -5665,9 +5697,9 @@ function App({
           </button>
           <span
             aria-live="polite"
-            className={`save-status save-status--${saveStatus}`}
+            className={`save-status save-status--${displayedSaveStatus}`}
           >
-            {getSaveStatusLabel(saveStatus)}
+            {getSaveStatusLabel(displayedSaveStatus)}
           </span>
           {authEnabled && authUser && ownerUserId === null && !isViewOnly && (
             <button
@@ -6738,6 +6770,10 @@ function App({
                 <p>
                   Anyone with an edit link can change this context canvas.
                   View-only links open a clean read mode.
+                </p>
+                <p>
+                  Browsers may keep an offline copy on this device; revoking
+                  a link cannot erase copies already cached.
                 </p>
                 {authEnabled && !authUser && (
                   <p>

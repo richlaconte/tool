@@ -90,9 +90,21 @@ test('collaborative sync waits for initial provider sync before writing local st
     /createCollaborativePageDoc\(initialStateRef\.current\)/
   )
   assert.match(source, /new Y\.Doc\(\)/)
-  assert.match(source, /provider\.on\('synced'/)
+  assert.match(source, /nextProvider\.on\('synced'/)
   assert.match(source, /isCollaborativePageDocEmpty/)
   assert.match(source, /!hasSyncedRef\.current/)
+})
+
+test('collaborative sync loads IndexedDB cache before connecting the network provider', async () => {
+  const source = await readFile(
+    new URL('./useCollaborativePage.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /createOfflinePagePersistence/)
+  assert.match(source, /await offlinePersistence\.synced/)
+  assert.match(source, /createNetworkProvider/)
+  assert.match(source, /offlinePersistence\.destroy\(\)/)
 })
 
 test('remote sync preserves pending local area movement while applying other remote changes', () => {

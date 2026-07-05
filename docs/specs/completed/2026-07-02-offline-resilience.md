@@ -2,7 +2,7 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 3.2). Active.
+Completed on 2026-07-05 as the MVP local-first collaboration cache.
 
 ## Goal
 
@@ -128,6 +128,26 @@ the portability pillar demands it.
 - Status-model unit tests for the new transitions.
 - True websocket-drop E2E belongs to the quality-infrastructure spec's
   Playwright suite; add the scenario there when both land.
+
+## Implementation Notes
+
+- Added `y-indexeddb` and a per-page IndexedDB cache keyed
+  `cascadery-page-<pageId>`.
+- `useCollaborativePageSync` now loads the local CRDT cache before creating
+  the Hocuspocus network provider, then lets Yjs merge cached and server
+  updates on reconnect.
+- Cached pages can render and accept local edits while the websocket is
+  unavailable; brand-new legacy JSON seeding still waits until the
+  collaborative document is empty after cache/server sync.
+- The existing status surface now distinguishes `Syncing...`,
+  `Offline — changes saved on this device`, and
+  `Offline — local cache unavailable`.
+- Share dialog and security baseline copy now disclose that revoking a share
+  link cannot erase browser-local cached copies.
+- Manual verification note: the implemented path is covered by a two-doc Yjs
+  convergence test as the deterministic proxy for server-kill/reconnect; the
+  true websocket-drop browser scenario remains queued for the quality
+  infrastructure Playwright suite.
 
 ## Open Questions
 

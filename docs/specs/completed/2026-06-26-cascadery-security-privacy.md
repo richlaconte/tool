@@ -120,6 +120,10 @@ Future accounts/workspaces:
 ## Persistence Requirements
 
 - Persist Yjs binary state for collaborative documents.
+- Treat browser-local Yjs offline caches as user-held copies of page content:
+  revoking or regenerating a share link prevents future authorized sync but
+  cannot erase IndexedDB data already stored in someone else's browser
+  profile.
 - Do not reconstruct persisted Yjs documents from JSON on every load.
 - Store page metadata separately from collaborative document state where useful.
 - Keep schema versions on JSON import/export.

@@ -548,3 +548,75 @@ test('state patches do not overwrite remote text when local text did not change'
   assert.equal(area.x, 180)
   assert.equal(area.type === 'text' ? area.text : '', 'Remote edit')
 })
+
+test('offline edits converge after clients exchange Yjs updates', () => {
+  const page = createDefaultPageState({ id: 'page_offline_merge', now })
+  const [baseArea] = createAreas()
+  const initialState = {
+    areas: [baseArea],
+    assets: [],
+    page,
+  }
+  const docA = createCollaborativePageDoc(initialState)
+  const docB = new Y.Doc()
+
+  Y.applyUpdate(docB, Y.encodeStateAsUpdate(docA))
+
+  applyCollaborativePageStatePatch(
+    docA,
+    initialState,
+    {
+      ...initialState,
+      areas: [
+        {
+          ...baseArea,
+          text: 'Offline edit from A',
+        },
+      ],
+    }
+  )
+  applyCollaborativePageStatePatch(
+    docB,
+    initialState,
+    {
+      ...initialState,
+      areas: [
+        baseArea,
+        {
+          createdAt: now,
+          height: 96,
+          id: 'offline-b',
+          parentId: null,
+          styles: {},
+          text: 'Offline area from B',
+          type: 'text',
+          updatedAt: now,
+          width: 240,
+          x: 360,
+          y: 120,
+        },
+      ],
+    }
+  )
+
+  const updateA = Y.encodeStateAsUpdate(docA)
+  const updateB = Y.encodeStateAsUpdate(docB)
+
+  Y.applyUpdate(docA, updateB)
+  Y.applyUpdate(docB, updateA)
+
+  const stateA = getPageStateFromCollaborativeDoc(docA)
+  const stateB = getPageStateFromCollaborativeDoc(docB)
+
+  assert.deepEqual(stateA, stateB)
+  assert.equal(
+    stateA.areas.find((area) => area.id === 'parent')?.type === 'text'
+      ? stateA.areas.find((area) => area.id === 'parent')?.text
+      : '',
+    'Offline edit from A'
+  )
+  assert.equal(
+    stateA.areas.find((area) => area.id === 'offline-b')?.type,
+    'text'
+  )
+})

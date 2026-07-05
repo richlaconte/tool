@@ -19,12 +19,14 @@ import {
   undo,
   type PageUndoManager,
 } from './pageUndo.ts'
+import {
+  createOfflinePagePersistence,
+  getOfflinePageCacheKey,
+  shouldSeedJsonState,
+  type CollaborativeConnectionStatus,
+  type OfflineCacheStatus,
+} from './offlinePageCache.ts'
 import type { PageAppState } from './pagePersistence.ts'
-
-export type CollaborativeConnectionStatus =
-  | 'connecting'
-  | 'connected'
-  | 'offline'
 
 type LocationLike = Pick<Location, 'host' | 'protocol'>
 
@@ -67,6 +69,19 @@ export const getProviderConnectionStatus = (
 
   return 'offline'
 }
+
+export const createNetworkProvider = ({
+  doc,
+  pageId,
+}: {
+  doc: Y.Doc
+  pageId: string
+}) =>
+  new HocuspocusProvider({
+    document: doc,
+    name: getCollaborativeDocumentName(pageId),
+    url: getCollaborationWebSocketUrl(),
+  })
 
 export const mergeRemoteStateWithPendingLocalAreaChanges = (
   remoteState: PageAppState,
@@ -164,6 +179,10 @@ export const useCollaborativePageSync = ({
     useState<CollaborativeConnectionStatus>(
       enabled ? 'connecting' : 'offline'
     )
+  const [offlineCacheStatus, setOfflineCacheStatus] =
+    useState<OfflineCacheStatus>(
+      enabled ? 'loading' : 'unavailable'
+    )
   const [remotePresences, setRemotePresences] = useState<
     PresenceState[]
   >([])
@@ -194,16 +213,22 @@ export const useCollaborativePageSync = ({
     hasSyncedRef.current = false
     pendingLocalAreaChangesRef.current.clear()
 
+    let isDisposed = false
     const doc = new Y.Doc()
     const undoManager = createPageUndoManager(doc)
-    const provider = new HocuspocusProvider({
-      document: doc,
-      name: getCollaborativeDocumentName(pageId),
-      url: getCollaborationWebSocketUrl(),
-    })
+    let provider: HocuspocusProvider | null = null
+    let offlinePersistence: Awaited<
+      ReturnType<typeof createOfflinePagePersistence>
+    > | null = null
+    const resetStatusTimer = window.setTimeout(() => {
+      if (isDisposed) return
+
+      setConnectionStatus('connecting')
+      setOfflineCacheStatus('loading')
+    }, 0)
 
     docRef.current = doc
-    providerRef.current = provider
+    providerRef.current = null
     undoManagerRef.current = undoManager
 
     const applyRemoteState = () => {
@@ -234,7 +259,12 @@ export const useCollaborativePageSync = ({
     const handleSynced = ({ state: isSynced }: { state: boolean }) => {
       if (!isSynced) return
 
-      if (isCollaborativePageDocEmpty(doc)) {
+      if (
+        shouldSeedJsonState({
+          isCacheReady: true,
+          isCollaborativeDocEmpty: isCollaborativePageDocEmpty(doc),
+        })
+      ) {
         const seedState = latestLocalStateRef.current
         previousLocalStateRef.current = seedState
         replaceCollaborativePageDocState(
@@ -254,6 +284,11 @@ export const useCollaborativePageSync = ({
     }
 
     const updateRemotePresences = () => {
+      if (!provider) {
+        setRemotePresences([])
+        return
+      }
+
       const awareness = provider.awareness
       if (!awareness) {
         setRemotePresences([])
@@ -269,28 +304,64 @@ export const useCollaborativePageSync = ({
       setRemotePresences(presences)
     }
 
+    const attachProvider = (nextProvider: HocuspocusProvider) => {
+      provider = nextProvider
+      providerRef.current = nextProvider
+      nextProvider.on('synced', handleSynced)
+      nextProvider.on('status', handleStatus)
+      nextProvider.awareness?.on('change', updateRemotePresences)
+
+      if (nextProvider.synced) {
+        handleSynced({ state: true })
+      }
+    }
+
     doc.on('update', handleDocUpdate)
     undoManager.on('stack-item-added', handleUndoStackChange)
     undoManager.on('stack-item-popped', handleUndoStackChange)
     undoManager.on('stack-item-updated', handleUndoStackChange)
-    provider.on('synced', handleSynced)
-    provider.on('status', handleStatus)
-    provider.awareness?.on('change', updateRemotePresences)
 
-    if (provider.synced) {
-      handleSynced({ state: true })
+    const bootstrap = async () => {
+      offlinePersistence = await createOfflinePagePersistence(
+        getOfflinePageCacheKey(pageId),
+        doc
+      )
+
+      if (isDisposed) {
+        offlinePersistence.destroy()
+        return
+      }
+
+      setOfflineCacheStatus(offlinePersistence.status)
+      await offlinePersistence.synced
+
+      if (isDisposed) return
+
+      if (offlinePersistence.status === 'ready') {
+        if (!isCollaborativePageDocEmpty(doc)) {
+          applyRemoteState()
+          hasSyncedRef.current = true
+        }
+      }
+
+      attachProvider(createNetworkProvider({ doc, pageId }))
     }
 
+    void bootstrap()
+
     return () => {
-      provider.awareness?.off('change', updateRemotePresences)
-      provider.off('status', handleStatus)
-      provider.off('synced', handleSynced)
+      isDisposed = true
+      window.clearTimeout(resetStatusTimer)
+      provider?.awareness?.off('change', updateRemotePresences)
+      provider?.off('status', handleStatus)
+      provider?.off('synced', handleSynced)
       undoManager.off('stack-item-updated', handleUndoStackChange)
       undoManager.off('stack-item-popped', handleUndoStackChange)
       undoManager.off('stack-item-added', handleUndoStackChange)
       doc.off('update', handleDocUpdate)
       undoManager.destroy()
-      provider.destroy()
+      provider?.destroy()
+      offlinePersistence?.destroy()
       doc.destroy()
 
       if (providerRef.current === provider) {
@@ -310,6 +381,7 @@ export const useCollaborativePageSync = ({
         canRedo: false,
         canUndo: false,
       })
+      setOfflineCacheStatus('unavailable')
     }
   }, [enabled, onRemoteState, pageId, updateUndoState])
 
@@ -365,6 +437,7 @@ export const useCollaborativePageSync = ({
     canRedo: undoState.canRedo,
     canUndo: undoState.canUndo,
     connectionStatus,
+    offlineCacheStatus,
     redo: performRedo,
     remotePresences,
     setPresence,

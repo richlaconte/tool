@@ -31,3 +31,19 @@ test('history dialog lists recent changes and reversible actions', async () => {
   assert.match(css, /\.history-dialog/)
   assert.match(css, /\.history-event/)
 })
+
+test('history dialog exposes named snapshots and visual diff controls', async () => {
+  const source = await readFile(new URL('./App.tsx', import.meta.url), 'utf8')
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(commandSource, /id: 'snapshot-current-state'/)
+  assert.match(commandSource, /id: 'compare-snapshots'/)
+  assert.match(source, /Snapshot current state/)
+  assert.match(source, /Compare snapshots/)
+  assert.match(source, /Restore as copy/)
+  assert.match(source, /diffPageStates/)
+  assert.match(source, /\/api\/pages\/\$\{page\.id\}\/snapshots/)
+})

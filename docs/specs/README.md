@@ -24,7 +24,7 @@ All Tier 2 specs are complete.
 
 ### Tier 3 — Trust and Ownership
 
-- [Named Snapshots and Visual Diff](2026-07-02-named-snapshots-visual-diff.md)
+All Tier 3 specs are complete.
 
 ### Tier 4 — Reach, Performance, and Craft
 
@@ -69,6 +69,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Linked Areas Direct Manipulation UX](completed/2026-06-30-linked-areas-direct-manipulation-ux.md)
 - [Multi-Select and Group Manipulation](completed/2026-07-02-multi-select-group-manipulation.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
+- [Named Snapshots and Visual Diff](completed/2026-07-02-named-snapshots-visual-diff.md)
 - [Nested Areas](completed/2026-06-26-nested-areas.md)
 - [Offline Resilience and Local-First Cache](completed/2026-07-02-offline-resilience.md)
 - [Offscreen Area Indicators](completed/2026-06-30-offscreen-area-indicators.md)

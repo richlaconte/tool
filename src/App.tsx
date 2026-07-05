@@ -179,6 +179,7 @@ import {
   stringifyPageState,
   type PageAppState,
 } from './pagePersistence'
+import { diffPageStates, type PageDiff } from './pageDiff'
 import {
   offsetJsonCanvasImportState,
   parseJsonCanvas,
@@ -1183,6 +1184,19 @@ type AuthUserInfo = {
   avatarUrl: string | null
 }
 
+type PageSnapshotMetadata = {
+  id: string
+  pageId: string
+  name: string
+  createdByDisplayName: string | null
+  createdByUserId: string | null
+  createdAt: string
+}
+
+type PageSnapshotRecord = PageSnapshotMetadata & {
+  stateJson: string
+}
+
 function App({
   authEnabled = false,
   authUser = null,
@@ -1297,6 +1311,16 @@ function App({
     warnings: string[]
     patch: AgentPatch | null
   } | null>(null)
+  const [pageSnapshots, setPageSnapshots] = useState<
+    PageSnapshotMetadata[]
+  >([])
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState<
+    string | null
+  >(null)
+  const [snapshotDiff, setSnapshotDiff] = useState<PageDiff | null>(null)
+  const [snapshotStatus, setSnapshotStatus] = useState<string | null>(
+    null
+  )
   const [agentProposal, setAgentProposal] =
     useState<AgentPatch | null>(null)
   const [agentProposalError, setAgentProposalError] = useState<
@@ -1521,6 +1545,11 @@ function App({
     () => getRecentPageHistoryEvents(pageHistory, page.id),
     [page.id, pageHistory]
   )
+  const selectedSnapshot =
+    selectedSnapshotId !== null
+      ? pageSnapshots.find((snapshot) => snapshot.id === selectedSnapshotId) ??
+        null
+      : null
   const styleDialogArea = styleDialogAreaId
     ? areas.find((area) => area.id === styleDialogAreaId) ?? null
     : null
@@ -5239,6 +5268,192 @@ function App({
     setImportError(null)
   }
 
+  const refreshSnapshots = async () => {
+    if (!page.id) return
+
+    try {
+      const response = await fetch(`/api/pages/${page.id}/snapshots`)
+      const payload = (await response.json()) as {
+        snapshots?: PageSnapshotMetadata[]
+        error?: string
+      }
+
+      if (!response.ok) {
+        setSnapshotStatus(payload.error ?? 'Could not load snapshots.')
+        return
+      }
+
+      const snapshots = Array.isArray(payload.snapshots)
+        ? payload.snapshots
+        : []
+
+      setPageSnapshots(snapshots)
+      setSelectedSnapshotId((currentSnapshotId) =>
+        currentSnapshotId &&
+        snapshots.some((snapshot) => snapshot.id === currentSnapshotId)
+          ? currentSnapshotId
+          : snapshots[0]?.id ?? null
+      )
+      setSnapshotStatus(null)
+    } catch {
+      setSnapshotStatus('Could not load snapshots.')
+    }
+  }
+
+  const createNamedSnapshot = async () => {
+    if (isViewOnly) {
+      setSnapshotStatus('View-only sessions cannot create snapshots.')
+      setOpenDialogId('history')
+      return
+    }
+
+    const name = window.prompt('Snapshot name')
+    if (!name?.trim()) return
+
+    try {
+      const response = await fetch(`/api/pages/${page.id}/snapshots`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          createdBy: collaborationProfile.name,
+          name,
+        }),
+      })
+      const payload = (await response.json()) as {
+        snapshot?: PageSnapshotMetadata
+        error?: string
+      }
+
+      if (!response.ok || !payload.snapshot) {
+        setSnapshotStatus(payload.error ?? 'Could not create snapshot.')
+        setOpenDialogId('history')
+        return
+      }
+
+      await refreshSnapshots()
+      setSelectedSnapshotId(payload.snapshot.id)
+      setSnapshotStatus('Snapshot saved.')
+      setOpenDialogId('history')
+    } catch {
+      setSnapshotStatus('Could not create snapshot.')
+      setOpenDialogId('history')
+    }
+  }
+
+  const getSnapshotRecord = async (snapshotId: string) => {
+    const response = await fetch(
+      `/api/pages/${page.id}/snapshots/${snapshotId}`
+    )
+    const payload = (await response.json()) as {
+      snapshot?: PageSnapshotRecord
+      error?: string
+    }
+
+    if (!response.ok || !payload.snapshot) {
+      throw new Error(payload.error ?? 'Could not load snapshot.')
+    }
+
+    return payload.snapshot
+  }
+
+  const compareSnapshotToLive = async (snapshotId = selectedSnapshotId) => {
+    if (!snapshotId) {
+      setSnapshotStatus('Create or select a snapshot first.')
+      setOpenDialogId('history')
+      return
+    }
+
+    try {
+      const snapshot = await getSnapshotRecord(snapshotId)
+      const parsed = parsePageJson(snapshot.stateJson)
+
+      if (!parsed.ok) {
+        setSnapshotStatus(parsed.error)
+        setOpenDialogId('history')
+        return
+      }
+
+      setSnapshotDiff(diffPageStates(parsed.state, collaborativePageState))
+      setSelectedSnapshotId(snapshotId)
+      setSnapshotStatus(null)
+      setOpenDialogId('history')
+    } catch (error) {
+      setSnapshotStatus(
+        error instanceof Error ? error.message : 'Could not compare snapshot.'
+      )
+      setOpenDialogId('history')
+    }
+  }
+
+  const restoreSnapshotAsCopy = async (snapshotId = selectedSnapshotId) => {
+    if (!snapshotId) {
+      setSnapshotStatus('Create or select a snapshot first.')
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `/api/pages/${page.id}/snapshots/${snapshotId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'restore-copy',
+          }),
+        }
+      )
+      const payload = (await response.json()) as {
+        editUrl?: string
+        error?: string
+      }
+
+      if (!response.ok || !payload.editUrl) {
+        setSnapshotStatus(payload.error ?? 'Could not restore snapshot.')
+        return
+      }
+
+      window.open(payload.editUrl, '_blank', 'noopener,noreferrer')
+      setSnapshotStatus('Snapshot opened as a new canvas.')
+    } catch {
+      setSnapshotStatus('Could not restore snapshot.')
+    }
+  }
+
+  const deleteNamedSnapshot = async (snapshotId: string) => {
+    if (
+      !window.confirm(
+        'Delete this named snapshot? This will not change the current canvas.'
+      )
+    ) {
+      return
+    }
+
+    try {
+      const response = await fetch(
+        `/api/pages/${page.id}/snapshots/${snapshotId}`,
+        {
+          method: 'DELETE',
+        }
+      )
+
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string }
+        setSnapshotStatus(payload.error ?? 'Could not delete snapshot.')
+        return
+      }
+
+      await refreshSnapshots()
+      setSnapshotDiff(null)
+      setSnapshotStatus('Snapshot deleted.')
+    } catch {
+      setSnapshotStatus('Could not delete snapshot.')
+    }
+  }
+
   const undoHistoryEvent = (event: PageChangeEvent) => {
     if (isViewOnly || !event.undoPatchId) return
 
@@ -6597,6 +6812,20 @@ function App({
               setOpenDialogId(option.id)
               return
             }
+            if (option.id === 'history') {
+              setOpenDialogId('history')
+              void refreshSnapshots()
+              return
+            }
+            if (option.id === 'snapshot-current-state') {
+              void createNamedSnapshot()
+              return
+            }
+            if (option.id === 'compare-snapshots') {
+              setOpenDialogId('history')
+              void refreshSnapshots()
+              return
+            }
             if (option.id === 'agent-connections') {
               openAgentConnections()
               return
@@ -7756,6 +7985,167 @@ function App({
                   edits. History is durable page-level recovery across
                   actors.
                 </p>
+                <section className="snapshot-section">
+                  <div className="snapshot-section-header">
+                    <div>
+                      <strong>Named snapshots</strong>
+                      <span>
+                        Mark review milestones, compare to live, and restore
+                        as a copy.
+                      </span>
+                    </div>
+                    <div className="snapshot-actions">
+                      {!isViewOnly && (
+                        <button
+                          className="history-event-button"
+                          type="button"
+                          onClick={createNamedSnapshot}
+                        >
+                          Snapshot current state
+                        </button>
+                      )}
+                      <button
+                        className="history-event-button history-event-button--secondary"
+                        type="button"
+                        onClick={() => compareSnapshotToLive()}
+                      >
+                        Compare snapshots
+                      </button>
+                    </div>
+                  </div>
+                  {snapshotStatus && (
+                    <p className="snapshot-status">{snapshotStatus}</p>
+                  )}
+                  {pageSnapshots.length > 0 ? (
+                    <div className="snapshot-list">
+                      {pageSnapshots.map((snapshot) => (
+                        <div
+                          className="snapshot-row"
+                          key={snapshot.id}
+                        >
+                          <label className="snapshot-radio">
+                            <input
+                              checked={selectedSnapshotId === snapshot.id}
+                              type="radio"
+                              name="selected-snapshot"
+                              onChange={() => {
+                                setSelectedSnapshotId(snapshot.id)
+                                setSnapshotDiff(null)
+                              }}
+                            />
+                            <span>
+                              <strong>{snapshot.name}</strong>
+                              <span>
+                                {snapshot.createdByDisplayName ??
+                                  'Unknown'}{' '}
+                                at{' '}
+                                {getHistoryEventTimeLabel(
+                                  snapshot.createdAt
+                                )}
+                              </span>
+                            </span>
+                          </label>
+                          <div className="snapshot-row-actions">
+                            <button
+                              className="history-event-button history-event-button--secondary"
+                              type="button"
+                              onClick={() =>
+                                compareSnapshotToLive(snapshot.id)
+                              }
+                            >
+                              Compare
+                            </button>
+                            {!isViewOnly && (
+                              <button
+                                className="history-event-button history-event-button--secondary"
+                                type="button"
+                                onClick={() =>
+                                  restoreSnapshotAsCopy(snapshot.id)
+                                }
+                              >
+                                Restore as copy
+                              </button>
+                            )}
+                            {!isViewOnly && (
+                              <button
+                                className="history-event-button history-event-button--danger"
+                                type="button"
+                                onClick={() =>
+                                  deleteNamedSnapshot(snapshot.id)
+                                }
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No named snapshots yet.</p>
+                  )}
+                  {snapshotDiff && selectedSnapshot && (
+                    <div className="snapshot-diff">
+                      <strong>
+                        {selectedSnapshot.name} compared to live canvas
+                      </strong>
+                      <div className="snapshot-diff-grid">
+                        <div>
+                          <span>Added</span>
+                          <p>
+                            {snapshotDiff.addedAreas.length} Areas,{' '}
+                            {snapshotDiff.addedLinks.length} links
+                          </p>
+                          {snapshotDiff.addedAreas.map((area) => (
+                            <button
+                              className="snapshot-diff-row"
+                              key={area.id}
+                              type="button"
+                              onClick={() => jumpToArea(area.id)}
+                            >
+                              {area.excerpt}
+                            </button>
+                          ))}
+                        </div>
+                        <div>
+                          <span>Removed</span>
+                          <p>
+                            {snapshotDiff.removedAreas.length} Areas,{' '}
+                            {snapshotDiff.removedLinks.length} links
+                          </p>
+                          {snapshotDiff.removedAreas.map((area) => (
+                            <div
+                              className="snapshot-diff-row snapshot-diff-row--static"
+                              key={area.id}
+                            >
+                              {area.excerpt}
+                            </div>
+                          ))}
+                        </div>
+                        <div>
+                          <span>Changed</span>
+                          <p>
+                            {snapshotDiff.changedAreas.length} Areas,{' '}
+                            {snapshotDiff.changedLinks.length} links
+                          </p>
+                          {snapshotDiff.changedAreas.map((area) => (
+                            <button
+                              className="snapshot-diff-row"
+                              key={area.id}
+                              type="button"
+                              onClick={() => jumpToArea(area.id)}
+                            >
+                              {area.after.excerpt}
+                              <small>
+                                {area.changedFields.join(', ')}
+                              </small>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </section>
                 {recentHistoryEvents.length > 0 ? (
                   <div className="history-events">
                     {recentHistoryEvents.map((event) => (

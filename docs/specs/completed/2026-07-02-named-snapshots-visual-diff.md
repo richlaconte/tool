@@ -2,7 +2,7 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 3.4). Active.
+Completed on 2026-07-05 as the MVP named snapshot and list-diff pass.
 
 ## Goal
 
@@ -130,6 +130,30 @@ decision time" requirement.
   enforcement, state_json round-trip through `parsePageJson`.
 - Route tests (existing route-test pattern): edit-session requirement, 403
   for view sessions, restore-as-copy end-to-end against a seeded test DB.
+
+## Implementation Notes
+
+- Added `page_snapshots` SQLite persistence with a 50 snapshot per page cap.
+- Added `src/pageDiff.ts` for deterministic list diffs across Areas, links,
+  and page title/settings changes.
+- Added `src/server/pageSnapshots.ts` and `src/server/pageSnapshotApi.ts` for
+  snapshot create/list/get/delete and restore-as-copy using the stored
+  collaborative document as the source of truth.
+- Added Next API routes at `/api/pages/[pageId]/snapshots` and
+  `/api/pages/[pageId]/snapshots/[snapshotId]`.
+- Extended the History dialog with a Named snapshots section, command palette
+  entries for saving/comparing snapshots, live-vs-snapshot diff summaries,
+  restore-as-copy, and delete controls.
+- View sessions can list and compare snapshots; mutation helpers require edit
+  access, and delete/restore require the page owner when a page is owned.
+
+## Future Work
+
+- Destructive overwrite restore with typed confirmation and a one-step undo
+  transaction remains intentionally out of the MVP; restore-as-copy is the
+  default and safer path.
+- Spatial ghost overlays and character-level text diffs should build on the
+  list diff model introduced here.
 
 ## Open Questions
 

@@ -59,6 +59,20 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'snapshot-current-state',
+    title: 'Snapshot current state',
+    description: 'Name the current page state for later comparison or restore',
+    aliases: ['version', 'save version', 'named snapshot', 'milestone'],
+    scope: 'page',
+  },
+  {
+    id: 'compare-snapshots',
+    title: 'Compare snapshots',
+    description: 'Open snapshot history and compare a saved state to live',
+    aliases: ['diff', 'visual diff', 'compare versions', 'version diff'],
+    scope: 'page',
+  },
+  {
     id: 'undo',
     title: 'Undo',
     description: 'Undo your latest canvas change in this session',

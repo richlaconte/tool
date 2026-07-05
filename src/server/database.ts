@@ -93,6 +93,20 @@ export const setupDatabase = (database: ToolDatabase) => {
     create index if not exists mcp_tokens_hash_lookup
       on mcp_tokens(token_hash);
 
+    create table if not exists page_snapshots (
+      id text primary key,
+      page_id text not null,
+      name text not null,
+      created_by_display_name text,
+      created_by_user_id text,
+      created_at text not null,
+      state_json text not null,
+      foreign key (page_id) references pages(id)
+    );
+
+    create index if not exists page_snapshots_page_lookup
+      on page_snapshots(page_id, created_at);
+
     create table if not exists code_snippets (
       url_hash text primary key,
       payload_json text not null,

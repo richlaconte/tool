@@ -28,7 +28,6 @@ All Tier 3 specs are complete.
 
 ### Tier 4 — Reach, Performance, and Craft
 
-- [Canvas Performance at Scale](2026-07-02-canvas-performance-at-scale.md)
 - [Keyboard-First Canvas and Accessibility](2026-07-02-keyboard-first-canvas-accessibility.md)
 - [Read-Anywhere Responsive View Mode](2026-07-02-responsive-view-mode.md)
 - [Product Site, Docs, and Launch Narrative](2026-07-02-product-site-launch.md)
@@ -53,6 +52,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Brand Positioning and Narrative System](completed/2026-06-29-brand-positioning-and-narrative.md)
 - [Cascadery Brand Leave Confirmation](completed/2026-06-30-brand-leave-confirmation.md)
 - [Cascadery Logo and Favicon Integration](completed/2026-06-30-cascadery-logo-favicon-integration.md)
+- [Canvas Performance at Scale](completed/2026-07-02-canvas-performance-at-scale.md)
 - [Canvas Zoom](completed/2026-06-26-canvas-zoom.md)
 - [Child Area Drop Target Feedback](completed/2026-06-30-child-area-drop-target-feedback.md)
 - [Command Palette Completion](completed/2026-06-26-command-palette-completion.md)

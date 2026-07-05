@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -1322,4 +1323,4 @@ const renderHighlightedText = (
   )
 }
 
-export default Area
+export default memo(Area)

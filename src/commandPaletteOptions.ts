@@ -270,6 +270,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'page',
   },
   {
+    id: 'insert-benchmark-content',
+    title: 'Insert benchmark content',
+    description: 'Replace this page with generated scale-test Areas',
+    aliases: ['benchmark', 'performance', 'stress test', 'large canvas'],
+    scope: 'page',
+  },
+  {
     id: 'zoom-in',
     title: 'Zoom in',
     description: 'Increase canvas zoom',

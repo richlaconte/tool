@@ -172,6 +172,8 @@ import {
   getOffscreenIndicatorAriaLabel,
   type OffscreenIndicator,
 } from './offscreenAreaIndicators'
+import { getVisibleAreaIds, isAreaLinkVisible } from './canvasCulling'
+import { createBenchmarkPageState } from './benchmarkPage'
 import {
   createDefaultPageState,
   PAGE_STORAGE_KEY,
@@ -5156,6 +5158,58 @@ function App({
     setImportError(null)
   }
 
+  const insertBenchmarkContent = () => {
+    if (isViewOnly) return
+
+    const requestedCount =
+      typeof window === 'undefined'
+        ? '600'
+        : window.prompt('How many benchmark Areas?', '600')
+
+    if (requestedCount === null) return
+
+    const areaCount = Number.parseInt(requestedCount, 10)
+
+    if (!Number.isFinite(areaCount) || areaCount <= 0) {
+      setImportError('Enter a positive number of benchmark Areas.')
+      return
+    }
+
+    const shouldReplace =
+      areas.length === 0 ||
+      typeof window === 'undefined' ||
+      window.confirm(
+        'Replace this canvas with generated benchmark content?'
+      )
+
+    if (!shouldReplace) return
+
+    const nextState = createBenchmarkPageState({
+      areaCount,
+      pageId: page.id,
+      seed: `${page.id}-${areaCount}`,
+    })
+
+    setPage({
+      ...nextState.page,
+      settings: page.settings,
+    })
+    setAreas(nextState.areas)
+    setAssets(nextState.assets)
+    setLinks(nextState.links ?? [])
+    setComments(nextState.comments ?? [])
+    setJournalEntries(nextState.journal ?? [])
+    setSelectedAreaId(null)
+    setSelectedLinkId(null)
+    setLinkFlyoutLinkId(null)
+    setStyleDialogAreaId(null)
+    setCommentPanelAreaId(null)
+    setAutoFocusAreaId(null)
+    setHasClickedCanvas(true)
+    setOpenDialogId(null)
+    setImportError(null)
+  }
+
   const importPageFile = async (e: ChangeEvent<HTMLInputElement>) => {
     if (isViewOnly) return
 
@@ -5667,6 +5721,13 @@ function App({
     : shouldShowEditorChrome
       ? [...baseCommandPaletteOptions, ...authCommandPaletteOptions]
           .filter((option) => {
+            if (
+              option.id === 'insert-benchmark-content' &&
+              process.env.NODE_ENV === 'production'
+            ) {
+              return false
+            }
+
             if (isAlignCommandOption(option)) {
               return selectedAreaIds.length >= 2
             }
@@ -5706,6 +5767,46 @@ function App({
   const shouldShowCommandPalette =
     commandPaletteQuery !== null &&
     (shouldShowEditorChrome || isCommandPaletteSearchMode)
+  const visibleAreaIds = useMemo(
+    () =>
+      getVisibleAreaIds(areas, {
+        viewport: {
+          x: canvasViewport.x,
+          y: canvasViewport.y,
+          width: canvasViewport.width,
+          height: canvasViewport.height,
+        },
+        alwaysRenderAreaIds: [
+          ...selectedAreaIds,
+          autoFocusAreaId,
+          selectedAreaId,
+          nestingPreview.draggedAreaId,
+          nestingPreview.candidateParentId,
+          nestingPreview.unnestingFromParentId,
+          linkDrag?.sourceAreaId,
+          linkDrag?.targetAreaId,
+        ],
+      }),
+    [
+      areas,
+      autoFocusAreaId,
+      canvasViewport.height,
+      canvasViewport.width,
+      canvasViewport.x,
+      canvasViewport.y,
+      linkDrag?.sourceAreaId,
+      linkDrag?.targetAreaId,
+      nestingPreview.candidateParentId,
+      nestingPreview.draggedAreaId,
+      nestingPreview.unnestingFromParentId,
+      selectedAreaId,
+      selectedAreaIds,
+    ]
+  )
+  const visibleAreaIdSet = useMemo(
+    () => new Set(visibleAreaIds),
+    [visibleAreaIds]
+  )
   const shouldShowOffscreenAreaIndicators =
     !shouldShowEmptyState &&
     areas.length > 0 &&
@@ -6209,7 +6310,11 @@ function App({
                 <path d="M1 1 7 4 1 7z" />
               </marker>
             </defs>
-            {links.map((link) => {
+            {links.filter(
+              (link) =>
+                link.id === selectedLinkId ||
+                isAreaLinkVisible(link, visibleAreaIdSet)
+            ).map((link) => {
               const line = getAreaLinkLine(areas, link)
               const isSelected = link.id === selectedLinkId
               const lineClassName = [
@@ -6334,7 +6439,9 @@ function App({
             />
           )}
 
-          {getRootAreas(areas).map(renderArea)}
+          {getRootAreas(areas)
+            .filter((area) => visibleAreaIdSet.has(area.id))
+            .map(renderArea)}
 
           {shouldShowEditorChrome &&
             selectedLink &&
@@ -6883,6 +6990,10 @@ function App({
                   query: '',
                 },
               })
+              return
+            }
+            if (option.id === 'insert-benchmark-content') {
+              insertBenchmarkContent()
               return
             }
             if (option.id === 'insert-context-kit') {

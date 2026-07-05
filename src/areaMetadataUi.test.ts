@@ -76,7 +76,7 @@ test('selected connector endpoint handles render above Area edge link zones', as
     new URL('./components/area.css', import.meta.url),
     'utf8'
   )
-  const areaRenderIndex = source.indexOf('{getRootAreas(areas).map(renderArea)}')
+  const areaRenderIndex = source.indexOf('{getRootAreas(areas)')
   const controlLayerIndex = source.indexOf('className="area-link-control-layer"')
 
   assert.notEqual(areaRenderIndex, -1)

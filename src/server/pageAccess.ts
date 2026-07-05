@@ -2,8 +2,10 @@ import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 import type { ToolDatabase } from './database.ts'
+import { getUserFromCookie } from './auth.ts'
 import {
   getActiveShareLinkUpdatedAt,
+  getPageRecord,
   validateShareToken,
   type ShareMode,
 } from './pageRepository.ts'
@@ -47,6 +49,7 @@ export type ResolvePageHttpAccessOptions = {
   cookieHeader?: string
   createClientId?: () => string
   database: ToolDatabase
+  authenticatedUserId?: string | null
   now?: number
   pageId: string
   requestUrl: string
@@ -57,6 +60,7 @@ export const resolvePageHttpAccess = ({
   cookieHeader,
   createClientId = () => `client_${randomUUID()}`,
   database,
+  authenticatedUserId,
   now = Date.now(),
   pageId,
   requestUrl,
@@ -121,6 +125,19 @@ export const resolvePageHttpAccess = ({
     }
   }
 
+  const ownerAccess = getPageAccessFromAuthenticatedUser(
+    database,
+    pageId,
+    authenticatedUserId
+  )
+
+  if (ownerAccess) {
+    return {
+      kind: 'allow',
+      access: ownerAccess,
+    }
+  }
+
   return {
     kind: 'forbidden',
     reason: session
@@ -157,24 +174,57 @@ export const getPageAccessFromSession = (
   }
 }
 
+export const getPageAccessFromAuthenticatedUser = (
+  database: ToolDatabase,
+  pageId: string,
+  authenticatedUserId: string | null | undefined
+): PageAccessContext | null => {
+  if (!authenticatedUserId) return null
+
+  const page = getPageRecord(database, pageId)
+  if (!page?.ownerUserId || page.ownerUserId !== authenticatedUserId) {
+    return null
+  }
+
+  return {
+    accessMode: 'edit',
+    clientId: `owner_${authenticatedUserId}`,
+    pageId,
+    readOnly: false,
+  }
+}
+
 export const getPageAccessModeFromRequestCookies = ({
   cookieHeader,
   database,
+  authenticatedUserId,
   now = Date.now(),
   pageId,
   secret,
 }: {
   cookieHeader: string | undefined
   database: ToolDatabase
+  authenticatedUserId?: string | null
   now?: number
   pageId: string
   secret: string
-}): ShareMode | null =>
-  getPageAccessFromSession(
+}): ShareMode | null => {
+  const sessionAccess = getPageAccessFromSession(
     database,
     pageId,
     getPageSessionFromCookie(cookieHeader, secret, now)
-  )?.accessMode ?? null
+  )?.accessMode
+
+  if (sessionAccess) return sessionAccess
+
+  return (
+    getPageAccessFromAuthenticatedUser(
+      database,
+      pageId,
+      authenticatedUserId
+    )?.accessMode ?? null
+  )
+}
 
 export const handlePageAccessRequest = ({
   database,
@@ -198,6 +248,10 @@ export const handlePageAccessRequest = ({
   if (!pageId) return false
 
   const result = resolvePageHttpAccess({
+    authenticatedUserId: getUserFromCookie(
+      database,
+      request.headers.cookie
+    )?.id,
     cookieHeader: request.headers.cookie,
     database,
     pageId,

@@ -6,6 +6,7 @@ import {
   getCollaborationContextFromHeaders,
   getPageIdFromCollaborationDocumentName,
 } from './server/collaborationServer.ts'
+import { createAuthSession } from './server/auth.ts'
 import { createInMemoryDatabase } from './server/database.ts'
 import { createPageWithShareLinks } from './server/pageRepository.ts'
 import { createPageSessionCookie } from './server/shareSessions.ts'
@@ -92,6 +93,47 @@ test('collaboration marks view sessions as read-only', () => {
   assert.equal(context?.accessMode, 'view')
   assert.equal(context?.pageId, 'page_2')
   assert.equal(context?.readOnly, true)
+})
+
+test('collaboration accepts authenticated page owners without share sessions', () => {
+  const database = createInMemoryDatabase()
+  createPageWithShareLinks(database, {
+    ownerUserId: 'user_owner',
+    pageId: 'page_owned_ws',
+  })
+  const authSession = createAuthSession(database, {
+    createToken: () => 'owner-session',
+    now: '2026-07-05T12:00:00.000Z',
+    user: {
+      avatarUrl: null,
+      displayName: 'Owner',
+      githubId: '1',
+      id: 'user_owner',
+      login: 'owner',
+    },
+  })
+  const context = getCollaborationContextFromHeaders(
+    {
+      cookie: authSession.setCookie,
+      origin: 'https://tool.test',
+    },
+    {
+      allowedOrigins: ['https://tool.test'],
+      database,
+      sessionSecret: secret,
+      now,
+    },
+    {
+      documentName: 'page:page_owned_ws',
+    }
+  )
+
+  assert.deepEqual(context, {
+    accessMode: 'edit',
+    clientId: 'owner_user_owner',
+    pageId: 'page_owned_ws',
+    readOnly: false,
+  })
 })
 
 test('collaboration accepts same-origin custom-domain websocket requests when the explicit allowlist is stale', () => {

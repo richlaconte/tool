@@ -1140,12 +1140,25 @@ const requestImageAltText = (defaultAlt: string) =>
 const getFirstImageFile = (files: FileList | File[]) =>
   Array.from(files).find((file) => file.type.startsWith('image/')) ?? null
 
+type AuthUserInfo = {
+  id: string
+  login: string
+  displayName: string | null
+  avatarUrl: string | null
+}
+
 function App({
+  authEnabled = false,
+  authUser = null,
   giphyApiKey,
+  pageOwnerUserId = null,
   pageId,
   serverAccessMode,
 }: {
+  authEnabled?: boolean
+  authUser?: AuthUserInfo | null
   giphyApiKey?: string
+  pageOwnerUserId?: string | null
   pageId?: string
   serverAccessMode?: ShareAccessMode
 }) {
@@ -1276,6 +1289,12 @@ function App({
   const [mcpConnectionError, setMcpConnectionError] = useState<
     string | null
   >(null)
+  const [ownerUserId, setOwnerUserId] = useState<string | null>(
+    pageOwnerUserId
+  )
+  const [claimPageError, setClaimPageError] = useState<string | null>(
+    null
+  )
   const [, setHasClickedCanvas] = useState(false)
   const [themeColorName, setThemeColorName] = useState('')
   const [themeColorToken, setThemeColorToken] = useState('')
@@ -1409,6 +1428,8 @@ function App({
       page.settings.shareLinks
     )
   const isViewOnly = shareAccessMode === 'view'
+  const canManagePageAccess =
+    ownerUserId === null || ownerUserId === authUser?.id
   const shouldShowEditorChrome = !isViewOnly
   const shouldShowEmptyState =
     shouldShowEditorChrome && areas.length === 0
@@ -3691,6 +3712,10 @@ function App({
 
   const ensureShareLinks = async () => {
     if (isViewOnly) return
+    if (!canManagePageAccess) {
+      setImportError('Only the page owner can manage share links.')
+      return
+    }
 
     if (pageId) {
       if (
@@ -3726,8 +3751,35 @@ function App({
     })
   }
 
+  const claimCurrentPage = async () => {
+    if (!pageId || !authUser || isViewOnly) return
+
+    try {
+      const response = await fetch(`/api/pages/${page.id}/claim`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        throw new Error('Page could not be claimed.')
+      }
+
+      const payload = (await response.json()) as {
+        ownerUserId?: unknown
+      }
+
+      setOwnerUserId(
+        typeof payload.ownerUserId === 'string'
+          ? payload.ownerUserId
+          : authUser.id
+      )
+      setClaimPageError(null)
+    } catch {
+      setClaimPageError('This page could not be claimed.')
+    }
+  }
+
   const loadMcpConnections = useCallback(async () => {
-    if (!pageId || isViewOnly) return
+    if (!pageId || isViewOnly || !canManagePageAccess) return
 
     try {
       const response = await fetch(`/api/pages/${page.id}/mcp-tokens`)
@@ -3749,10 +3801,10 @@ function App({
     } catch {
       setMcpConnectionError('Agent connections could not be loaded.')
     }
-  }, [isViewOnly, page.id, pageId])
+  }, [canManagePageAccess, isViewOnly, page.id, pageId])
 
   const openAgentConnections = () => {
-    if (isViewOnly) return
+    if (isViewOnly || !canManagePageAccess) return
 
     setCreatedMcpToken(null)
     setMcpConnectionError(null)
@@ -3761,7 +3813,7 @@ function App({
   }
 
   const createMcpConnection = async () => {
-    if (!pageId || isViewOnly) return
+    if (!pageId || isViewOnly || !canManagePageAccess) return
 
     try {
       const response = await fetch(`/api/pages/${page.id}/mcp-tokens`, {
@@ -3798,7 +3850,7 @@ function App({
   }
 
   const revokeMcpConnection = async (tokenId: string) => {
-    if (!pageId || isViewOnly) return
+    if (!pageId || isViewOnly || !canManagePageAccess) return
 
     try {
       const response = await fetch(`/api/pages/${page.id}/mcp-tokens`, {
@@ -5248,6 +5300,28 @@ function App({
         }
       })
     : []
+  const authCommandPaletteOptions =
+    authEnabled && authUser
+      ? [
+          {
+            id: 'open-shelf',
+            title: 'Open shelf',
+            description: 'View canvases owned by your account',
+            aliases: ['home', 'pages', 'my canvases'],
+            scope: 'global' as const,
+          },
+        ]
+      : authEnabled
+        ? [
+            {
+              id: 'sign-in',
+              title: 'Sign in with GitHub',
+              description: 'Keep this canvas and manage owned pages',
+              aliases: ['login', 'github', 'account'],
+              scope: 'global' as const,
+            },
+          ]
+        : []
   const baseCommandPaletteOptions = shouldShowEmptyState
     ? COMMAND_PALETTE_OPTIONS.filter(
         (option) => !isZoomCommandOption(option)
@@ -5256,17 +5330,27 @@ function App({
   const commandPaletteOptions = isCommandPaletteSearchMode
     ? areaSearchOptions
     : shouldShowEditorChrome
-      ? baseCommandPaletteOptions.filter((option) => {
-          if (isAlignCommandOption(option)) {
-            return selectedAreaIds.length >= 2
-          }
+      ? [...baseCommandPaletteOptions, ...authCommandPaletteOptions]
+          .filter((option) => {
+            if (isAlignCommandOption(option)) {
+              return selectedAreaIds.length >= 2
+            }
 
-          if (isDistributeCommandOption(option)) {
-            return selectedAreaIds.length >= 3
-          }
+            if (isDistributeCommandOption(option)) {
+              return selectedAreaIds.length >= 3
+            }
 
-          return true
-        }).map((option) => {
+            if (
+              (option.id === 'share' ||
+                option.id === 'agent-connections') &&
+              !canManagePageAccess
+            ) {
+              return false
+            }
+
+            return true
+          })
+          .map((option) => {
           if (option.id === 'undo') {
             return {
               ...option,
@@ -5585,6 +5669,36 @@ function App({
           >
             {getSaveStatusLabel(saveStatus)}
           </span>
+          {authEnabled && authUser && ownerUserId === null && !isViewOnly && (
+            <button
+              className="page-persistence-button page-persistence-button--accent"
+              type="button"
+              onClick={claimCurrentPage}
+            >
+              Claim this page
+            </button>
+          )}
+          {authEnabled && authUser ? (
+            <>
+              <a className="page-persistence-link" href="/shelf">
+                Shelf
+              </a>
+              <form action="/api/auth/logout" method="post">
+                <button className="page-persistence-button" type="submit">
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : authEnabled ? (
+            <a className="page-persistence-link" href="/api/auth/login">
+              Sign in
+            </a>
+          ) : null}
+          {claimPageError && (
+            <span className="import-error" role="alert">
+              {claimPageError}
+            </span>
+          )}
           <button
             className="page-persistence-button"
             type="button"
@@ -5678,7 +5792,7 @@ function App({
               AI
             </span>
           )}
-          {!isViewOnly && (
+          {!isViewOnly && canManagePageAccess && (
             <button
               type="button"
               className="presence-share-button"
@@ -6337,6 +6451,16 @@ function App({
               return
             }
 
+            if (option.id === 'sign-in') {
+              window.location.href = '/api/auth/login'
+              return
+            }
+
+            if (option.id === 'open-shelf') {
+              window.location.href = '/shelf'
+              return
+            }
+
             setCommandPaletteQuery(null)
             if (
               option.kind === 'area-search-result' &&
@@ -6615,6 +6739,14 @@ function App({
                   Anyone with an edit link can change this context canvas.
                   View-only links open a clean read mode.
                 </p>
+                {authEnabled && !authUser && (
+                  <p>
+                    <a className="page-persistence-link" href="/api/auth/login">
+                      Sign in with GitHub
+                    </a>{' '}
+                    to keep canvases on your shelf and manage owned pages.
+                  </p>
+                )}
                 {page.settings.shareLinks ? (
                   <>
                     <ShareLinkRow
@@ -6635,7 +6767,7 @@ function App({
                       onCopy={copyShareUrl}
                       onRegenerate={regenerateShareUrl}
                     />
-                    {pageId && !isViewOnly && (
+                    {pageId && !isViewOnly && canManagePageAccess && (
                       <button
                         className="share-link-button share-link-button--secondary"
                         type="button"

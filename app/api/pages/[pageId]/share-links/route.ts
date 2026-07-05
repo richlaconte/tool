@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getUserFromRequest } from '../../../../../src/server/auth'
 import { createDatabase } from '../../../../../src/server/database'
 import { getPageSessionSecret } from '../../../../../src/server/pageAccess'
 import { createShareLinkMutation } from '../../../../../src/server/shareLinkApi'
@@ -14,13 +15,16 @@ export const dynamic = 'force-dynamic'
 
 export const POST = async (request: Request, { params }: RouteContext) => {
   const { pageId } = await params
+  const database = createDatabase()
+  const user = getUserFromRequest(database, request)
   const payload = await readJsonObject(request)
   const protocol = request.headers.get('x-forwarded-proto') ?? 'http'
   const host = request.headers.get('host') ?? new URL(request.url).host
   const result = createShareLinkMutation({
     accessMode: payload?.accessMode,
+    authenticatedUserId: user?.id ?? null,
     cookieHeader: request.headers.get('cookie') ?? undefined,
-    database: createDatabase(),
+    database,
     pageId,
     requestUrl: `${protocol}://${host}${new URL(request.url).pathname}`,
     secret: getPageSessionSecret(),

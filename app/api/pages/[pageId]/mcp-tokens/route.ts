@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { getUserFromRequest } from '../../../../../src/server/auth'
 import { createDatabase } from '../../../../../src/server/database'
 import { getPageSessionSecret } from '../../../../../src/server/pageAccess'
 import {
@@ -20,7 +21,9 @@ export const dynamic = 'force-dynamic'
 export const GET = async (request: Request, { params }: RouteContext) => {
   const { pageId } = await params
   const database = createDatabase()
+  const user = getUserFromRequest(database, request)
   const result = listMcpTokenConnections({
+    authenticatedUserId: user?.id ?? null,
     cookieHeader: request.headers.get('cookie') ?? undefined,
     database,
     pageId,
@@ -39,10 +42,13 @@ export const GET = async (request: Request, { params }: RouteContext) => {
 
 export const POST = async (request: Request, { params }: RouteContext) => {
   const { pageId } = await params
+  const database = createDatabase()
+  const user = getUserFromRequest(database, request)
   const payload = await readJsonObject(request)
   const result = createMcpTokenConnection({
+    authenticatedUserId: user?.id ?? null,
     cookieHeader: request.headers.get('cookie') ?? undefined,
-    database: createDatabase(),
+    database,
     expiresAt:
       typeof payload?.expiresAt === 'string' ? payload.expiresAt : undefined,
     label: typeof payload?.label === 'string' ? payload.label : undefined,
@@ -56,10 +62,13 @@ export const POST = async (request: Request, { params }: RouteContext) => {
 
 export const DELETE = async (request: Request, { params }: RouteContext) => {
   const { pageId } = await params
+  const database = createDatabase()
+  const user = getUserFromRequest(database, request)
   const payload = await readJsonObject(request)
   const result = revokeMcpTokenConnection({
+    authenticatedUserId: user?.id ?? null,
     cookieHeader: request.headers.get('cookie') ?? undefined,
-    database: createDatabase(),
+    database,
     pageId,
     secret: getPageSessionSecret(),
     tokenId: payload?.tokenId,

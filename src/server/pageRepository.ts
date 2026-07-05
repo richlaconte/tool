@@ -7,6 +7,7 @@ export type ShareMode = 'edit' | 'view'
 export type PageRecord = {
   id: string
   title: string
+  ownerUserId: string | null
   createdAt: string
   updatedAt: string
   deletedAt: string | null
@@ -15,6 +16,7 @@ export type PageRecord = {
 export type CreatePageWithShareLinksOptions = {
   createToken?: () => string
   now?: string
+  ownerUserId?: string | null
   pageId?: string
   title?: string
 }
@@ -36,11 +38,16 @@ export type RegenerateShareTokenOptions = {
   now?: string
 }
 
+export type PageListOptions = {
+  ownerUserId?: string
+}
+
 export const createPageWithShareLinks = (
   database: ToolDatabase,
   {
     createToken = createShareToken,
     now = new Date().toISOString(),
+    ownerUserId = null,
     pageId = createId('page'),
     title = 'Untitled page',
   }: CreatePageWithShareLinksOptions = {}
@@ -50,6 +57,7 @@ export const createPageWithShareLinks = (
   const page: PageRecord = {
     id: pageId,
     title,
+    ownerUserId,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -58,10 +66,17 @@ export const createPageWithShareLinks = (
   const createPage = database.transaction(() => {
     database
       .prepare(
-        `insert into pages (id, title, created_at, updated_at, deleted_at)
-         values (?, ?, ?, ?, null)`
+        `insert into pages
+          (id, title, owner_user_id, created_at, updated_at, deleted_at)
+         values (?, ?, ?, ?, ?, null)`
       )
-      .run(page.id, page.title, page.createdAt, page.updatedAt)
+      .run(
+        page.id,
+        page.title,
+        page.ownerUserId,
+        page.createdAt,
+        page.updatedAt
+      )
 
     insertShareLink(database, page.id, 'edit', editToken, now)
     insertShareLink(database, page.id, 'view', viewToken, now)
@@ -84,12 +99,14 @@ export const validateShareToken = (
 ): ShareAccess | null => {
   const row = database
     .prepare(
-      `select updated_at as shareLinkUpdatedAt
+      `select share_links.updated_at as shareLinkUpdatedAt
        from share_links
-       where page_id = ?
-         and mode = ?
-         and token_hash = ?
-         and revoked_at is null
+       join pages on pages.id = share_links.page_id
+       where share_links.page_id = ?
+         and share_links.mode = ?
+         and share_links.token_hash = ?
+         and share_links.revoked_at is null
+         and pages.deleted_at is null
        limit 1`
     )
     .get(pageId, accessMode, hashShareToken(token)) as
@@ -112,12 +129,14 @@ export const getActiveShareLinkUpdatedAt = (
 ) => {
   const row = database
     .prepare(
-      `select updated_at as shareLinkUpdatedAt
+      `select share_links.updated_at as shareLinkUpdatedAt
        from share_links
-       where page_id = ?
-         and mode = ?
-         and revoked_at is null
-       order by updated_at desc
+       join pages on pages.id = share_links.page_id
+       where share_links.page_id = ?
+         and share_links.mode = ?
+         and share_links.revoked_at is null
+         and pages.deleted_at is null
+       order by share_links.updated_at desc
        limit 1`
     )
     .get(pageId, accessMode) as
@@ -127,16 +146,26 @@ export const getActiveShareLinkUpdatedAt = (
   return row?.shareLinkUpdatedAt ?? null
 }
 
-export const listPages = (database: ToolDatabase): PageRecord[] =>
-  database
+export const listPages = (
+  database: ToolDatabase,
+  options: PageListOptions = {}
+): PageRecord[] => {
+  const ownerFilter = options.ownerUserId
+    ? 'and owner_user_id = @ownerUserId'
+    : ''
+
+  return database
     .prepare(
-      `select id, title, created_at as createdAt, updated_at as updatedAt,
+      `select id, title, owner_user_id as ownerUserId,
+              created_at as createdAt, updated_at as updatedAt,
               deleted_at as deletedAt
        from pages
        where deleted_at is null
+       ${ownerFilter}
        order by updated_at desc`
     )
-    .all() as PageRecord[]
+    .all(options) as PageRecord[]
+}
 
 export const getPageRecord = (
   database: ToolDatabase,
@@ -145,7 +174,7 @@ export const getPageRecord = (
   (database
     .prepare(
       `select id, title, created_at as createdAt, updated_at as updatedAt,
-              deleted_at as deletedAt
+              owner_user_id as ownerUserId, deleted_at as deletedAt
        from pages
        where id = ?
          and deleted_at is null
@@ -186,6 +215,69 @@ export const regenerateShareToken = (
     token,
     shareLinkUpdatedAt: now,
   }
+}
+
+export const revokeShareToken = (
+  database: ToolDatabase,
+  pageId: string,
+  accessMode: ShareMode,
+  { now = new Date().toISOString() }: { now?: string } = {}
+) => {
+  database
+    .prepare(
+      `update share_links
+       set revoked_at = ?, updated_at = ?
+       where page_id = ?
+         and mode = ?
+         and revoked_at is null`
+    )
+    .run(now, now, pageId, accessMode)
+}
+
+export const claimPage = (
+  database: ToolDatabase,
+  pageId: string,
+  userId: string,
+  { now = new Date().toISOString() }: { now?: string } = {}
+) => {
+  const result = database
+    .prepare(
+      `update pages
+       set owner_user_id = ?, updated_at = ?
+       where id = ?
+         and owner_user_id is null
+         and deleted_at is null`
+    )
+    .run(userId, now, pageId)
+
+  return result.changes === 1
+}
+
+export const deletePage = (
+  database: ToolDatabase,
+  pageId: string,
+  { now = new Date().toISOString() }: { now?: string } = {}
+) => {
+  const result = database
+    .prepare(
+      `update pages
+       set deleted_at = ?, updated_at = ?
+       where id = ?
+         and deleted_at is null`
+    )
+    .run(now, now, pageId)
+
+  return result.changes === 1
+}
+
+export const isPageOwner = (
+  database: ToolDatabase,
+  pageId: string,
+  userId: string | null | undefined
+) => {
+  const page = getPageRecord(database, pageId)
+
+  return Boolean(page?.ownerUserId && userId === page.ownerUserId)
 }
 
 export const hashShareToken = (token: string) =>

@@ -156,3 +156,47 @@ test('view sessions and invalid access modes cannot create share URLs', () => {
     }
   )
 })
+
+test('owned pages require the owner for share link mutation', () => {
+  const database = createInMemoryDatabase()
+  createPageWithShareLinks(database, {
+    createToken: () => 'old-token',
+    now: createdAt,
+    ownerUserId: 'user_owner',
+    pageId: 'page_owned_links',
+  })
+
+  assert.deepEqual(
+    createShareLinkMutation({
+      accessMode: 'view',
+      authenticatedUserId: null,
+      cookieHeader: createEditSessionCookie('page_owned_links'),
+      database,
+      now: updatedAt,
+      pageId: 'page_owned_links',
+      requestUrl:
+        'https://cascadery.test/api/pages/page_owned_links/share-links',
+      secret,
+    }),
+    {
+      kind: 'forbidden',
+      reason: 'owner-required',
+    }
+  )
+
+  assert.equal(
+    createShareLinkMutation({
+      accessMode: 'view',
+      authenticatedUserId: 'user_owner',
+      cookieHeader: createEditSessionCookie('page_owned_links'),
+      createToken: () => 'owner-token',
+      database,
+      now: updatedAt,
+      pageId: 'page_owned_links',
+      requestUrl:
+        'https://cascadery.test/api/pages/page_owned_links/share-links',
+      secret,
+    }).kind,
+    'ok'
+  )
+})

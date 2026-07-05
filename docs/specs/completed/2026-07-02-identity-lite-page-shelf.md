@@ -2,9 +2,24 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 3.1). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 3.1). Completed MVP
+on 2026-07-05.
 Pairs with Remote MCP Hardening (Tier 2.3): owner-scoped MCP token management
 assumes ownership exists.
+
+## Completion Notes
+
+- Optional GitHub OAuth can be enabled with `GITHUB_CLIENT_ID` and
+  `GITHUB_CLIENT_SECRET`; when unset, anonymous page creation remains the
+  default path and auth UI is hidden.
+- Auth sessions are stored as hashed server-side tokens, separate from page
+  share-session cookies.
+- Pages support nullable owners, atomic claiming, owner-filtered shelf listing,
+  soft deletion, and owner direct access without share tokens.
+- Owned pages enforce owner-only share-link and MCP-token management on the
+  server; unowned pages preserve edit-session management for continuity.
+- `/shelf` provides owned page listing, new-page creation, deletion, and
+  sign-out/sign-in affordances.
 
 ## Goal
 

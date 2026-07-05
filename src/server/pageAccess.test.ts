@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { createAuthSession } from './auth.ts'
 import { createInMemoryDatabase } from './database.ts'
 import {
   createPageWithShareLinks,
@@ -12,6 +13,7 @@ import {
 } from './shareSessions.ts'
 import {
   getPageAccessFromSession,
+  getPageAccessModeFromRequestCookies,
   handlePageAccessRequest,
   resolvePageHttpAccess,
 } from './pageAccess.ts'
@@ -165,6 +167,57 @@ test('view sessions allow page reads but mark collaboration read-only', () => {
       pageId: 'page_view',
       readOnly: true,
     }
+  )
+})
+
+test('authenticated owners can open owned pages without share session cookies', () => {
+  const database = createInMemoryDatabase()
+  createPageWithShareLinks(database, {
+    ownerUserId: 'user_owner',
+    pageId: 'page_owned_direct',
+  })
+
+  assert.deepEqual(
+    resolvePageHttpAccess({
+      authenticatedUserId: 'user_owner',
+      database,
+      pageId: 'page_owned_direct',
+      requestUrl: 'https://cascadery.test/p/page_owned_direct',
+      secret,
+      now,
+    }),
+    {
+      kind: 'allow',
+      access: {
+        accessMode: 'edit',
+        clientId: 'owner_user_owner',
+        pageId: 'page_owned_direct',
+        readOnly: false,
+      },
+    }
+  )
+
+  const authSession = createAuthSession(database, {
+    createToken: () => 'owner-session',
+    now: '2026-07-05T12:00:00.000Z',
+    user: {
+      avatarUrl: null,
+      displayName: 'Owner',
+      githubId: '1',
+      id: 'user_owner',
+      login: 'owner',
+    },
+  })
+
+  assert.equal(
+    getPageAccessModeFromRequestCookies({
+      authenticatedUserId: 'user_owner',
+      cookieHeader: authSession.setCookie,
+      database,
+      pageId: 'page_owned_direct',
+      secret,
+    }),
+    'edit'
   )
 })
 

@@ -27,6 +27,7 @@ export const setupDatabase = (database: ToolDatabase) => {
     create table if not exists pages (
       id text primary key,
       title text not null,
+      owner_user_id text,
       created_at text not null,
       updated_at text not null,
       deleted_at text
@@ -98,5 +99,45 @@ export const setupDatabase = (database: ToolDatabase) => {
       fetched_at text not null,
       status text not null check (status in ('success', 'error'))
     );
+
+    create table if not exists users (
+      id text primary key,
+      github_id text not null unique,
+      login text not null,
+      display_name text,
+      avatar_url text,
+      created_at text not null
+    );
+
+    create table if not exists auth_sessions (
+      id text primary key,
+      user_id text not null,
+      token_hash text not null unique,
+      created_at text not null,
+      expires_at text not null,
+      foreign key (user_id) references users(id)
+    );
+
+    create index if not exists auth_sessions_token_lookup
+      on auth_sessions(token_hash, expires_at);
   `)
+
+  addColumnIfMissing(database, 'pages', 'owner_user_id', 'text')
+}
+
+const addColumnIfMissing = (
+  database: ToolDatabase,
+  tableName: string,
+  columnName: string,
+  columnDefinition: string
+) => {
+  const columns = database
+    .prepare(`pragma table_info(${tableName})`)
+    .all() as Array<{ name: string }>
+
+  if (columns.some((column) => column.name === columnName)) return
+
+  database.exec(
+    `alter table ${tableName} add column ${columnName} ${columnDefinition}`
+  )
 }

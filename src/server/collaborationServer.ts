@@ -7,9 +7,11 @@ import { Server as HocuspocusServer } from '@hocuspocus/server'
 import { createDatabase } from './database.ts'
 import type { ToolDatabase } from './database.ts'
 import {
+  getPageAccessFromAuthenticatedUser,
   getPageAccessFromSession,
   getPageSessionSecret,
 } from './pageAccess.ts'
+import { getUserFromCookie } from './auth.ts'
 import {
   createCollaborationSecurityState,
   getCollaborationSecurityConfigFromEnv,
@@ -88,7 +90,14 @@ export const getCollaborationContextFromHeaders = (
     options.now
   )
 
-  return getPageAccessFromSession(database, pageId, session)
+  const sessionAccess = getPageAccessFromSession(database, pageId, session)
+  if (sessionAccess) return sessionAccess
+
+  return getPageAccessFromAuthenticatedUser(
+    database,
+    pageId,
+    getUserFromCookie(database, getHeader(headers, 'cookie'))?.id
+  )
 }
 
 export const createCollaborationServer = ({

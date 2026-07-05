@@ -1,4 +1,5 @@
 import type { ToolDatabase } from './database.ts'
+import { getPageRecord } from './pageRepository.ts'
 import {
   listMcpTokens,
   mintMcpToken,
@@ -21,28 +22,33 @@ export type McpTokenMutationResult =
     }
   | {
       kind: 'forbidden'
-      reason: 'edit-session-required'
+      reason: 'edit-session-required' | 'owner-required'
     }
 
 export const listMcpTokenConnections = ({
+  authenticatedUserId,
   cookieHeader,
   database,
   now = Date.now(),
   pageId,
   secret,
 }: {
+  authenticatedUserId?: string | null
   cookieHeader?: string
   database: ToolDatabase
   now?: number
   pageId: string
   secret: string
 }): McpTokenMutationResult => {
-  if (!hasEditAccess({ cookieHeader, database, now, pageId, secret })) {
-    return {
-      kind: 'forbidden',
-      reason: 'edit-session-required',
-    }
-  }
+  const access = getMcpManagementAccess({
+    authenticatedUserId,
+    cookieHeader,
+    database,
+    now,
+    pageId,
+    secret,
+  })
+  if ('kind' in access) return access
 
   return {
     kind: 'ok',
@@ -51,6 +57,7 @@ export const listMcpTokenConnections = ({
 }
 
 export const createMcpTokenConnection = ({
+  authenticatedUserId,
   cookieHeader,
   database,
   expiresAt,
@@ -60,6 +67,7 @@ export const createMcpTokenConnection = ({
   scopes,
   secret,
 }: {
+  authenticatedUserId?: string | null
   cookieHeader?: string
   database: ToolDatabase
   expiresAt?: string | null
@@ -69,20 +77,15 @@ export const createMcpTokenConnection = ({
   scopes: unknown
   secret: string
 }): McpTokenMutationResult => {
-  if (
-    !hasEditAccess({
-      cookieHeader,
-      database,
-      now: Date.parse(now),
-      pageId,
-      secret,
-    })
-  ) {
-    return {
-      kind: 'forbidden',
-      reason: 'edit-session-required',
-    }
-  }
+  const access = getMcpManagementAccess({
+    authenticatedUserId,
+    cookieHeader,
+    database,
+    now: Date.parse(now),
+    pageId,
+    secret,
+  })
+  if ('kind' in access) return access
 
   const normalizedScopes = normalizeRequestedScopes(scopes)
 
@@ -109,6 +112,7 @@ export const createMcpTokenConnection = ({
 }
 
 export const revokeMcpTokenConnection = ({
+  authenticatedUserId,
   cookieHeader,
   database,
   now = new Date().toISOString(),
@@ -116,6 +120,7 @@ export const revokeMcpTokenConnection = ({
   secret,
   tokenId,
 }: {
+  authenticatedUserId?: string | null
   cookieHeader?: string
   database: ToolDatabase
   now?: string
@@ -123,20 +128,15 @@ export const revokeMcpTokenConnection = ({
   secret: string
   tokenId: unknown
 }): McpTokenMutationResult => {
-  if (
-    !hasEditAccess({
-      cookieHeader,
-      database,
-      now: Date.parse(now),
-      pageId,
-      secret,
-    })
-  ) {
-    return {
-      kind: 'forbidden',
-      reason: 'edit-session-required',
-    }
-  }
+  const access = getMcpManagementAccess({
+    authenticatedUserId,
+    cookieHeader,
+    database,
+    now: Date.parse(now),
+    pageId,
+    secret,
+  })
+  if ('kind' in access) return access
 
   if (typeof tokenId !== 'string' || !tokenId.trim()) {
     return {
@@ -156,19 +156,21 @@ export const revokeMcpTokenConnection = ({
   }
 }
 
-const hasEditAccess = ({
+const getMcpManagementAccess = ({
+  authenticatedUserId,
   cookieHeader,
   database,
   now,
   pageId,
   secret,
 }: {
+  authenticatedUserId?: string | null
   cookieHeader?: string
   database: ToolDatabase
   now: number
   pageId: string
   secret: string
-}) => {
+}): { ok: true } | Extract<McpTokenMutationResult, { kind: 'forbidden' }> => {
   const session = getPageSessionFromCookie(
     cookieHeader,
     secret,
@@ -176,7 +178,24 @@ const hasEditAccess = ({
   )
   const access = getPageAccessFromSession(database, pageId, session)
 
-  return Boolean(session && access?.accessMode === 'edit')
+  if (!session || access?.accessMode !== 'edit') {
+    return {
+      kind: 'forbidden',
+      reason: 'edit-session-required',
+    }
+  }
+
+  const page = getPageRecord(database, pageId)
+  if (page?.ownerUserId && page.ownerUserId !== authenticatedUserId) {
+    return {
+      kind: 'forbidden',
+      reason: 'owner-required',
+    }
+  }
+
+  return {
+    ok: true,
+  }
 }
 
 const normalizeRequestedScopes = (scopes: unknown): McpAgentScope[] => {

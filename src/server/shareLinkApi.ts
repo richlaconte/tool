@@ -1,5 +1,6 @@
 import type { ToolDatabase } from './database.ts'
 import {
+  getPageRecord,
   regenerateShareToken,
   type ShareMode,
 } from './pageRepository.ts'
@@ -25,11 +26,12 @@ export type ShareLinkMutationResult =
     }
   | {
       kind: 'forbidden'
-      reason: 'edit-session-required'
+      reason: 'edit-session-required' | 'owner-required'
     }
 
 export const createShareLinkMutation = ({
   accessMode,
+  authenticatedUserId,
   cookieHeader,
   createToken,
   database,
@@ -39,6 +41,7 @@ export const createShareLinkMutation = ({
   secret,
 }: {
   accessMode: unknown
+  authenticatedUserId?: string | null
   cookieHeader?: string
   createToken?: () => string
   database: ToolDatabase
@@ -70,6 +73,14 @@ export const createShareLinkMutation = ({
     return {
       kind: 'forbidden',
       reason: 'edit-session-required',
+    }
+  }
+
+  const page = getPageRecord(database, pageId)
+  if (page?.ownerUserId && page.ownerUserId !== authenticatedUserId) {
+    return {
+      kind: 'forbidden',
+      reason: 'owner-required',
     }
   }
 

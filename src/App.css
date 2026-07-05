@@ -113,6 +113,16 @@
   transform-origin: 0 0;
 }
 
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .marquee-selection-box {
   position: absolute;
   z-index: 65;
@@ -1279,6 +1289,90 @@ button.mcp-status-badge:focus-visible {
 .command-dialog p {
   margin: 0 0 18px;
   color: #475569;
+}
+
+.keyboard-shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.keyboard-shortcuts-table th,
+.keyboard-shortcuts-table td {
+  border-bottom: 1px solid rgb(148 163 184 / 22%);
+  padding: 9px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.keyboard-shortcuts-table th {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.keyboard-shortcuts-table kbd {
+  display: inline-block;
+  border: 1px solid rgb(100 116 139 / 24%);
+  border-radius: 5px;
+  background: #f8fafc;
+  color: #111827;
+  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.page-outline-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.page-outline-dialog > .page-outline-list {
+  max-height: min(54vh, 420px);
+  overflow: auto;
+  padding-left: 0;
+}
+
+.page-outline-list li {
+  list-style: none;
+}
+
+.page-outline-item {
+  display: grid;
+  width: 100%;
+  border: 1px solid rgb(100 116 139 / 16%);
+  border-radius: 7px;
+  background: #ffffff;
+  color: #172033;
+  cursor: pointer;
+  gap: 3px;
+  padding: 9px 10px;
+  text-align: left;
+}
+
+.page-outline-item:hover,
+.page-outline-item:focus-visible {
+  border-color: rgb(37 99 235 / 36%);
+  background: #f8fafc;
+  outline: none;
+}
+
+.page-outline-item span {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-outline-item small {
+  color: #64748b;
+  font-size: 11px;
 }
 
 .command-dialog-actions {

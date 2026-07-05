@@ -10,6 +10,7 @@ import type { ReactNode } from 'react'
 
 import type { AreaState, AssetState } from '../App'
 import { getAreaShellZIndex } from '../areaLayering'
+import { getAreaAccessibleLabel } from '../areaA11y'
 import {
   getAreaMetadata,
   type AreaEvidenceReference,
@@ -642,8 +643,10 @@ const Area = ({
   return (
     <div
       ref={shellRef}
+      aria-label={getAreaAccessibleLabel(area)}
       className="area-shell"
       data-area-id={area.id}
+      role="group"
       style={{
         position: 'absolute',
         left: area.x,

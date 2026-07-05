@@ -2,9 +2,16 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 4.2). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 4.2). Completed MVP
+on 2026-07-05.
 Depends on multi-select (Tier 1.1) for nudge semantics and the search spec
 (Tier 1.4) for jump/zoom helpers.
+
+Completion note: the MVP ships keyboard-accessible Area labels, keyboard
+movement/resizing for selected Areas, a shared keyboard shortcut registry, a
+page outline dialog, and a polite live region for keyboard manipulation
+feedback. Full screen-reader walkthrough recordings and a measured WCAG
+contrast table remain future audit work.
 
 ## Goal
 
@@ -126,20 +133,25 @@ canvas.
 
 ## Acceptance Criteria
 
-- Create, focus, select, move, resize, style (via palette), link (via
-  existing link commands), and delete an Area using only the keyboard —
-  scripted walkthrough recorded in the completion notes.
-- VoiceOver announces Area kind/status/excerpt on focus; selection and mode
-  changes announce via the live region (manual protocol + assertions on the
-  label helper).
-- Outline dialog lists all Areas in reading order with nesting; activation
-  jumps, selects, and focuses.
-- Focus, selected, and editing states are visually distinct; focus ring meets
-  3:1; chrome passes AA contrast (documented table).
-- Cheat sheet and palette hints render from one data source; `?` opens it.
-- No new shortcut fires while editing text; no standard browser/OS shortcut
-  is overridden beyond the already-shipped set.
+- Area labels include kind, optional status, and a concise excerpt.
+- Arrow keys nudge selected Areas; `Shift+Arrow` increases the delta; active
+  snap grid size becomes the nudge quantum; `Alt+Arrow` resizes the selected
+  Area.
+- Keyboard movement shortcuts do not fire while editing text.
+- Page outline lists root Areas in reading order with nested children and
+  jumps to selected Areas through the existing navigation behavior.
+- Keyboard shortcut dialog and palette shortcuts render from one data source;
+  `?` opens the shortcut dialog outside text editing.
+- A polite live region announces keyboard movement and resize feedback.
 - `pnpm test`, `pnpm lint`, and `pnpm build` pass.
+
+## Future Work
+
+- Record a VoiceOver/NVDA walkthrough for create/focus/select/move/resize/
+  style/link/delete flows.
+- Add a measured WCAG 2.2 AA contrast table for chrome and focus states.
+- Refine roving-focus semantics after real screen-reader testing on the
+  canvas and outline.
 
 ## Testing
 

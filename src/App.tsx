@@ -68,6 +68,8 @@ import {
   type SelectionRect,
 } from './areaSelection'
 import {
+  getCanvasKeyboardAction,
+  getKeyboardNudgeDelta,
   getAppKeyboardAction,
   getDialogKeyboardAction,
 } from './appKeyboardLogic'
@@ -247,6 +249,8 @@ import {
   getMcpAgentActivityLabel,
 } from './mcpAgentActivity'
 import { COMMAND_PALETTE_OPTIONS } from './commandPaletteOptions'
+import { getPageOutline, type PageOutlineItem } from './pageOutline'
+import { KEYBOARD_SHORTCUTS } from './keyboardShortcuts'
 
 export type BaseAreaState = {
   id: string
@@ -410,6 +414,14 @@ const COMMAND_DIALOGS: Record<
   help: {
     title: 'Help',
     body: 'Map implementation context. Style it with CSS. Hand it to agents safely. Areas hold notes, decisions, tasks, risks, UI states, files, images, and evidence. Use /border: 1px solid red to style an Area, /ref src/App.tsx, then press Enter to ground it, and the handoff brief when an agent needs focused context.',
+  },
+  'keyboard-shortcuts': {
+    title: 'Keyboard shortcuts',
+    body: 'Use keyboard controls for canvas navigation, selection, movement, resizing, and command discovery.',
+  },
+  'page-outline': {
+    title: 'Page outline',
+    body: 'Browse this canvas in reading order. Choose an Area to jump to it.',
   },
   settings: {
     title: 'Settings',
@@ -1306,6 +1318,7 @@ function App({
   const [importError, setImportError] = useState<string | null>(
     null
   )
+  const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('')
   const [sddImportText, setSddImportText] = useState('')
   const [sddImportPreview, setSddImportPreview] = useState<{
     createCount: number
@@ -1539,6 +1552,13 @@ function App({
   const displayedSaveStatus = isServerCollaborationEnabled
     ? serverSyncStatus.saveStatus
     : saveStatus
+  const pageOutline = useMemo(
+    () =>
+      getPageOutline({
+        areas,
+      }),
+    [areas]
+  )
   const mcpAgentActivityLabel =
     page.settings.mcp.enabled && mcpAgentActivity?.pageId === page.id
       ? mcpAgentActivity.label
@@ -2663,6 +2683,56 @@ function App({
     selectedLinkId,
   ])
 
+  const nudgeSelectedAreasByKeyboard = useCallback(
+    (deltaX: number, deltaY: number) => {
+      if (isViewOnly || selectedAreaIds.length === 0) return
+
+      const selectedAreaIdSet = new Set(selectedAreaIds)
+
+      setAreas((prev) =>
+        prev.map((area) =>
+          selectedAreaIdSet.has(area.id)
+            ? {
+                ...area,
+                x: area.x + deltaX,
+                y: area.y + deltaY,
+              }
+            : area
+        )
+      )
+      setKeyboardAnnouncement(
+        `Moved ${selectedAreaIds.length} selected ${
+          selectedAreaIds.length === 1 ? 'Area' : 'Areas'
+        }.`
+      )
+    },
+    [isViewOnly, selectedAreaIds]
+  )
+
+  const resizeSelectedAreaByKeyboard = useCallback(
+    (deltaWidth: number, deltaHeight: number) => {
+      if (isViewOnly || !selectedAreaId) return
+
+      setAreas((prev) => {
+        const area = prev.find(
+          (candidateArea) => candidateArea.id === selectedAreaId
+        )
+
+        if (!area) return prev
+
+        return resizeAreaDimensions(
+          prev,
+          selectedAreaId,
+          area.width + deltaWidth,
+          area.height + deltaHeight,
+          getAreaResizeMaxDimensions(prev, selectedAreaId)
+        )
+      })
+      setKeyboardAnnouncement('Resized selected Area.')
+    },
+    [isViewOnly, selectedAreaId]
+  )
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isEditingTarget = isEditableTarget(e.target)
@@ -2768,6 +2838,65 @@ function App({
         }
       }
 
+      const canvasKeyboardAction = getCanvasKeyboardAction({
+        key: e.key,
+        hasSelectedArea: selectedAreaIds.length > 0,
+        isEditableTarget: isEditingTarget,
+        hasAltModifier: e.altKey,
+      })
+
+      if (canvasKeyboardAction !== 'ignore') {
+        e.preventDefault()
+
+        const delta = getKeyboardNudgeDelta({
+          activeSnapGridSize: getActiveSnapGridSize(
+            page.settings.snapGrid,
+            false
+          ),
+          hasShiftModifier: e.shiftKey,
+        })
+
+        if (canvasKeyboardAction === 'nudge-up') {
+          nudgeSelectedAreasByKeyboard(0, -delta)
+          return
+        }
+
+        if (canvasKeyboardAction === 'nudge-right') {
+          nudgeSelectedAreasByKeyboard(delta, 0)
+          return
+        }
+
+        if (canvasKeyboardAction === 'nudge-down') {
+          nudgeSelectedAreasByKeyboard(0, delta)
+          return
+        }
+
+        if (canvasKeyboardAction === 'nudge-left') {
+          nudgeSelectedAreasByKeyboard(-delta, 0)
+          return
+        }
+
+        if (canvasKeyboardAction === 'resize-up') {
+          resizeSelectedAreaByKeyboard(0, -delta)
+          return
+        }
+
+        if (canvasKeyboardAction === 'resize-right') {
+          resizeSelectedAreaByKeyboard(delta, 0)
+          return
+        }
+
+        if (canvasKeyboardAction === 'resize-down') {
+          resizeSelectedAreaByKeyboard(0, delta)
+          return
+        }
+
+        if (canvasKeyboardAction === 'resize-left') {
+          resizeSelectedAreaByKeyboard(-delta, 0)
+          return
+        }
+      }
+
       const keyboardAction = getAppKeyboardAction({
         key: e.key,
         hasSelectedArea: selectedAreaIds.length > 0,
@@ -2817,6 +2946,11 @@ function App({
         return
       }
 
+      if (keyboardAction === 'open-keyboard-shortcuts') {
+        setOpenDialogId('keyboard-shortcuts')
+        return
+      }
+
       if (keyboardAction === 'open-search-palette') {
         setCommandPaletteQuery('?')
         return
@@ -2841,8 +2975,11 @@ function App({
     collaborativeSync,
     deselectCurrentArea,
     isViewOnly,
+    nudgeSelectedAreasByKeyboard,
     openDialogId,
+    page.settings.snapGrid,
     resetCanvasZoom,
+    resizeSelectedAreaByKeyboard,
     selectedAreaIds,
     selectedLinkId,
     shouldShowEmptyState,
@@ -6031,6 +6168,35 @@ function App({
     )
   }
 
+  function renderPageOutlineItems(items: PageOutlineItem[]) {
+    return (
+      <ul className="page-outline-list">
+        {items.map((item) => (
+          <li key={item.areaId}>
+            <button
+              className="page-outline-item"
+              type="button"
+              onClick={() => {
+                setOpenDialogId(null)
+                jumpToArea(item.areaId)
+                setKeyboardAnnouncement(`Focused ${item.title}.`)
+              }}
+            >
+              <span>{item.title}</span>
+              <small>
+                {item.kind}
+                {item.status ? ` / ${item.status}` : ''}
+              </small>
+            </button>
+            {item.children.length > 0
+              ? renderPageOutlineItems(item.children)
+              : null}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
   return (
     <div
       id="canvas"
@@ -6055,6 +6221,10 @@ function App({
           <span>cascadery</span>
         </button>
       )}
+
+      <div className="visually-hidden" aria-live="polite">
+        {keyboardAnnouncement}
+      </div>
 
       {isViewOnly && (
         <a
@@ -7194,6 +7364,39 @@ function App({
                       Yes, leave
                     </button>
                   </div>
+                </div>
+              ) : openDialogId === 'keyboard-shortcuts' ? (
+                <div className="keyboard-shortcuts-dialog">
+                  <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                  <table className="keyboard-shortcuts-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Shortcut</th>
+                        <th scope="col">Action</th>
+                        <th scope="col">Palette</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {KEYBOARD_SHORTCUTS.map((shortcut) => (
+                        <tr key={`${shortcut.combo}-${shortcut.description}`}>
+                          <td>
+                            <kbd>{shortcut.combo}</kbd>
+                          </td>
+                          <td>{shortcut.description}</td>
+                          <td>{shortcut.paletteAction}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : openDialogId === 'page-outline' ? (
+                <div className="page-outline-dialog">
+                  <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                  {pageOutline.length > 0 ? (
+                    renderPageOutlineItems(pageOutline)
+                  ) : (
+                    <p>No Areas yet.</p>
+                  )}
                 </div>
               ) : openDialogId === 'share' ? (
                 <div className="share-link-controls">

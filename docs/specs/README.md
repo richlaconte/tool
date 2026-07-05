@@ -28,7 +28,6 @@ All Tier 3 specs are complete.
 
 ### Tier 4 — Reach, Performance, and Craft
 
-- [Keyboard-First Canvas and Accessibility](2026-07-02-keyboard-first-canvas-accessibility.md)
 - [Read-Anywhere Responsive View Mode](2026-07-02-responsive-view-mode.md)
 - [Product Site, Docs, and Launch Narrative](2026-07-02-product-site-launch.md)
 - [Quality Infrastructure: E2E Harness and Telemetry](2026-07-02-quality-infrastructure.md)
@@ -65,6 +64,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Identity-Lite and the Page Shelf](completed/2026-07-02-identity-lite-page-shelf.md)
 - [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
 - [JSON Canvas Interoperability](completed/2026-07-02-json-canvas-interop.md)
+- [Keyboard-First Canvas and Accessibility](completed/2026-07-02-keyboard-first-canvas-accessibility.md)
 - [Markdown and Code-Native Area Content](completed/2026-07-02-markdown-code-area-content.md)
 - [Linked Areas Direct Manipulation UX](completed/2026-06-30-linked-areas-direct-manipulation-ux.md)
 - [Multi-Select and Group Manipulation](completed/2026-07-02-multi-select-group-manipulation.md)

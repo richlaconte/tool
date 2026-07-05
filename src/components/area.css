@@ -174,6 +174,10 @@
   outline: none;
 }
 
+.area-shell:focus-within .area:not(.area--selected) {
+  box-shadow: 0 0 0 2px rgb(202 138 4 / 42%);
+}
+
 .area--read-only .area-editable {
   cursor: default;
 }

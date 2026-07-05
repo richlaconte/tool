@@ -3,6 +3,8 @@ import test from 'node:test'
 
 import {
   getAppKeyboardAction,
+  getCanvasKeyboardAction,
+  getKeyboardNudgeDelta,
   getDialogKeyboardAction,
 } from './appKeyboardLogic.ts'
 
@@ -315,6 +317,73 @@ test('meta+a inside a text editor stays native', () => {
       isDialogOpen: false,
       isEditableTarget: true,
       hasMetaOrCtrlModifier: true,
+    }),
+    'ignore'
+  )
+})
+
+test('canvas keyboard action nudges and resizes selected areas outside text editing', () => {
+  assert.equal(
+    getCanvasKeyboardAction({
+      key: 'ArrowRight',
+      hasSelectedArea: true,
+      isEditableTarget: false,
+    }),
+    'nudge-right'
+  )
+  assert.equal(
+    getCanvasKeyboardAction({
+      key: 'ArrowDown',
+      hasSelectedArea: true,
+      isEditableTarget: false,
+      hasAltModifier: true,
+    }),
+    'resize-down'
+  )
+  assert.equal(
+    getCanvasKeyboardAction({
+      key: 'ArrowLeft',
+      hasSelectedArea: true,
+      isEditableTarget: true,
+    }),
+    'ignore'
+  )
+})
+
+test('keyboard nudge delta follows snap grid and shift multiplier', () => {
+  assert.equal(getKeyboardNudgeDelta({}), 1)
+  assert.equal(getKeyboardNudgeDelta({ hasShiftModifier: true }), 10)
+  assert.equal(
+    getKeyboardNudgeDelta({ activeSnapGridSize: 16 }),
+    16
+  )
+  assert.equal(
+    getKeyboardNudgeDelta({
+      activeSnapGridSize: 16,
+      hasShiftModifier: true,
+    }),
+    64
+  )
+})
+
+test('question mark opens keyboard shortcuts only outside text editing', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: '?',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+    }),
+    'open-keyboard-shortcuts'
+  )
+  assert.equal(
+    getAppKeyboardAction({
+      key: '?',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: true,
     }),
     'ignore'
   )

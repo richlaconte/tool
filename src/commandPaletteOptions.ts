@@ -17,6 +17,20 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'global',
   },
   {
+    id: 'keyboard-shortcuts',
+    title: 'Keyboard shortcuts',
+    description: 'Show canvas keyboard controls',
+    aliases: ['?', 'keys', 'hotkeys', 'accessibility'],
+    scope: 'global',
+  },
+  {
+    id: 'page-outline',
+    title: 'Page outline',
+    description: 'Browse Areas in reading order',
+    aliases: ['outline', 'contents', 'area list', 'jump'],
+    scope: 'page',
+  },
+  {
     id: 'settings',
     title: 'Settings',
     description: 'Open editor preferences',

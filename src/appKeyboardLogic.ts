@@ -3,6 +3,7 @@ export type AppKeyboardAction =
   | 'select-all-areas'
   | 'undo'
   | 'redo'
+  | 'open-keyboard-shortcuts'
   | 'open-command-palette'
   | 'open-empty-command-palette'
   | 'open-search-palette'
@@ -10,6 +11,16 @@ export type AppKeyboardAction =
   | 'ignore'
 
 export type DialogKeyboardAction = 'close-dialog' | 'ignore'
+export type CanvasKeyboardAction =
+  | 'nudge-up'
+  | 'nudge-right'
+  | 'nudge-down'
+  | 'nudge-left'
+  | 'resize-up'
+  | 'resize-right'
+  | 'resize-down'
+  | 'resize-left'
+  | 'ignore'
 
 type AppKeyboardState = {
   key: string
@@ -99,6 +110,15 @@ export const getAppKeyboardAction = (
     return 'select-all-areas'
   }
 
+  if (
+    state.key === '?' &&
+    !state.isEditableTarget &&
+    !hasMetaOrCtrlModifier &&
+    !hasAltModifier
+  ) {
+    return 'open-keyboard-shortcuts'
+  }
+
   if (state.key === 'Escape') {
     return state.hasSelectedArea
       ? 'deselect-area'
@@ -117,6 +137,47 @@ export const getAppKeyboardAction = (
   }
 
   return 'ignore'
+}
+
+export const getCanvasKeyboardAction = ({
+  key,
+  hasSelectedArea,
+  isEditableTarget,
+  hasAltModifier = false,
+}: {
+  key: string
+  hasSelectedArea: boolean
+  isEditableTarget: boolean
+  hasAltModifier?: boolean
+}): CanvasKeyboardAction => {
+  if (!hasSelectedArea || isEditableTarget) return 'ignore'
+
+  const prefix = hasAltModifier ? 'resize' : 'nudge'
+
+  if (key === 'ArrowUp') return `${prefix}-up` as CanvasKeyboardAction
+  if (key === 'ArrowRight') return `${prefix}-right` as CanvasKeyboardAction
+  if (key === 'ArrowDown') return `${prefix}-down` as CanvasKeyboardAction
+  if (key === 'ArrowLeft') return `${prefix}-left` as CanvasKeyboardAction
+
+  return 'ignore'
+}
+
+export const getKeyboardNudgeDelta = ({
+  activeSnapGridSize,
+  hasShiftModifier = false,
+}: {
+  activeSnapGridSize?: number | null
+  hasShiftModifier?: boolean
+}) => {
+  if (
+    typeof activeSnapGridSize === 'number' &&
+    Number.isFinite(activeSnapGridSize) &&
+    activeSnapGridSize > 0
+  ) {
+    return hasShiftModifier ? activeSnapGridSize * 4 : activeSnapGridSize
+  }
+
+  return hasShiftModifier ? 10 : 1
 }
 
 export const getDialogKeyboardAction = ({

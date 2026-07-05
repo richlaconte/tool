@@ -277,9 +277,43 @@ test('Markdown export can include Area comment threads', () => {
 })
 
 test('JSON Canvas export maps Areas and links without leaking raw assets', () => {
-  const canvas = exportPageAsJsonCanvas(state)
+  const canvas = exportPageAsJsonCanvas({
+    ...state,
+    areas: [
+      ...state.areas,
+      {
+        id: 'group-1',
+        parentId: null,
+        x: 40,
+        y: 40,
+        width: 360,
+        height: 220,
+        text: 'Implementation group',
+        styles: {
+          background: '#dbeafe',
+        },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'child-1',
+        parentId: 'group-1',
+        x: 20,
+        y: 30,
+        width: 120,
+        height: 70,
+        text: 'Nested note',
+        styles: {},
+        createdAt: now,
+        updatedAt: now,
+      },
+    ],
+  })
   const decisionNode = canvas.nodes.find((node) => node.id === 'decision-1')
+  const taskNode = canvas.nodes.find((node) => node.id === 'task-1')
   const imageNode = canvas.nodes.find((node) => node.id === 'image-1')
+  const groupNode = canvas.nodes.find((node) => node.id === 'group-1')
+  const childNode = canvas.nodes.find((node) => node.id === 'child-1')
   const edge = canvas.edges[0]
   const serializedCanvas = JSON.stringify(canvas)
 
@@ -290,30 +324,30 @@ test('JSON Canvas export maps Areas and links without leaking raw assets', () =>
     y: 121,
     width: 260,
     height: 120,
+    color: '#2563eb',
     text: 'Use WebSockets\nfor shared editing.',
-    cascadery: {
-      areaType: 'text',
-      parentId: null,
-      metadata: {
-        kind: 'decision',
-        status: 'decided',
-        tags: ['collaboration'],
-        filePath: 'src/server/collaborationServer.ts',
-        evidence: [
-          {
-            id: 'evidence-1',
-            kind: 'command',
-            label: 'pnpm test',
-            target: 'pnpm test',
-            createdAt: now,
-          },
-        ],
+    'x-cascadery-area-type': 'text',
+    'x-cascadery-parent-id': null,
+    'x-cascadery-kind': 'decision',
+    'x-cascadery-status': 'decided',
+    'x-cascadery-tags': ['collaboration'],
+    'x-cascadery-file-path': 'src/server/collaborationServer.ts',
+    'x-cascadery-evidence': [
+      {
+        id: 'evidence-1',
+        kind: 'command',
+        label: 'pnpm test',
+        target: 'pnpm test',
+        createdAt: now,
       },
-      styles: {
-        border: '1px solid #2563eb',
-      },
+    ],
+    'x-cascadery-styles': {
+      border: '1px solid #2563eb',
     },
   })
+  assert.equal(taskNode?.type, 'link')
+  assert.equal(taskNode?.url, 'https://example.com/export')
+  assert.equal(taskNode?.['x-cascadery-text'], '- Add Markdown export')
   assert.deepEqual(imageNode, {
     id: 'image-1',
     type: 'text',
@@ -322,32 +356,50 @@ test('JSON Canvas export maps Areas and links without leaking raw assets', () =>
     width: 320,
     height: 160,
     text: '![Architecture sketch](asset:asset-1)',
-    cascadery: {
-      areaType: 'image',
-      parentId: null,
-      alt: 'Architecture sketch',
-      asset: {
-        id: 'asset-1',
-        kind: 'image',
-        mimeType: 'image/png',
-        width: 640,
-        height: 320,
-        createdAt: now,
-      },
-      metadata: {
-        kind: 'note',
-        tags: [],
-      },
-      styles: {},
+    'x-cascadery-area-type': 'image',
+    'x-cascadery-parent-id': null,
+    'x-cascadery-alt': 'Architecture sketch',
+    'x-cascadery-asset': {
+      id: 'asset-1',
+      kind: 'image',
+      mimeType: 'image/png',
+      width: 640,
+      height: 320,
+      createdAt: now,
     },
+    'x-cascadery-kind': 'note',
+    'x-cascadery-tags': [],
+    'x-cascadery-styles': {},
   })
+  assert.deepEqual(groupNode, {
+    id: 'group-1',
+    type: 'group',
+    x: 40,
+    y: 40,
+    width: 360,
+    height: 220,
+    color: '#dbeafe',
+    label: 'Implementation group',
+    'x-cascadery-area-type': 'text',
+    'x-cascadery-parent-id': null,
+    'x-cascadery-kind': 'note',
+    'x-cascadery-tags': [],
+    'x-cascadery-styles': {
+      background: '#dbeafe',
+    },
+    'x-cascadery-text': 'Implementation group',
+  })
+  assert.equal(childNode?.x, 60)
+  assert.equal(childNode?.y, 70)
+  assert.equal(childNode?.['x-cascadery-parent-id'], 'group-1')
   assert.deepEqual(edge, {
     id: 'link-1',
     fromNode: 'decision-1',
     toNode: 'task-1',
+    fromEnd: 'none',
     toEnd: 'arrow',
     label: 'drives',
-    cascadery: {
+    'x-cascadery-link': {
       kind: 'depends-on',
       visual: {
         mode: 'schema',

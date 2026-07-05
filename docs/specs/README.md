@@ -24,7 +24,6 @@ All Tier 2 specs are complete.
 
 ### Tier 3 — Trust and Ownership
 
-- [JSON Canvas Interoperability](2026-07-02-json-canvas-interop.md)
 - [Named Snapshots and Visual Diff](2026-07-02-named-snapshots-visual-diff.md)
 
 ### Tier 4 — Reach, Performance, and Craft
@@ -65,6 +64,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Image Support](completed/2026-06-26-image-support.md)
 - [Identity-Lite and the Page Shelf](completed/2026-07-02-identity-lite-page-shelf.md)
 - [Interoperability and Export](completed/2026-06-29-interoperability-and-export.md)
+- [JSON Canvas Interoperability](completed/2026-07-02-json-canvas-interop.md)
 - [Markdown and Code-Native Area Content](completed/2026-07-02-markdown-code-area-content.md)
 - [Linked Areas Direct Manipulation UX](completed/2026-06-30-linked-areas-direct-manipulation-ux.md)
 - [Multi-Select and Group Manipulation](completed/2026-07-02-multi-select-group-manipulation.md)

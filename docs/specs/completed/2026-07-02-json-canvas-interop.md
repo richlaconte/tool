@@ -2,7 +2,8 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 3.3). Active.
+Completed on 2026-07-05 as the MVP JSON Canvas import/export
+interoperability pass.
 
 ## Goal
 
@@ -134,6 +135,26 @@ not a backup feature.
   restoration, absolute→relative nesting, edge/anchor mapping.
 - Round-trip test: export a rich fixture page, import it into an empty state,
   deep-compare the semantically preserved fields.
+
+## Implementation Notes
+
+- `exportPageAsJsonCanvas` now emits JSON Canvas-native `text`, `link`, and
+  `group` nodes, native edge side/end fields, native colors, and
+  namespaced `x-cascadery-*` extensions for Cascadery-specific data.
+- Added `src/jsonCanvasImport.ts` with defensive parsing for handwritten and
+  Obsidian-style `.canvas` files, including text/link/file/group nodes,
+  contained group nesting, color mapping, edge anchors, warnings for skipped
+  unknown data, and Cascadery extension restoration.
+- The existing import affordance now accepts `.json` and `.canvas`; page JSON
+  still replaces the page, while JSON Canvas appends content below existing
+  Areas and records a single restore history entry before applying.
+- Imports with warnings show a confirmation before applying.
+- The JSON Canvas export control now includes a low-noise warning that some
+  Cascadery data may not survive editing in other apps.
+- Manual Obsidian verification note: this environment cannot open Obsidian,
+  so interoperability was verified against the official JSON Canvas 1.0 field
+  contract and deterministic fixtures; a real Obsidian smoke test should be
+  run during release QA with an exported `.canvas`.
 
 ## Open Questions
 

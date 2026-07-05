@@ -16,29 +16,36 @@ export const MARKDOWN_MIME_TYPE = 'text/markdown'
 
 export type JsonCanvasNode = {
   id: string
-  type: 'text' | 'file'
+  type: 'text' | 'file' | 'link' | 'group'
   x: number
   y: number
   width: number
   height: number
+  color?: string
   text?: string
   file?: string
-  cascadery: Record<string, unknown>
+  url?: string
+  label?: string
+  [key: `x-cascadery-${string}`]: unknown
 }
 
 export type JsonCanvasEdge = {
   id: string
   fromNode: string
+  fromSide?: 'top' | 'right' | 'bottom' | 'left'
+  fromEnd?: 'none' | 'arrow'
   toNode: string
-  toEnd: 'arrow'
+  toSide?: 'top' | 'right' | 'bottom' | 'left'
+  toEnd?: 'none' | 'arrow'
+  color?: string
   label?: string
-  cascadery: Record<string, unknown>
+  [key: `x-cascadery-${string}`]: unknown
 }
 
 export type JsonCanvasExport = {
   nodes: JsonCanvasNode[]
   edges: JsonCanvasEdge[]
-  cascadery: {
+  'x-cascadery-page': {
     pageId: string
     title: string
     schemaVersion: 1
@@ -155,18 +162,23 @@ export const exportPageAsJsonCanvas = (
   edges: (state.links ?? []).map((link) => ({
     id: link.id,
     fromNode: link.fromAreaId,
+    ...(link.from?.side ? { fromSide: link.from.side } : {}),
+    fromEnd: getJsonCanvasFromEnd(link.visual?.direction),
     toNode: link.toAreaId,
-    toEnd: 'arrow',
-    ...(link.label ? { label: link.label } : {}),
-    cascadery: {
+    ...(link.to?.side ? { toSide: link.to.side } : {}),
+    toEnd: getJsonCanvasToEnd(link.visual?.direction),
+    label: link.label ?? link.kind,
+    'x-cascadery-link': {
       kind: link.kind,
+      ...(link.from ? { from: link.from } : {}),
+      ...(link.to ? { to: link.to } : {}),
       ...(link.visual ? { visual: link.visual } : {}),
       ...(link.schema ? { schema: link.schema } : {}),
       createdAt: link.createdAt,
       updatedAt: link.updatedAt,
     },
   })),
-  cascadery: {
+  'x-cascadery-page': {
     pageId: state.page.id,
     title: state.page.title,
     schemaVersion: 1,
@@ -271,12 +283,32 @@ const toJsonCanvasNode = (
   state: PageAppState
 ): JsonCanvasNode => {
   const position = getAreaAbsolutePosition(state.areas, area.id)
+  const metadata = getAreaMetadata(area)
   const base = {
     id: area.id,
     x: Math.round(position.x),
     y: Math.round(position.y),
     width: Math.round(area.width),
     height: Math.round(area.height),
+    ...getJsonCanvasColor(area.styles),
+    ...getCascaderyAreaExtensions(area, metadata),
+  }
+  const hasChildren = state.areas.some(
+    (candidate) => candidate.parentId === area.id
+  )
+
+  if (hasChildren) {
+    return {
+      ...base,
+      type: 'group',
+      label:
+        area.type === 'image'
+          ? area.alt
+          : getAreaMarkdownTitle(area),
+      ...(area.type !== 'image'
+        ? { 'x-cascadery-text': area.text }
+        : {}),
+    }
   }
 
   if (area.type === 'image') {
@@ -292,16 +324,19 @@ const toJsonCanvasNode = (
       ...base,
       type: 'text',
       text: `![${escapeMarkdownAlt(area.alt)}](${imageReference})`,
-      cascadery: {
-        areaType: 'image',
-        parentId: area.parentId,
-        alt: area.alt,
-        asset: asset ? redactAsset(asset) : { id: area.assetId },
-        metadata: getAreaMetadata(area),
-        styles: {
-          ...area.styles,
-        },
-      },
+      'x-cascadery-alt': area.alt,
+      'x-cascadery-asset': asset
+        ? redactAsset(asset)
+        : { id: area.assetId },
+    }
+  }
+
+  if (metadata.url) {
+    return {
+      ...base,
+      type: 'link',
+      url: metadata.url,
+      'x-cascadery-text': area.text,
     }
   }
 
@@ -309,15 +344,59 @@ const toJsonCanvasNode = (
     ...base,
     type: 'text',
     text: area.text,
-    cascadery: {
-      areaType: 'text',
-      parentId: area.parentId,
-      metadata: getAreaMetadata(area),
-      styles: {
-        ...area.styles,
-      },
-    },
   }
+}
+
+const getCascaderyAreaExtensions = (
+  area: AreaState,
+  metadata: ReturnType<typeof getAreaMetadata>
+) => ({
+  'x-cascadery-area-type': area.type === 'image' ? 'image' : 'text',
+  'x-cascadery-parent-id': area.parentId,
+  'x-cascadery-kind': metadata.kind,
+  ...(metadata.status ? { 'x-cascadery-status': metadata.status } : {}),
+  'x-cascadery-tags': metadata.tags,
+  ...(metadata.filePath
+    ? { 'x-cascadery-file-path': metadata.filePath }
+    : {}),
+  ...(metadata.evidence
+    ? { 'x-cascadery-evidence': metadata.evidence }
+    : {}),
+  'x-cascadery-styles': {
+    ...area.styles,
+  },
+})
+
+const getJsonCanvasColor = (styles: Record<string, string>) => {
+  const color =
+    getHexColor(styles['border-color']) ??
+    getHexColor(styles.border) ??
+    getHexColor(styles['background-color']) ??
+    getHexColor(styles.background)
+
+  return color ? { color } : {}
+}
+
+const getHexColor = (value: string | undefined) => {
+  const match = value?.match(/#[0-9a-f]{3}(?:[0-9a-f]{3})?\b/i)
+
+  return match?.[0]
+}
+
+const getJsonCanvasFromEnd = (
+  direction: string | undefined
+): 'none' | 'arrow' => {
+  if (direction === 'backward' || direction === 'both') return 'arrow'
+
+  return 'none'
+}
+
+const getJsonCanvasToEnd = (
+  direction: string | undefined
+): 'none' | 'arrow' => {
+  if (direction === 'none' || direction === 'backward') return 'none'
+
+  return 'arrow'
 }
 
 const redactShareLinks = (state: PageAppState): PageAppState => ({

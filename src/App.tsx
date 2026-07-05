@@ -180,6 +180,10 @@ import {
   type PageAppState,
 } from './pagePersistence'
 import {
+  offsetJsonCanvasImportState,
+  parseJsonCanvas,
+} from './jsonCanvasImport'
+import {
   CONTEXT_KITS,
   getContextKitById,
   insertContextKit,
@@ -841,6 +845,22 @@ const getCollaborationStatusLabel = (
     : collaborationStatus === 'syncing'
       ? 'Syncing...'
     : 'Offline'
+
+const isJsonCanvasText = (value: string) => {
+  try {
+    const parsed = JSON.parse(value) as unknown
+
+    return (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      !Array.isArray(parsed) &&
+      ('nodes' in parsed || 'edges' in parsed) &&
+      !('schemaVersion' in parsed)
+    )
+  } catch {
+    return false
+  }
+}
 
 const getPresenceInitials = (userName: string) =>
   userName
@@ -5107,7 +5127,7 @@ function App({
     setImportError(null)
   }
 
-  const importPageJson = async (e: ChangeEvent<HTMLInputElement>) => {
+  const importPageFile = async (e: ChangeEvent<HTMLInputElement>) => {
     if (isViewOnly) return
 
     const file = e.currentTarget.files?.[0]
@@ -5116,7 +5136,75 @@ function App({
 
     if (!file) return
 
-    const result = parsePageJson(await file.text())
+    const fileText = await file.text()
+    const isJsonCanvasFile =
+      file.name.toLowerCase().endsWith('.canvas') ||
+      file.type === JSON_CANVAS_MIME_TYPE ||
+      isJsonCanvasText(fileText)
+
+    if (isJsonCanvasFile) {
+      const result = parseJsonCanvas(fileText)
+
+      if (!result.ok) {
+        setImportError(result.error)
+        return
+      }
+
+      if (
+        result.warnings.length > 0 &&
+        !window.confirm(
+          `JSON Canvas import warnings:\n\n${result.warnings.join(
+            '\n'
+          )}\n\nImport anyway?`
+        )
+      ) {
+        setImportError(result.warnings.join(' '))
+        return
+      }
+
+      const importedState = offsetJsonCanvasImportState(
+        result.state,
+        areas
+      )
+
+      setPageHistory((currentHistory) =>
+        addPageHistoryEntry(
+          currentHistory,
+          createImportHistoryEntry({
+            actor: LOCAL_HISTORY_ACTOR,
+            beforeState: {
+              areas,
+              assets,
+              comments,
+              journal: journalEntries,
+              links,
+              page,
+            },
+            importedAreaCount: importedState.areas.length,
+            pageId: page.id,
+          })
+        )
+      )
+      setAreas((currentAreas) => [
+        ...currentAreas,
+        ...importedState.areas,
+      ])
+      setAssets((currentAssets) => [
+        ...currentAssets,
+        ...importedState.assets,
+      ])
+      setLinks((currentLinks) => [
+        ...currentLinks,
+        ...(importedState.links ?? []),
+      ])
+      setSelectedAreaId(null)
+      setImportError(
+        result.warnings.length > 0 ? result.warnings.join(' ') : null
+      )
+      return
+    }
+
+    const result = parsePageJson(fileText)
 
     if (!result.ok) {
       setImportError(result.error)
@@ -5746,7 +5834,9 @@ function App({
             Export Markdown
           </button>
           <button
+            aria-label="Export JSON Canvas. Comments, journal entries, full CSS, and theme tokens are preserved only as Cascadery extensions when possible."
             className="page-persistence-button"
+            title="JSON Canvas export preserves positions, text, groups, links, and Cascadery extensions where possible. Comments, journal entries, full CSS, and theme tokens may not survive editing in other apps."
             type="button"
             onClick={exportPageJsonCanvas}
           >
@@ -5757,14 +5847,14 @@ function App({
             type="button"
             onClick={() => importInputRef.current?.click()}
           >
-            Import JSON
+            Import JSON or Canvas
           </button>
           <input
             ref={importInputRef}
-            accept="application/json,.json"
+            accept="application/json,application/vnd.jsoncanvas+json,.json,.canvas"
             className="page-import-input"
             type="file"
-            onChange={importPageJson}
+            onChange={importPageFile}
           />
           <input
             ref={imageInputRef}

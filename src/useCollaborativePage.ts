@@ -39,6 +39,7 @@ type UseCollaborativePageSyncOptions = {
 
 const LOCAL_STATE_ORIGIN = 'local-state-sync'
 const PENDING_LOCAL_AREA_CHANGE_TTL_MS = 1500
+const LOCAL_SYNC_FLUSH_DELAY_MS = 75
 
 type PendingLocalAreaChange = {
   created?: boolean
@@ -98,6 +99,11 @@ export const mergeRemoteStateWithPendingLocalAreaChanges = (
   const mergedAreas = remoteState.areas.flatMap((remoteArea) => {
     const pendingChange = pendingChanges.get(remoteArea.id)
     if (!pendingChange) return [remoteArea]
+
+    if (pendingChange.created) {
+      pendingChanges.delete(remoteArea.id)
+      return [remoteArea]
+    }
 
     if (pendingChange.expiresAt <= now) {
       pendingChanges.delete(remoteArea.id)
@@ -171,6 +177,8 @@ export const useCollaborativePageSync = ({
   const applyingRemoteState = useRef(false)
   const hasSyncedRef = useRef(false)
   const latestLocalStateRef = useRef(state)
+  const localSyncTimerRef = useRef<number | null>(null)
+  const scheduledLocalStateRef = useRef<PageAppState | null>(null)
   const previousLocalStateRef = useRef(state)
   const pendingLocalAreaChangesRef = useRef(
     new Map<string, PendingLocalAreaChange>()
@@ -204,6 +212,41 @@ export const useCollaborativePageSync = ({
     latestLocalStateRef.current = state
   }, [state])
 
+  const clearScheduledLocalState = useCallback(() => {
+    if (localSyncTimerRef.current !== null) {
+      window.clearTimeout(localSyncTimerRef.current)
+      localSyncTimerRef.current = null
+    }
+
+    scheduledLocalStateRef.current = null
+  }, [])
+
+  const flushPendingLocalState = useCallback(() => {
+    localSyncTimerRef.current = null
+
+    if (!docRef.current || !hasSyncedRef.current) {
+      scheduledLocalStateRef.current = null
+      return
+    }
+
+    const nextState = scheduledLocalStateRef.current
+    if (!nextState) return
+
+    scheduledLocalStateRef.current = null
+    recordPendingLocalAreaChanges(
+      pendingLocalAreaChangesRef.current,
+      previousLocalStateRef.current.areas,
+      nextState.areas
+    )
+    applyCollaborativePageStatePatch(
+      docRef.current,
+      previousLocalStateRef.current,
+      nextState,
+      LOCAL_ORIGIN
+    )
+    previousLocalStateRef.current = nextState
+  }, [])
+
   useEffect(() => {
     if (!enabled) {
       hasSyncedRef.current = false
@@ -212,6 +255,7 @@ export const useCollaborativePageSync = ({
 
     hasSyncedRef.current = false
     pendingLocalAreaChangesRef.current.clear()
+    clearScheduledLocalState()
 
     let isDisposed = false
     const doc = new Y.Doc()
@@ -232,6 +276,10 @@ export const useCollaborativePageSync = ({
     undoManagerRef.current = undoManager
 
     const applyRemoteState = () => {
+      if (scheduledLocalStateRef.current && hasSyncedRef.current) {
+        flushPendingLocalState()
+      }
+
       const remoteState = getPageStateFromCollaborativeDoc(doc)
       const nextState = mergeRemoteStateWithPendingLocalAreaChanges(
         remoteState,
@@ -241,6 +289,7 @@ export const useCollaborativePageSync = ({
 
       applyingRemoteState.current = true
       previousLocalStateRef.current = nextState
+      clearScheduledLocalState()
       onRemoteState(nextState)
     }
 
@@ -363,6 +412,7 @@ export const useCollaborativePageSync = ({
       provider?.destroy()
       offlinePersistence?.destroy()
       doc.destroy()
+      clearScheduledLocalState()
 
       if (providerRef.current === provider) {
         providerRef.current = null
@@ -383,7 +433,14 @@ export const useCollaborativePageSync = ({
       })
       setOfflineCacheStatus('unavailable')
     }
-  }, [enabled, onRemoteState, pageId, updateUndoState])
+  }, [
+    clearScheduledLocalState,
+    enabled,
+    flushPendingLocalState,
+    onRemoteState,
+    pageId,
+    updateUndoState,
+  ])
 
   useEffect(() => {
     if (!enabled || !docRef.current || !hasSyncedRef.current) return
@@ -391,22 +448,19 @@ export const useCollaborativePageSync = ({
     if (applyingRemoteState.current) {
       applyingRemoteState.current = false
       previousLocalStateRef.current = state
+      clearScheduledLocalState()
       return
     }
 
-    recordPendingLocalAreaChanges(
-      pendingLocalAreaChangesRef.current,
-      previousLocalStateRef.current.areas,
-      state.areas
+    scheduledLocalStateRef.current = state
+
+    if (localSyncTimerRef.current !== null) return
+
+    localSyncTimerRef.current = window.setTimeout(
+      flushPendingLocalState,
+      LOCAL_SYNC_FLUSH_DELAY_MS
     )
-    applyCollaborativePageStatePatch(
-      docRef.current,
-      previousLocalStateRef.current,
-      state,
-      LOCAL_ORIGIN
-    )
-    previousLocalStateRef.current = state
-  }, [enabled, state])
+  }, [clearScheduledLocalState, enabled, flushPendingLocalState, state])
 
   const setPresence = useCallback((presence: PresenceState) => {
     providerRef.current?.awareness?.setLocalStateField(

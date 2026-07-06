@@ -98,13 +98,10 @@ test('two browsers collaborate live on the same page', async ({
   await otherContext.close()
 })
 
-// Known defect (see ideas.md, "One-way live sync loss"): a client that
-// creates an Area *after* its collaboration connection is established stops
-// receiving remote updates — the server goes silent toward it after an
-// initial echo storm. A second client's drag lands in the server doc (fresh
-// readers see it) but never reaches the creating client's screen. Unskip
-// once the collaboration engine defect is fixed.
-test.fixme(
+// Regression coverage for the historical one-way sync loss: a client that
+// creates an Area after connecting must still receive another user's live
+// edits to that same Area.
+test(
   'remote edits converge back to the client that created the Area',
   async ({ browser, page }) => {
     await gotoFreshPage(page)

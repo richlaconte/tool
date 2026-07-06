@@ -7,6 +7,9 @@ import type { PageAppState } from './pagePersistence.ts'
 import {
   areaAnchorComment,
   compileSddBundle,
+  compileSpecKitBundle,
+  makeSpecKitSlug,
+  normalizeSpecKitFeatureNumber,
   orderTasksByDependency,
 } from './sddExport.ts'
 
@@ -239,4 +242,125 @@ test('empty page still compiles to titled documents', () => {
   assert.match(spec, /^# Checkout redesign/)
   assert.match(plan, /— Plan/)
   assert.match(tasks, /— Tasks/)
+})
+
+test('requirement Areas export under Requirements with traceability lines', () => {
+  const state = makeState(
+    [
+      makeArea('req1', 'requirement', 'Requirement: When a link is opened, the system shall resolve access mode.', { y: 100 }),
+      makeArea('req2', 'requirement', 'Requirement: The system shall log denials.', { y: 200 }),
+      makeArea('t1', 'task', 'Task: Build access resolver', { y: 300 }),
+    ],
+    [makeLink('l1', 't1', 'req1', 'implements')]
+  )
+
+  const { spec, tasks } = compileSddBundle(state)
+
+  assert.match(spec, /## Requirements/)
+  assert.match(
+    spec,
+    /### When a link is opened, the system shall resolve access mode\./
+  )
+  assert.match(spec, /- Implemented by: Build access resolver/)
+  assert.match(spec, /## Coverage Gaps/)
+  assert.match(
+    spec,
+    /- Requirement without an implementing task: The system shall log denials\./
+  )
+  assert.match(tasks, /- \[ \] Build access resolver — implements: When a link is opened/)
+})
+
+test('pages without requirements keep pre-spec generic output shapes', () => {
+  const state = makeState([
+    makeArea('d1', 'decision', 'Use Stripe', { status: 'decided' }),
+    makeArea('t1', 'task', 'Task: Wire Stripe', { y: 100 }),
+  ])
+
+  const { spec, tasks } = compileSddBundle(state)
+
+  assert.doesNotMatch(spec, /## Requirements/)
+  assert.doesNotMatch(spec, /## Coverage Gaps/)
+  assert.doesNotMatch(tasks, /implements:/)
+})
+
+test('the spec-kit profile emits template-shaped files with numbering and refs', () => {
+  const state = makeState(
+    [
+      makeArea('u1', 'ui-state', 'Checkout happy path', { y: 50 }),
+      makeArea('req1', 'requirement', 'Requirement: The system shall tokenize cards.', { y: 100 }),
+      makeArea('req2', 'requirement', 'Requirement: The system shall log declines.', { y: 200 }),
+      makeArea('r1', 'risk', 'PCI scope creep', { y: 250 }),
+      makeArea('n1', 'note', 'Assume Stripe account exists.', { y: 275 }),
+      makeArea('c1', 'component', 'CheckoutForm', { y: 285 }),
+      makeArea('t1', 'task', 'Task: Integrate tokenizer', { y: 300, status: 'done' }),
+      makeArea('t2', 'task', 'Task: Add decline logging', { y: 400, status: 'blocked' }),
+    ],
+    [
+      makeLink('l1', 't1', 'req1', 'implements'),
+      makeLink('l2', 't2', 'req2', 'implements'),
+    ]
+  )
+
+  const bundle = compileSpecKitBundle(state, {
+    featureNumber: '7',
+    slug: 'Checkout Redesign!',
+  })
+  const files = Object.fromEntries(
+    bundle.files.map((file) => [file.name, file.contents])
+  )
+
+  assert.equal(bundle.featureDir, '007-checkout-redesign')
+  assert.deepEqual(
+    bundle.files.map((file) => file.name),
+    ['spec.md', 'plan.md', 'tasks.md']
+  )
+
+  const spec = files['spec.md']
+  assert.match(spec, /^# Feature Specification: Checkout redesign/)
+  assert.match(spec, /\*\*Feature Branch\*\*: `007-checkout-redesign`/)
+  assert.match(spec, /## User Scenarios & Testing \*\(mandatory\)\*/)
+  assert.match(spec, /### Edge Cases/)
+  assert.match(spec, /## Requirements \*\(mandatory\)\*/)
+  assert.match(spec, /### Functional Requirements/)
+  assert.match(spec, /- \*\*FR-001\*\*: The system shall tokenize cards\./)
+  assert.match(spec, /- \*\*FR-002\*\*: The system shall log declines\./)
+  assert.match(spec, /- Implemented by: T001 \(Integrate tokenizer\)/)
+  assert.match(spec, /## Success Criteria \*\(mandatory\)\*/)
+  assert.match(spec, /### Measurable Outcomes/)
+  assert.match(spec, /\[NEEDS CLARIFICATION: success criteria not captured/)
+  assert.match(spec, /## Assumptions/)
+  assert.match(spec, new RegExp(areaAnchorComment('req1')))
+
+  const plan = files['plan.md']
+  assert.match(plan, /^# Implementation Plan: Checkout redesign/)
+  assert.match(plan, /\*\*Branch\*\*: `007-checkout-redesign`/)
+  assert.match(plan, /## Technical Context/)
+  assert.match(plan, /### CheckoutForm/)
+
+  const tasks = files['tasks.md']
+  assert.match(tasks, /^# Tasks: Checkout redesign/)
+  assert.match(tasks, /\/specs\/007-checkout-redesign\//)
+  assert.match(tasks, /## Phase 1: Implementation/)
+  assert.match(tasks, /- \[x\] T001 Integrate tokenizer \(implements: FR-001\)/)
+  assert.match(
+    tasks,
+    /- \[ \] T002 Add decline logging \(blocked\) \(implements: FR-002\)/
+  )
+  assert.match(tasks, new RegExp(areaAnchorComment('t1')))
+})
+
+test('spec-kit slug and feature number normalize defensively', () => {
+  assert.equal(makeSpecKitSlug('  Big Launch: Q3!! '), 'big-launch-q3')
+  assert.equal(makeSpecKitSlug(''), 'feature')
+  assert.equal(normalizeSpecKitFeatureNumber('12'), '012')
+  assert.equal(normalizeSpecKitFeatureNumber('abc'), '001')
+  assert.equal(normalizeSpecKitFeatureNumber('12345'), '345')
+
+  const bundle = compileSpecKitBundle(makeState([]))
+
+  assert.equal(bundle.featureDir, '001-checkout-redesign')
+  assert.match(
+    bundle.files[0].contents,
+    /\[NEEDS CLARIFICATION: functional requirements not captured/
+  )
 })

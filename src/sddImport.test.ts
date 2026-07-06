@@ -6,7 +6,7 @@ import type { AgentClient } from './agentInterface.ts'
 import { applyAgentPatch, MAX_IMPORT_OPERATIONS } from './agentInterface.ts'
 import { getAreaMetadata, type AreaKind } from './areaMetadata.ts'
 import type { PageAppState } from './pagePersistence.ts'
-import { compileSddBundle } from './sddExport.ts'
+import { compileSddBundle, compileSpecKitBundle } from './sddExport.ts'
 import {
   buildSddImportPatch,
   layoutSddImport,
@@ -234,4 +234,153 @@ test('empty markdown yields no patch and a warning', () => {
 
   assert.equal(patch, null)
   assert.ok(warnings.some((warning) => warning.includes('No importable')))
+})
+
+test('spec-kit shaped markdown parses: FR bullets, subsections, and title', () => {
+  const markdown = [
+    '# Feature Specification: Checkout redesign',
+    '',
+    '**Feature Branch**: `007-checkout-redesign`',
+    '',
+    '**Status**: Draft',
+    '',
+    '## User Scenarios & Testing *(mandatory)*',
+    '',
+    '### Checkout happy path',
+    '',
+    'Buyer completes payment.',
+    '',
+    '### Edge Cases',
+    '',
+    '- Card declined mid-session',
+    '',
+    '## Requirements *(mandatory)*',
+    '',
+    '### Functional Requirements',
+    '',
+    '<!-- cascadery:area:req1 -->',
+    '- **FR-001**: The system shall tokenize cards.',
+    '  - Implemented by: T001 (Integrate tokenizer)',
+    '- **FR-002**: The system shall log declines.',
+    '',
+    '## Success Criteria *(mandatory)*',
+    '',
+    '### Measurable Outcomes',
+    '',
+    '- [NEEDS CLARIFICATION: success criteria not captured on the canvas]',
+    '',
+    '## Coverage Gaps',
+    '',
+    '- Requirement without an implementing task: The system shall log declines.',
+    '',
+  ].join('\n')
+
+  const parsed = parseSddMarkdown(markdown)
+
+  assert.equal(parsed.title, 'Checkout redesign')
+
+  // The mandatory H2 opens an (empty) requirement section; the Functional
+  // Requirements H3 subsection holds the items — aggregate across both.
+  const requirementItems = parsed.sections
+    .filter((section) => section.kind === 'requirement')
+    .flatMap((section) => section.items)
+  assert.deepEqual(
+    requirementItems.map((item) => [item.title, item.anchorAreaId]),
+    [
+      ['The system shall tokenize cards.', 'req1'],
+      ['The system shall log declines.', null],
+    ]
+  )
+
+  const scenarioSection = parsed.sections.find(
+    (section) => section.kind === 'ui-state'
+  )
+  assert.ok(scenarioSection)
+  assert.equal(scenarioSection.items[0].title, 'Checkout happy path')
+
+  const riskSection = parsed.sections.find(
+    (section) => section.kind === 'risk'
+  )
+  assert.ok(riskSection)
+
+  // Derived/boilerplate content never becomes items.
+  const allTitles = parsed.sections.flatMap((section) =>
+    section.items.map((item) => item.title)
+  )
+  assert.ok(!allTitles.some((title) => title.includes('NEEDS CLARIFICATION')))
+  assert.ok(!allTitles.some((title) => title.includes('Implemented by')))
+  assert.ok(!allTitles.some((title) => title.includes('Feature Branch')))
+  assert.ok(
+    !allTitles.some((title) =>
+      title.includes('Requirement without an implementing task')
+    )
+  )
+})
+
+test('spec-kit task phases parse with T-ids and markers stripped', () => {
+  const markdown = [
+    '# Tasks: Checkout redesign',
+    '',
+    '**Input**: Design documents from `/specs/007-checkout-redesign/`',
+    '',
+    '## Phase 1: Implementation',
+    '',
+    '- [x] T001 Integrate tokenizer (implements: FR-001)',
+    '- [ ] T002 [P] [US1] Add decline logging (blocked)',
+    '',
+  ].join('\n')
+
+  const parsed = parseSddMarkdown(markdown)
+  const taskSection = parsed.sections.find(
+    (section) => section.kind === 'task'
+  )
+
+  assert.ok(taskSection)
+  assert.deepEqual(
+    taskSection.items.map((item) => [item.title, item.status]),
+    [
+      ['Integrate tokenizer', 'done'],
+      ['Add decline logging', 'blocked'],
+    ]
+  )
+  // The Tasks: H1 does not become the page title.
+  assert.equal(parsed.title, null)
+})
+
+test('spec-kit export round-trips onto a blank page', () => {
+  const source = makeState([
+    makeArea('req1', 'requirement', 'Requirement: The system shall tokenize cards.', 100),
+    makeArea('t1', 'task', 'Task: Integrate tokenizer', 200),
+    makeArea('r1', 'risk', 'PCI scope creep', 300),
+  ])
+  const bundle = compileSpecKitBundle(source)
+  const combined = bundle.files
+    .map((file) => file.contents)
+    .join('\n\n')
+  const blank = makeState([])
+  const result = buildSddImportPatch(blank, CLIENT, combined)
+
+  assert.ok(result.patch)
+
+  const applied = applyAgentPatch(blank, result.patch, CLIENT, {
+    maxOperations: MAX_IMPORT_OPERATIONS,
+  })
+
+  assert.ok(applied.ok)
+
+  const kinds = applied.state.areas.map(
+    (area) => getAreaMetadata(area).kind
+  )
+
+  assert.ok(kinds.includes('requirement'))
+  assert.ok(kinds.includes('task'))
+  assert.ok(kinds.includes('risk'))
+
+  const requirement = applied.state.areas.find(
+    (area) => getAreaMetadata(area).kind === 'requirement'
+  )
+
+  assert.ok(requirement)
+  assert.ok(requirement.type !== 'image')
+  assert.match(requirement.text, /The system shall tokenize cards\./)
 })

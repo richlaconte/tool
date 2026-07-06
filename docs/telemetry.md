@@ -28,6 +28,9 @@ Read the counters with `pnpm telemetry:report`.
 - `export_markdown`
 - `export_json_canvas`
 - `export_sdd`
+- `export_sdd_spec_kit`
+- `export_mermaid`
+- `import_mermaid`
 - `import_page_json`
 - `mcp_request`
 - `agent_proposal_accepted`

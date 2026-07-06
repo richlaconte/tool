@@ -30,3 +30,10 @@ test('page route renders the editor client component', async () => {
   assert.match(editorSource, /'use client'/)
   assert.match(editorSource, /<App/)
 })
+
+test('Next server externalizes Yjs to avoid duplicate collaboration runtimes', async () => {
+  const source = await readWorkspaceFile('next.config.ts')
+
+  assert.match(source, /serverExternalPackages/)
+  assert.match(source, /['"]yjs['"]/)
+})

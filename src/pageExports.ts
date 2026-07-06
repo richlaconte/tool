@@ -58,6 +58,10 @@ const MARKDOWN_GROUPS = [
     kind: 'decision',
   },
   {
+    title: 'Requirements',
+    kind: 'requirement',
+  },
+  {
     title: 'Tasks',
     kind: 'task',
   },

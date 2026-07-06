@@ -167,6 +167,8 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'delete_area',
       'apply_patch',
       'export_sdd',
+      'export_mermaid',
+      'import_mermaid',
       'import_sdd',
     ]
   )
@@ -202,6 +204,8 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       ['delete_area', 'page:write'],
       ['apply_patch', 'page:write'],
       ['export_sdd', 'page:read'],
+      ['export_mermaid', 'page:read'],
+      ['import_mermaid', 'page:suggest'],
       ['import_sdd', 'page:suggest'],
     ]
   )
@@ -1947,4 +1951,209 @@ test('export_sdd and import_sdd are recorded in the agent action audit trail', a
   )
 
   assert.ok(records.some((record) => record.toolName === 'export_sdd'))
+})
+
+test('export_sdd and import_sdd accept the spec-kit profile and reject invalid ones', async () => {
+  const specKit = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'export-spec-kit',
+      method: 'tools/call',
+      params: {
+        name: 'export_sdd',
+        arguments: {
+          pageId: 'page-1',
+          profile: 'spec-kit',
+          featureNumber: '12',
+          slug: 'Checkout Redesign',
+        },
+      },
+    },
+    context
+  )
+  const invalidExport = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'export-invalid-profile',
+      method: 'tools/call',
+      params: {
+        name: 'export_sdd',
+        arguments: { pageId: 'page-1', profile: 'kiro' },
+      },
+    },
+    context
+  )
+  const invalidImport = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'import-invalid-profile',
+      method: 'tools/call',
+      params: {
+        name: 'import_sdd',
+        arguments: {
+          pageId: 'page-1',
+          markdown: '## Tasks\n\n- [ ] Build importer\n',
+          profile: 'bogus',
+        },
+      },
+    },
+    context
+  )
+  const validImport = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'import-spec-kit-profile',
+      method: 'tools/call',
+      params: {
+        name: 'import_sdd',
+        arguments: {
+          pageId: 'page-1',
+          markdown:
+            '## Phase 1: Implementation\n\n- [ ] T001 Build importer\n',
+          profile: 'spec-kit',
+        },
+      },
+    },
+    context
+  )
+  const generic = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'export-generic-default',
+      method: 'tools/call',
+      params: {
+        name: 'export_sdd',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    context
+  )
+
+  assert.equal(specKit.error, undefined)
+  assert.equal(specKit.result.profile, 'spec-kit')
+  assert.equal(specKit.result.featureDir, '012-checkout-redesign')
+  assert.deepEqual(
+    specKit.result.files.map((file: { name: string }) => file.name),
+    ['spec.md', 'plan.md', 'tasks.md']
+  )
+  assert.match(
+    specKit.result.files[0].contents,
+    /^# Feature Specification:/
+  )
+  assert.equal(invalidExport.error?.code, -32602)
+  assert.equal(invalidImport.error?.code, -32602)
+  assert.equal(validImport.error, undefined)
+  assert.equal(validImport.result.createCount, 1)
+  // Generic result shape is unchanged: bundle, no profile/files keys.
+  assert.equal(generic.error, undefined)
+  assert.ok(generic.result.bundle)
+  assert.equal(generic.result.profile, undefined)
+  assert.equal(generic.result.files, undefined)
+})
+
+test('export_mermaid and import_mermaid enforce scopes and route proposals', async () => {
+  const exported = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'mermaid-export',
+      method: 'tools/call',
+      params: {
+        name: 'export_mermaid',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    context
+  )
+  const imported = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'mermaid-import',
+      method: 'tools/call',
+      params: {
+        name: 'import_mermaid',
+        arguments: {
+          pageId: 'page-1',
+          mermaid: 'flowchart TD\n    A[Plan] --> B{Approve?}',
+        },
+      },
+    },
+    context
+  )
+  const parseError = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'mermaid-parse-error',
+      method: 'tools/call',
+      params: {
+        name: 'import_mermaid',
+        arguments: { pageId: 'page-1', mermaid: 'sequenceDiagram' },
+      },
+    },
+    context
+  )
+  const readOnlyContext: McpGatewayContext = {
+    ...context,
+    authorizedPageId: 'page-1',
+    client: {
+      id: 'mcp-token-read',
+      displayName: 'Read token',
+      scopes: ['page:read'],
+    },
+  }
+  const readCanExport = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'mermaid-read-export',
+      method: 'tools/call',
+      params: {
+        name: 'export_mermaid',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    readOnlyContext
+  )
+  const readCannotImport = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'mermaid-read-import',
+      method: 'tools/call',
+      params: {
+        name: 'import_mermaid',
+        arguments: {
+          pageId: 'page-1',
+          mermaid: 'flowchart TD\n    A --> B',
+        },
+      },
+    },
+    readOnlyContext
+  )
+
+  assert.equal(exported.error, undefined)
+  assert.match(exported.result.mermaid, /^flowchart (TD|LR)\n/)
+  assert.match(exported.result.mermaid, /expose read-only MCP/)
+  // Read tools carry cache metadata; export_mermaid is read-class.
+  assert.deepEqual(exported.result._meta.cache, {
+    ttlMs: MCP_READ_CACHE_TTL_MS,
+    cacheScope: 'private',
+  })
+
+  assert.equal(imported.error, undefined)
+  assert.equal(imported.result.dryRun, true)
+  assert.equal(imported.result.applied, false)
+  assert.equal(imported.result.applyAllowed, false)
+  assert.equal(imported.result.nodeCount, 2)
+  assert.equal(imported.result.edgeCount, 1)
+  assert.equal(imported.result.validation.ok, true)
+  assert.equal(
+    imported.result.patch.operations.filter(
+      (operation: { op: string }) => operation.op === 'createLink'
+    ).length,
+    1
+  )
+
+  assert.equal(parseError.error?.code, -32602)
+  assert.match(parseError.error?.message ?? '', /line 1/)
+
+  assert.equal(readCanExport.error, undefined)
+  assert.equal(readCannotImport.error?.code, -32003)
 })

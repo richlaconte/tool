@@ -49,8 +49,14 @@ import {
   MCP_APP_HTML_MIME_TYPE,
   renderMcpAppHtml,
 } from './mcpAppTemplate.ts'
+import { exportAreasAsMermaid } from './mermaidExport.ts'
+import { buildMermaidImportPatch } from './mermaidImport.ts'
 import { createAgentHandoffBrief } from './agentHandoff.ts'
-import { compileSddBundle } from './sddExport.ts'
+import {
+  compileSddBundle,
+  compileSpecKitBundle,
+  isSddExportProfile,
+} from './sddExport.ts'
 import { buildSddImportPatch } from './sddImport.ts'
 import {
   exportPageAsJsonCanvas,
@@ -726,12 +732,61 @@ const toolDefinitions = [
     name: 'export_sdd',
     minimumScope: 'page:read',
     description:
-      'Compile the page into spec.md, plan.md, and tasks.md Markdown for spec-driven development.',
+      'Compile the page into spec.md, plan.md, and tasks.md Markdown for spec-driven development. Optional profile: generic (default) or spec-kit.',
     inputSchema: {
       type: 'object',
       required: ['pageId'],
       properties: {
         pageId: {
+          type: 'string',
+        },
+        profile: {
+          type: 'string',
+          enum: ['generic', 'spec-kit'],
+        },
+        featureNumber: {
+          type: 'string',
+        },
+        slug: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
+    name: 'export_mermaid',
+    minimumScope: 'page:read',
+    description:
+      'Export the page (or the given Areas) as a Mermaid flowchart block.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaIds: {
+          type: 'array',
+          items: {
+            type: 'string',
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'import_mermaid',
+    minimumScope: 'page:suggest',
+    description:
+      'Turn a Mermaid flowchart into a reviewable patch of Areas and links. Never applies directly.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'mermaid'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        mermaid: {
           type: 'string',
         },
       },
@@ -741,7 +796,7 @@ const toolDefinitions = [
     name: 'import_sdd',
     minimumScope: 'page:suggest',
     description:
-      'Turn spec/plan/tasks Markdown into a reviewable patch that lays it out as Areas. Never applies directly.',
+      'Turn spec/plan/tasks Markdown into a reviewable patch that lays it out as Areas. Never applies directly. Optional profile: generic (default) or spec-kit.',
     inputSchema: {
       type: 'object',
       required: ['pageId', 'markdown'],
@@ -751,6 +806,10 @@ const toolDefinitions = [
         },
         markdown: {
           type: 'string',
+        },
+        profile: {
+          type: 'string',
+          enum: ['generic', 'spec-kit'],
         },
       },
     },
@@ -769,6 +828,7 @@ const READ_CACHE_TOOL_NAMES = new Set([
   'extract_decisions',
   'extract_open_questions',
   'export_sdd',
+  'export_mermaid',
 ])
 
 // Apps extension: one declared template — the page outline and pending
@@ -1396,6 +1456,29 @@ const callTool = async (
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
 
+    if (args.profile !== undefined && !isSddExportProfile(args.profile)) {
+      return errorResponse(id, -32602, 'SDD export profile is invalid.')
+    }
+
+    // Spec Kit layout profile: three template-shaped files plus the
+    // feature directory name. The generic result shape is unchanged.
+    if (args.profile === 'spec-kit') {
+      const specKit = compileSpecKitBundle(state, {
+        ...(typeof args.featureNumber === 'string'
+          ? { featureNumber: args.featureNumber }
+          : {}),
+        ...(typeof args.slug === 'string' ? { slug: args.slug } : {}),
+      })
+
+      return resultResponse(id, {
+        schemaVersion: 1,
+        pageId: state.page.id,
+        profile: 'spec-kit',
+        featureDir: specKit.featureDir,
+        files: specKit.files,
+      })
+    }
+
     return resultResponse(id, {
       schemaVersion: 1,
       pageId: state.page.id,
@@ -1403,9 +1486,62 @@ const callTool = async (
     })
   }
 
+  if (params.name === 'export_mermaid') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    const areaIds = Array.isArray(args.areaIds)
+      ? args.areaIds.filter(
+          (value): value is string => typeof value === 'string'
+        )
+      : undefined
+
+    return resultResponse(id, {
+      schemaVersion: 1,
+      pageId: state.page.id,
+      mermaid: exportAreasAsMermaid(state, {
+        ...(areaIds ? { areaIds } : {}),
+      }),
+    })
+  }
+
+  if (params.name === 'import_mermaid') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    const result = buildMermaidImportPatch(
+      state,
+      client,
+      typeof args.mermaid === 'string' ? args.mermaid : ''
+    )
+
+    if (!result.ok) {
+      return errorResponse(
+        id,
+        -32602,
+        `Mermaid parse error at line ${result.line}: ${result.error}`
+      )
+    }
+
+    return resultResponse(id, {
+      ...createDryRunPatchResult(state, result.patch, context, {
+        maxOperations: MAX_IMPORT_OPERATIONS,
+      }),
+      nodeCount: result.nodeCount,
+      edgeCount: result.edgeCount,
+    })
+  }
+
   if (params.name === 'import_sdd') {
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
+
+    // The section parser recognizes generic and Spec Kit shapes in one
+    // pass; the profile argument is validated for API stability and
+    // forward compatibility, both values parse identically today.
+    if (args.profile !== undefined && !isSddExportProfile(args.profile)) {
+      return errorResponse(id, -32602, 'SDD import profile is invalid.')
+    }
 
     const { patch, warnings, createCount, updateCount } =
       buildSddImportPatch(

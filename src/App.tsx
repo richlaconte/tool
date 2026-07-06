@@ -219,8 +219,32 @@ import {
   stringifyExportedPageState,
   stringifyPageAsJsonCanvas,
 } from './pageExports'
-import { compileSddBundle } from './sddExport'
+import {
+  compileSddBundle,
+  compileSpecKitBundle,
+  makeSpecKitSlug,
+  normalizeSpecKitFeatureNumber,
+} from './sddExport'
 import { buildSddImportPatch } from './sddImport'
+import {
+  applyColorSchemeToDocument,
+  getNextColorSchemePreference,
+  readStoredColorScheme,
+  resolveColorScheme,
+  storeColorScheme,
+  COLOR_SCHEME_PREFERENCES,
+  COLOR_SCHEME_PREFERENCE_LABELS,
+  type ColorSchemePreference,
+} from './colorScheme'
+import { EARS_TEMPLATES, lintEarsRequirement } from './earsLint'
+import { exportAreasAsMermaid } from './mermaidExport'
+import {
+  buildMermaidImportPlan,
+  parseMermaidFlowchart,
+  type MermaidGraph,
+} from './mermaidImport'
+import { getSddTraceability } from './sddTraceability'
+import { createZipArchive } from './zipArchive'
 import {
   addPageHistoryEntry,
   applyRestorePageStatePatch,
@@ -485,7 +509,15 @@ const COMMAND_DIALOGS: Record<
   },
   'import-sdd': {
     title: 'Import spec/plan Markdown',
-    body: 'Paste or upload spec/plan/tasks Markdown. Imported content is laid out below your current Areas as a reviewable proposal — export stays the canonical direction, so import is best-effort.',
+    body: 'Paste or upload spec/plan/tasks Markdown. Imported content is laid out below your current Areas as a reviewable proposal — export stays the canonical direction, so import is best-effort. Spec Kit-shaped files (Feature Specification, FR bullets, task phases) are recognized automatically.',
+  },
+  'export-spec-kit-bundle': {
+    title: 'Export Spec Kit bundle',
+    body: 'Download spec.md, plan.md, and tasks.md shaped for the GitHub Spec Kit feature directory layout, zipped as one archive.',
+  },
+  'import-mermaid': {
+    title: 'Import Mermaid',
+    body: 'Paste a Mermaid flowchart (the ```mermaid fence is optional). Supported subset: flowchart/graph headers, node shapes, labeled edges, and one level of subgraphs. The diagram becomes editable Areas and links in one undo step.',
   },
   share: {
     title: 'Share',
@@ -1176,6 +1208,16 @@ const getAgentOperationSummary = (operation: AgentPatchOperation) => {
       : `Unnest ${operation.areaId}`
   }
 
+  if (operation.op === 'createLink') {
+    return `Link ${operation.link.fromAreaId} → ${operation.link.toAreaId}${
+      operation.link.label ? ` (${operation.link.label})` : ''
+    }`
+  }
+
+  if (operation.op === 'deleteLink') {
+    return `Remove link ${operation.linkId}`
+  }
+
   return `Delete ${operation.areaId}`
 }
 
@@ -1339,6 +1381,43 @@ function App({
   )
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('')
   const [sddImportText, setSddImportText] = useState('')
+  const [specKitFeatureNumber, setSpecKitFeatureNumber] = useState('001')
+  const [specKitSlug, setSpecKitSlug] = useState('')
+  const [mermaidImportText, setMermaidImportText] = useState('')
+  const [mermaidImportError, setMermaidImportError] = useState<
+    string | null
+  >(null)
+  // Device preference, never document state (adaptive color scheme spec).
+  const [colorSchemePreference, setColorSchemePreference] =
+    useState<ColorSchemePreference>(() => readStoredColorScheme())
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () =>
+      applyColorSchemeToDocument(
+        resolveColorScheme(
+          colorSchemePreference,
+          media.matches ? 'dark' : 'light'
+        )
+      )
+
+    apply()
+
+    // Only `system` follows live OS changes; overrides stay put.
+    if (colorSchemePreference !== 'system') return
+
+    media.addEventListener('change', apply)
+
+    return () => media.removeEventListener('change', apply)
+  }, [colorSchemePreference])
+
+  const updateColorSchemePreference = useCallback(
+    (preference: ColorSchemePreference) => {
+      setColorSchemePreference(preference)
+      storeColorScheme(preference)
+    },
+    []
+  )
   const [sddImportPreview, setSddImportPreview] = useState<{
     createCount: number
     updateCount: number
@@ -5264,6 +5343,195 @@ function App({
     }
   }
 
+  const exportSpecKitBundle = () => {
+    trackTelemetryEvent('export_sdd_spec_kit')
+
+    const bundle = compileSpecKitBundle(getCurrentPageAppState(), {
+      featureNumber: specKitFeatureNumber,
+      slug: specKitSlug,
+    })
+    const archive = createZipArchive(
+      bundle.files.map((file) => ({
+        name: `${bundle.featureDir}/${file.name}`,
+        contents: file.contents,
+      }))
+    )
+    const blob = new Blob([archive], { type: 'application/zip' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+
+    link.href = url
+    link.download = `${bundle.featureDir}.zip`
+    link.click()
+    URL.revokeObjectURL(url)
+    setOpenDialogId(null)
+  }
+
+  const insertEarsRequirement = (templateId: string) => {
+    if (isViewOnly) return
+
+    const template = EARS_TEMPLATES.find(
+      (candidate) => candidate.id === templateId
+    )
+
+    if (!template) return
+
+    const point = getViewportCenterPoint(canvasZoom)
+    const id = createAreaId(nextAreaId.current)
+    nextAreaId.current += 1
+    const createdAt = new Date().toISOString()
+
+    setAreas((prev) => [
+      ...prev,
+      {
+        id,
+        parentId: null,
+        x: point.x,
+        y: point.y,
+        width: DEFAULT_AREA_WIDTH,
+        height: DEFAULT_AREA_HEIGHT,
+        text: template.text,
+        styles: {},
+        metadata: {
+          kind: 'requirement',
+          tags: [],
+        },
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ])
+    setSelectedAreaId(id)
+    setSelectedLinkId(null)
+    setAutoFocusAreaId(id)
+    setHasClickedCanvas(true)
+  }
+
+  // Mermaid interop: parsed graphs land as native Areas/links directly
+  // (one import history entry, one undo step) — the JSON Canvas import
+  // idiom, not the proposal path, because the human initiated it locally.
+  const insertMermaidGraph = (
+    graph: MermaidGraph,
+    origin: { x: number; y: number }
+  ) => {
+    trackTelemetryEvent('import_mermaid')
+
+    const startId = nextAreaId.current
+    const stamp = Date.now()
+    const plan = buildMermaidImportPlan(graph, {
+      origin,
+      createAreaId: (index) => createAreaId(startId + index),
+      createLinkId: (index) => `link_mermaid_${stamp}_${index + 1}`,
+    })
+
+    nextAreaId.current += plan.areas.length
+
+    setPageHistory((currentHistory) =>
+      addPageHistoryEntry(
+        currentHistory,
+        createImportHistoryEntry({
+          actor: LOCAL_HISTORY_ACTOR,
+          beforeState: {
+            areas,
+            assets,
+            comments,
+            journal: journalEntries,
+            links,
+            page,
+          },
+          importedAreaCount: plan.areas.length,
+          pageId: page.id,
+        })
+      )
+    )
+    setAreas((currentAreas) => [...currentAreas, ...plan.areas])
+    setLinks((currentLinks) => [...currentLinks, ...plan.links])
+    setHasClickedCanvas(true)
+  }
+
+  const importMermaidText = () => {
+    if (isViewOnly) return
+
+    const parsed = parseMermaidFlowchart(mermaidImportText)
+
+    if (!parsed.ok) {
+      setMermaidImportError(`Line ${parsed.line}: ${parsed.error}`)
+      return
+    }
+
+    insertMermaidGraph(parsed.graph, getViewportCenterPoint(canvasZoom))
+    setMermaidImportError(null)
+    setMermaidImportText('')
+    setOpenDialogId(null)
+  }
+
+  const convertMermaidBlock = (areaId: string, code: string) => {
+    if (isViewOnly) return
+
+    const parsed = parseMermaidFlowchart(code)
+
+    if (!parsed.ok) {
+      setImportError(
+        `Mermaid parse error at line ${parsed.line}: ${parsed.error}`
+      )
+      return
+    }
+
+    // Converted structure lands to the right of the source Area at a
+    // fixed gap (duplicate-offset convention); the source stays intact.
+    const source = areas.find((area) => area.id === areaId)
+    const origin = source
+      ? (() => {
+          const position = getAreaAbsolutePosition(areas, source.id)
+
+          return {
+            x: position.x + source.width + 80,
+            y: position.y,
+          }
+        })()
+      : getViewportCenterPoint(canvasZoom)
+
+    setImportError(null)
+    insertMermaidGraph(parsed.graph, origin)
+  }
+
+  const copyAsMermaid = async () => {
+    trackTelemetryEvent('export_mermaid')
+
+    const areaIds =
+      selectedAreaIds.length > 1 ? selectedAreaIds : undefined
+
+    try {
+      await navigator.clipboard.writeText(
+        exportAreasAsMermaid(getCurrentPageAppState(), {
+          ...(areaIds ? { areaIds } : {}),
+        })
+      )
+      setImportError(null)
+    } catch {
+      setImportError('Mermaid block could not be copied.')
+    }
+  }
+
+  const showUncoveredRequirements = () => {
+    const traceability = getSddTraceability(getCurrentPageAppState())
+
+    if (traceability.requirements.length === 0) {
+      setImportError('No requirement Areas on this page yet.')
+      return
+    }
+
+    if (traceability.uncoveredRequirements.length === 0) {
+      setImportError('All requirements have an implementing task link.')
+      return
+    }
+
+    setImportError(null)
+    setSelectedLinkId(null)
+    setSelectedAreaIds(
+      traceability.uncoveredRequirements.map((area) => area.id)
+    )
+  }
+
   const previewSddImport = (markdown: string) => {
     const result = buildSddImportPatch(
       getCurrentPageAppState(),
@@ -6109,6 +6377,15 @@ function App({
   const selectedAreaMetadata = selectedArea
     ? getAreaMetadata(selectedArea)
     : null
+  // Gentle EARS lint: hints only, computed for requirement Areas and
+  // silenced by the per-Area dismissal flag (SDD fidelity spec).
+  const earsHintsForSelectedArea =
+    selectedArea &&
+    selectedArea.type !== 'image' &&
+    selectedAreaMetadata?.kind === 'requirement' &&
+    !selectedAreaMetadata.earsHintDismissed
+      ? lintEarsRequirement(selectedArea.text)
+      : []
   const taskBoardColumns = useMemo(
     () => buildTaskBoard({ areas, comments }),
     [areas, comments]
@@ -6196,6 +6473,7 @@ function App({
         nestingDepth={getAreaDepth(areas, area.id)}
         canvasZoom={canvasZoom}
         unresolvedCommentCount={getUnresolvedCount(comments, area.id)}
+        onConvertMermaid={convertMermaidBlock}
         onSelect={(areaId, toggleSelection) => {
           setSelectedAreaIds((currentSelectedAreaIds) => {
             if (toggleSelection) {
@@ -7266,6 +7544,31 @@ function App({
               void copySddBundle()
               return
             }
+            if (option.id === 'export-spec-kit-bundle') {
+              setSpecKitSlug(makeSpecKitSlug(page.title))
+              setOpenDialogId('export-spec-kit-bundle')
+              return
+            }
+            if (option.id.startsWith('insert-ears-')) {
+              insertEarsRequirement(
+                option.id.replace('insert-ears-', '')
+              )
+              return
+            }
+            if (option.id === 'show-uncovered-requirements') {
+              showUncoveredRequirements()
+              return
+            }
+            if (option.id === 'import-mermaid') {
+              setMermaidImportText('')
+              setMermaidImportError(null)
+              setOpenDialogId('import-mermaid')
+              return
+            }
+            if (option.id === 'copy-as-mermaid') {
+              void copyAsMermaid()
+              return
+            }
             if (option.id === 'import-sdd') {
               setSddImportText('')
               setSddImportPreview(null)
@@ -7371,6 +7674,12 @@ function App({
             }
             if (option.id === 'agent-suggestions') {
               createAgentSuggestion()
+              return
+            }
+            if (option.id === 'toggle-color-scheme') {
+              updateColorSchemePreference(
+                getNextColorSchemePreference(colorSchemePreference)
+              )
               return
             }
             if (option.id === 'toggle-telemetry') {
@@ -7841,6 +8150,31 @@ function App({
                         ))}
                       </select>
                     </label>
+                    {earsHintsForSelectedArea.length > 0 && (
+                      <div
+                        aria-label="EARS requirement hints"
+                        className="ears-lint-hints"
+                        role="note"
+                      >
+                        <strong>EARS hints</strong>
+                        <ul>
+                          {earsHintsForSelectedArea.map((hint) => (
+                            <li key={hint.ruleId}>{hint.message}</li>
+                          ))}
+                        </ul>
+                        <button
+                          className="command-dialog-button command-dialog-button--secondary"
+                          type="button"
+                          onClick={() =>
+                            updateSelectedAreaMetadata({
+                              earsHintDismissed: true,
+                            })
+                          }
+                        >
+                          Dismiss hints
+                        </button>
+                      </div>
+                    )}
                     <label className="page-style-control">
                       <span>Status</span>
                       <select
@@ -8797,6 +9131,85 @@ function App({
                   </button>
                 </div>
               </div>
+            ) : openDialogId === 'export-spec-kit-bundle' ? (
+              <div className="spec-kit-export-dialog">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                <label className="page-style-control">
+                  <span>Feature number</span>
+                  <input
+                    aria-label="Spec Kit feature number"
+                    type="text"
+                    value={specKitFeatureNumber}
+                    onChange={(e) =>
+                      setSpecKitFeatureNumber(e.currentTarget.value)
+                    }
+                    placeholder="001"
+                  />
+                </label>
+                <label className="page-style-control">
+                  <span>Feature slug</span>
+                  <input
+                    aria-label="Spec Kit feature slug"
+                    type="text"
+                    value={specKitSlug}
+                    onChange={(e) =>
+                      setSpecKitSlug(e.currentTarget.value)
+                    }
+                    placeholder={makeSpecKitSlug(page.title)}
+                  />
+                </label>
+                <p className="spec-kit-directory-preview">
+                  specs/
+                  {normalizeSpecKitFeatureNumber(specKitFeatureNumber)}-
+                  {makeSpecKitSlug(specKitSlug || page.title)}/
+                </p>
+                <div className="command-dialog-actions">
+                  <button
+                    className="command-dialog-button"
+                    type="button"
+                    onClick={() => setOpenDialogId(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="command-dialog-button"
+                    type="button"
+                    onClick={exportSpecKitBundle}
+                  >
+                    Download zip
+                  </button>
+                </div>
+              </div>
+            ) : openDialogId === 'import-mermaid' ? (
+              <div className="sdd-import-dialog">
+                <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                <textarea
+                  aria-label="Mermaid flowchart source"
+                  className="sdd-import-textarea"
+                  placeholder={'flowchart TD\n    A[Start] --> B{Decision}\n    B -->|yes| C[Ship]'}
+                  rows={10}
+                  value={mermaidImportText}
+                  onChange={(e) => {
+                    setMermaidImportText(e.currentTarget.value)
+                    if (mermaidImportError) setMermaidImportError(null)
+                  }}
+                />
+                {mermaidImportError && (
+                  <span className="import-error" role="alert">
+                    {mermaidImportError}
+                  </span>
+                )}
+                <div className="agent-handoff-actions">
+                  <button
+                    className="agent-proposal-button"
+                    disabled={!mermaidImportText.trim()}
+                    type="button"
+                    onClick={importMermaidText}
+                  >
+                    Convert to Areas
+                  </button>
+                </div>
+              </div>
             ) : openDialogId === 'import-sdd' ? (
               <div className="sdd-import-dialog">
                 <p>{COMMAND_DIALOGS[openDialogId].body}</p>
@@ -8855,6 +9268,25 @@ function App({
               </div>
             ) : openDialogId === 'settings' ? (
               <div className="settings-controls">
+                <label className="page-style-control">
+                  <span>Color scheme</span>
+                  <select
+                    aria-label="Editor color scheme"
+                    value={colorSchemePreference}
+                    onChange={(e) =>
+                      updateColorSchemePreference(
+                        e.currentTarget
+                          .value as ColorSchemePreference
+                      )
+                    }
+                  >
+                    {COLOR_SCHEME_PREFERENCES.map((preference) => (
+                      <option key={preference} value={preference}>
+                        {COLOR_SCHEME_PREFERENCE_LABELS[preference]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <p>
                   Your name and color identify your cursor and selection
                   to other people on this page.

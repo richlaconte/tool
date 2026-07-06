@@ -107,6 +107,22 @@ test('collaborative sync loads IndexedDB cache before connecting the network pro
   assert.match(source, /offlinePersistence\.destroy\(\)/)
 })
 
+test('collaborative sync coalesces local state writes before publishing Yjs patches', async () => {
+  const source = await readFile(
+    new URL('./useCollaborativePage.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(source, /LOCAL_SYNC_FLUSH_DELAY_MS/)
+  assert.match(source, /scheduledLocalStateRef/)
+  assert.match(source, /flushPendingLocalState/)
+  assert.match(source, /window\.setTimeout\(\s*flushPendingLocalState/)
+  assert.match(
+    source,
+    /scheduledLocalStateRef\.current && hasSyncedRef\.current[\s\S]*flushPendingLocalState\(\)/
+  )
+})
+
 test('remote sync preserves pending local area movement while applying other remote changes', () => {
   const page = createDefaultPageState({ id: 'page_1', now })
   const staleLocalArea = createTextArea({
@@ -216,4 +232,57 @@ test('remote sync stops preserving local movement after the remote document catc
 
   assert.deepEqual(merged.areas, [movedLocalArea])
   assert.equal(pendingChanges.has('local'), false)
+})
+
+test('remote sync accepts remote edits once a locally-created area exists remotely', () => {
+  const page = createDefaultPageState({ id: 'page_3', now })
+  const localCreatedArea = createTextArea({
+    id: 'created-local',
+    text: 'Local created area',
+    x: 600,
+    y: 300,
+  })
+  const remotelyMovedArea = {
+    ...localCreatedArea,
+    x: 760,
+    y: 390,
+  }
+  const pendingChanges = new Map([
+    [
+      'created-local',
+      {
+        created: true,
+        expiresAt: 2000,
+        fields: new Set([
+          'parentId',
+          'x',
+          'y',
+          'width',
+          'height',
+          'metadata',
+          'styles',
+          'text',
+        ]),
+      },
+    ],
+  ])
+
+  const merged = mergeRemoteStateWithPendingLocalAreaChanges(
+    {
+      areas: [remotelyMovedArea],
+      assets: [],
+      page,
+    },
+    {
+      areas: [localCreatedArea],
+      assets: [],
+      page,
+    },
+    pendingChanges,
+    1000
+  )
+
+  assert.equal(merged.areas[0]?.x, 760)
+  assert.equal(merged.areas[0]?.y, 390)
+  assert.equal(pendingChanges.has('created-local'), false)
 })

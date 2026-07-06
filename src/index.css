@@ -1,3 +1,140 @@
+/*
+ * Semantic chrome color tokens (adaptive color scheme spec).
+ *
+ * Tokens are named for role, not color. Editor chrome consumes ONLY these
+ * tokens; raw color values in chrome selectors are a lint failure
+ * (src/chromeTokensUi.test.ts). Documented exceptions: canvas *content*
+ * defaults (the default Area text color and background in area.css) and
+ * Markdown/code syntax-highlight colors in markdownContent.css — content
+ * must render identically in both schemes, so it never re-tints.
+ *
+ * `-rgb` tokens are space-separated channel triplets for translucent
+ * `rgb(var(--x-rgb) / a%)` usage; alphas stay declared at the point of use.
+ *
+ * The dark block re-derives every token (no naive inversion): elevation
+ * gets lighter as it rises, accents brighten for contrast on dark
+ * surfaces, and the measured WCAG 2.2 AA table lives in the completed
+ * spec (docs/specs/completed/2026-07-06-adaptive-color-scheme.md).
+ */
+:root {
+  color-scheme: light;
+
+  --chrome-surface: #ffffff;
+  --chrome-surface-raised: #f8fafc;
+  --chrome-surface-sunken: #f1f5f9;
+  --chrome-border: #e2e8f0;
+  --chrome-border-strong: #cbd5e1;
+  --chrome-text: #111827;
+  --chrome-text-secondary: #334155;
+  --chrome-text-soft: #475569;
+  --chrome-text-muted: #64748b;
+  --chrome-text-faint: #94a3b8;
+
+  /* High-contrast inverse surfaces: dark buttons, toasts, pills. */
+  --chrome-inverse-surface: #111827;
+  --chrome-inverse-surface-hover: #374151;
+  --chrome-inverse-surface-deep: #0f172a;
+  --chrome-inverse-text: #ffffff;
+
+  --chrome-accent: #2563eb;
+  --chrome-accent-strong: #1d4ed8;
+  --chrome-accent-border: #93c5fd;
+  --chrome-accent-soft: #dbeafe;
+  --chrome-accent-faint: #eff6ff;
+
+  --chrome-danger: #b91c1c;
+  --chrome-danger-border: #fca5a5;
+  --chrome-danger-soft: #ffe4e6;
+  --chrome-danger-faint: #fef2f2;
+
+  --chrome-success: #15803d;
+  --chrome-success-border: #86efac;
+
+  --chrome-warning: #d97706;
+  --chrome-warning-strong: #92400e;
+  --chrome-warning-faint: #fffbeb;
+
+  --chrome-focus-ring: #2563eb;
+  --chrome-backdrop-rgb: 15 23 42;
+
+  --chrome-border-rgb: 148 163 184;
+  --chrome-border-faint-rgb: 226 232 240;
+  --chrome-muted-rgb: 100 116 139;
+  --chrome-shadow-rgb: 15 23 42;
+  --chrome-surface-rgb: 255 255 255;
+  --chrome-surface-raised-rgb: 248 250 252;
+  --chrome-surface-sunken-rgb: 243 244 246;
+  --chrome-accent-rgb: 37 99 235;
+  --chrome-accent-faint-rgb: 239 246 255;
+  --chrome-danger-rgb: 248 113 113;
+  --chrome-danger-strong-rgb: 185 28 28;
+  --chrome-danger-faint-rgb: 254 242 242;
+  --chrome-success-rgb: 20 184 166;
+  --chrome-success-soft-rgb: 204 251 241;
+  --chrome-success-faint-rgb: 240 253 250;
+  --chrome-warning-rgb: 245 158 11;
+  --chrome-warning-strong-rgb: 202 138 4;
+}
+
+[data-color-scheme='dark'] {
+  color-scheme: dark;
+
+  --chrome-surface: #0f172a;
+  --chrome-surface-raised: #1e293b;
+  --chrome-surface-sunken: #283548;
+  --chrome-border: #334155;
+  --chrome-border-strong: #475569;
+  --chrome-text: #f1f5f9;
+  --chrome-text-secondary: #e2e8f0;
+  --chrome-text-soft: #cbd5e1;
+  --chrome-text-muted: #a6b4c8;
+  --chrome-text-faint: #8494ab;
+
+  --chrome-inverse-surface: #334155;
+  --chrome-inverse-surface-hover: #475569;
+  --chrome-inverse-surface-deep: #475569;
+  --chrome-inverse-text: #f8fafc;
+
+  --chrome-accent: #60a5fa;
+  --chrome-accent-strong: #93c5fd;
+  --chrome-accent-border: #1d4ed8;
+  --chrome-accent-soft: #1e3a8a;
+  --chrome-accent-faint: #172554;
+
+  --chrome-danger: #f87171;
+  --chrome-danger-border: #7f1d1d;
+  --chrome-danger-soft: #450a0a;
+  --chrome-danger-faint: #2c1010;
+
+  --chrome-success: #4ade80;
+  --chrome-success-border: #166534;
+
+  --chrome-warning: #fbbf24;
+  --chrome-warning-strong: #fcd34d;
+  --chrome-warning-faint: #431407;
+
+  --chrome-focus-ring: #60a5fa;
+  --chrome-backdrop-rgb: 2 6 23;
+
+  --chrome-border-rgb: 100 116 139;
+  --chrome-border-faint-rgb: 51 65 85;
+  --chrome-muted-rgb: 148 163 184;
+  --chrome-shadow-rgb: 2 6 23;
+  --chrome-surface-rgb: 15 23 42;
+  --chrome-surface-raised-rgb: 30 41 59;
+  --chrome-surface-sunken-rgb: 40 53 72;
+  --chrome-accent-rgb: 96 165 250;
+  --chrome-accent-faint-rgb: 23 37 84;
+  --chrome-danger-rgb: 248 113 113;
+  --chrome-danger-strong-rgb: 239 68 68;
+  --chrome-danger-faint-rgb: 69 10 10;
+  --chrome-success-rgb: 45 212 191;
+  --chrome-success-soft-rgb: 17 94 89;
+  --chrome-success-faint-rgb: 4 47 46;
+  --chrome-warning-rgb: 251 191 36;
+  --chrome-warning-strong-rgb: 250 204 21;
+}
+
 html {
   height: 100%;
   width: 100%;

@@ -8,10 +8,15 @@ import { searchAreas } from './areaSearch.ts'
 import {
   AREA_KINDS,
   AREA_STATUSES,
+  createAreaLink,
   isAreaAssigneeKind,
+  isAreaLinkDirection,
+  isAreaLinkKind,
   removeAreaLinksForDeletedAreas,
   type AreaKind,
   type AreaLink,
+  type AreaLinkDirection,
+  type AreaLinkKind,
   type AreaMetadata,
   type AreaStatus,
 } from './areaMetadata.ts'
@@ -136,6 +141,24 @@ export type AgentPatchOperation =
       op: 'nestArea'
       areaId: string
       parentId: string | null
+    }
+  // Link operations (Mermaid interop spec): connectors are first-class
+  // proposal content so agent-imported diagrams arrive whole. `direction`
+  // maps to the link's visual direction; unset falls back to 'forward'.
+  | {
+      op: 'createLink'
+      link: {
+        id?: string
+        fromAreaId: string
+        toAreaId: string
+        kind?: AreaLinkKind
+        label?: string
+        direction?: AreaLinkDirection
+      }
+    }
+  | {
+      op: 'deleteLink'
+      linkId: string
     }
 
 export type AgentPatch = {
@@ -908,14 +931,31 @@ export const validateAgentPatch = (
       `Patch must include 1-${maxOperations} operations.`
     )
   } else {
+    // Link endpoints may reference Areas created earlier in the same
+    // patch (by explicit id or tempId), so track them as we validate.
+    const createdAreaIds = new Set<string>()
+
     patch.operations.forEach((operation, index) => {
       validateAgentOperation(
         state,
         operation,
         index,
         cssSupports,
-        errors
+        errors,
+        createdAreaIds
       )
+
+      if (isRecord(operation) && operation.op === 'createArea') {
+        createdAreaIds.add(
+          getCreatedAgentAreaId(
+            operation as Extract<
+              AgentPatchOperation,
+              { op: 'createArea' }
+            >,
+            index
+          )
+        )
+      }
     })
   }
 
@@ -1165,6 +1205,37 @@ const createAgentUndoOperation = (
     }
   }
 
+  if (operation.op === 'createLink') {
+    return {
+      op: 'deleteLink',
+      linkId: getCreatedAgentLinkId(operation, index),
+    }
+  }
+
+  if (operation.op === 'deleteLink') {
+    const link = (state.links ?? []).find(
+      (candidate) => candidate.id === operation.linkId
+    )
+
+    if (!link) return null
+
+    // Restores identity, endpoints, kind, label, and direction; other
+    // visual/schema details are documented lossy for undo.
+    return {
+      op: 'createLink',
+      link: {
+        id: link.id,
+        fromAreaId: link.fromAreaId,
+        toAreaId: link.toAreaId,
+        kind: link.kind,
+        ...(link.label ? { label: link.label } : {}),
+        ...(link.visual?.direction
+          ? { direction: link.visual.direction }
+          : {}),
+      },
+    }
+  }
+
   const area = state.areas.find(
     (candidate): candidate is TextAreaState =>
       candidate.id === operation.areaId && candidate.type !== 'image'
@@ -1231,7 +1302,8 @@ const validateAgentOperation = (
   operation: AgentPatchOperation,
   index: number,
   cssSupports: CssSupportChecker,
-  errors: string[]
+  errors: string[],
+  createdAreaIds: Set<string> = new Set()
 ) => {
   if (!isRecord(operation) || typeof operation.op !== 'string') {
     errors.push(`Operation ${index + 1} is malformed.`)
@@ -1297,7 +1369,80 @@ const validateAgentOperation = (
     return
   }
 
+  if (operation.op === 'createLink') {
+    validateCreateLinkOperation(
+      state,
+      operation,
+      index,
+      errors,
+      createdAreaIds
+    )
+    return
+  }
+
+  if (operation.op === 'deleteLink') {
+    if (
+      typeof operation.linkId !== 'string' ||
+      !(state.links ?? []).some((link) => link.id === operation.linkId)
+    ) {
+      errors.push(`Operation ${index + 1} references an unknown link.`)
+    }
+
+    return
+  }
+
   errors.push(`Operation ${index + 1} has an unsupported op.`)
+}
+
+const MAX_AGENT_LINK_LABEL_LENGTH = 200
+
+const validateCreateLinkOperation = (
+  state: PageAppState,
+  operation: Extract<AgentPatchOperation, { op: 'createLink' }>,
+  index: number,
+  errors: string[],
+  createdAreaIds: Set<string>
+) => {
+  if (!isRecord(operation.link)) {
+    errors.push(`Operation ${index + 1} link must be an object.`)
+    return
+  }
+
+  const { fromAreaId, toAreaId, kind, label, direction } = operation.link
+  const endpointExists = (areaId: unknown): areaId is string =>
+    typeof areaId === 'string' &&
+    (hasArea(state, areaId) || createdAreaIds.has(areaId))
+
+  if (!endpointExists(fromAreaId) || !endpointExists(toAreaId)) {
+    errors.push(
+      `Operation ${index + 1} link references an unknown Area endpoint.`
+    )
+  }
+
+  if (kind !== undefined && !isAreaLinkKind(kind)) {
+    errors.push(`Operation ${index + 1} has an invalid link kind.`)
+  }
+
+  if (direction !== undefined && !isAreaLinkDirection(direction)) {
+    errors.push(`Operation ${index + 1} has an invalid link direction.`)
+  }
+
+  if (
+    label !== undefined &&
+    (typeof label !== 'string' ||
+      label.length > MAX_AGENT_LINK_LABEL_LENGTH)
+  ) {
+    errors.push(`Operation ${index + 1} has an invalid link label.`)
+  }
+
+  const linkId = operation.link.id
+
+  if (
+    typeof linkId === 'string' &&
+    (state.links ?? []).some((link) => link.id === linkId)
+  ) {
+    errors.push(`Operation ${index + 1} link id already exists.`)
+  }
 }
 
 const validateUpdateAreaMetadataOperation = (
@@ -1614,6 +1759,35 @@ const applyAgentOperation = (
     }
   }
 
+  if (operation.op === 'createLink') {
+    return {
+      ...state,
+      links: [
+        ...(state.links ?? []),
+        createAreaLink({
+          id: getCreatedAgentLinkId(operation, index),
+          fromAreaId: operation.link.fromAreaId,
+          toAreaId: operation.link.toAreaId,
+          kind: operation.link.kind ?? 'relates-to',
+          ...(operation.link.label ? { label: operation.link.label } : {}),
+          visual: {
+            mode: 'semantic',
+            direction: operation.link.direction ?? 'forward',
+          },
+        }),
+      ],
+    }
+  }
+
+  if (operation.op === 'deleteLink') {
+    return {
+      ...state,
+      links: (state.links ?? []).filter(
+        (link) => link.id !== operation.linkId
+      ),
+    }
+  }
+
   return {
     ...state,
     areas: state.areas.filter((area) => area.id !== operation.areaId),
@@ -1623,6 +1797,11 @@ const applyAgentOperation = (
     ),
   }
 }
+
+const getCreatedAgentLinkId = (
+  operation: Extract<AgentPatchOperation, { op: 'createLink' }>,
+  index: number
+) => operation.link.id ?? `agent_link_${index + 1}`
 
 const toAgentAreaResource = (
   area: AreaState,

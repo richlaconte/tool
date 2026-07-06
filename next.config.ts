@@ -7,6 +7,7 @@ const workspaceRoot = dirname(fileURLToPath(import.meta.url))
 const nextConfig: NextConfig = {
   allowedDevOrigins: ['127.0.0.1'],
   reactStrictMode: true,
+  serverExternalPackages: ['yjs'],
   turbopack: {
     root: workspaceRoot,
   },

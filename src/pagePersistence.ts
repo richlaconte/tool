@@ -578,6 +578,13 @@ const parseAreaMetadata = (
     return undefined
   }
 
+  if (
+    value.earsHintDismissed !== undefined &&
+    typeof value.earsHintDismissed !== 'boolean'
+  ) {
+    return undefined
+  }
+
   const evidence = parseAreaEvidence(value.evidence)
   if (evidence === undefined) return undefined
 
@@ -593,6 +600,9 @@ const parseAreaMetadata = (
     ...(value.filePath ? { filePath: value.filePath } : {}),
     ...(value.url ? { url: value.url } : {}),
     ...(evidence ? { evidence } : {}),
+    ...(value.earsHintDismissed === true
+      ? { earsHintDismissed: true }
+      : {}),
   })
 }
 

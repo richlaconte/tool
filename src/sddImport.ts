@@ -55,6 +55,37 @@ const BASE_X = 120
 
 const HEADING_KIND = buildHeadingKindMap()
 
+// Sections whose content is derived by the exporter (never authored on the
+// canvas) — re-importing them would duplicate structure as noise.
+const SKIPPED_HEADINGS = new Set(['coverage gaps'])
+
+// Spec Kit task lines carry `T001`, `[P]`, and `[US1]` markers plus
+// exporter-derived requirement refs; all are presentation, not content.
+const stripTaskMarkers = (title: string) =>
+  title
+    .replace(/^T\d+\s+/, '')
+    .replace(/^\[P\]\s+/, '')
+    .replace(/^\[US\d+\]\s+/, '')
+    .replace(/\s+\(implements:[^)]*\)\s*$/i, '')
+    .replace(/\s+—\s+implements:.*$/i, '')
+
+const FUNCTIONAL_REQUIREMENT_BULLET =
+  /^[-*]\s+\*\*FR-\d+\*\*:\s+(.*)$/
+
+const isDerivedLine = (line: string) => {
+  const trimmed = line.trim()
+
+  return (
+    /^-\s+Implemented by:/i.test(trimmed) ||
+    trimmed.startsWith('[NEEDS CLARIFICATION') ||
+    /^-\s+\[NEEDS CLARIFICATION/i.test(trimmed) ||
+    // Spec Kit front-matter metadata lines (`**Feature Branch**: ...`).
+    /^\*\*[^*]+\*\*:/.test(trimmed) ||
+    // Generated plan.md summary sentence.
+    trimmed.startsWith('Exported from the Cascadery page')
+  )
+}
+
 export const parseSddMarkdown = (markdown: string): SddImportResult => {
   const lines = markdown.split(/\r?\n/)
   const sections: ImportedSection[] = []
@@ -64,6 +95,7 @@ export const parseSddMarkdown = (markdown: string): SddImportResult => {
   let currentSection: ImportedSection | null = null
   let currentItem: (ImportedItem & { bodyLines: string[] }) | null = null
   let pendingAnchor: string | null = null
+  let skippingSection = false
 
   const flushItem = () => {
     if (!currentItem || !currentSection) {
@@ -109,7 +141,16 @@ export const parseSddMarkdown = (markdown: string): SddImportResult => {
     if (h1) {
       flushItem()
 
-      if (title === null && !isBundleFileHeading(h1[1])) {
+      const specKitTitle =
+        /^Feature Specification:\s*(.+)$/i.exec(h1[1].trim())
+
+      if (title === null && specKitTitle) {
+        title = specKitTitle[1].trim()
+      } else if (
+        title === null &&
+        !isBundleFileHeading(h1[1]) &&
+        !isSpecKitFileHeading(h1[1])
+      ) {
         title = h1[1].trim()
       }
 
@@ -122,7 +163,21 @@ export const parseSddMarkdown = (markdown: string): SddImportResult => {
       flushItem()
 
       const heading = h2[1].trim()
-      const kind = HEADING_KIND.get(normalizeHeading(heading))
+      const normalized = normalizeHeading(heading)
+
+      if (SKIPPED_HEADINGS.has(normalized)) {
+        // Derived exporter content (e.g. Coverage Gaps): skip the section.
+        currentSection = null
+        skippingSection = true
+        continue
+      }
+
+      skippingSection = false
+
+      const kind =
+        HEADING_KIND.get(normalized) ??
+        // Spec Kit tasks.md groups tasks into `## Phase N: ...` sections.
+        (normalized.startsWith('phase ') ? ('task' as const) : undefined)
 
       if (!kind) {
         warnings.push(
@@ -139,10 +194,28 @@ export const parseSddMarkdown = (markdown: string): SddImportResult => {
       continue
     }
 
+    if (skippingSection) continue
+
     const h3 = /^###\s+(.*)$/.exec(line)
 
     if (h3) {
       flushItem()
+
+      // Spec Kit uses H3 subsection headers inside mandatory sections;
+      // they are structure, not items — switch the section kind instead.
+      const subsectionKind = H3_SECTION_KINDS.get(
+        normalizeHeading(h3[1])
+      )
+
+      if (subsectionKind) {
+        currentSection = {
+          heading: h3[1].trim(),
+          kind: subsectionKind,
+          items: [],
+        }
+        sections.push(currentSection)
+        continue
+      }
 
       const section = ensureSection()
       const { title: itemTitle, status } = parseTitleStatus(h3[1].trim())
@@ -166,7 +239,7 @@ export const parseSddMarkdown = (markdown: string): SddImportResult => {
 
       const checked = task[1].toLowerCase() === 'x'
       const { title: taskTitle, status } = parseTaskItem(
-        task[2].trim(),
+        stripTaskMarkers(task[2].trim()),
         checked
       )
 
@@ -180,6 +253,31 @@ export const parseSddMarkdown = (markdown: string): SddImportResult => {
       pendingAnchor = null
       continue
     }
+
+    // Spec Kit functional-requirement bullets (`- **FR-001**: ...`).
+    const requirementBullet = FUNCTIONAL_REQUIREMENT_BULLET.exec(line)
+
+    if (
+      requirementBullet &&
+      currentSection &&
+      currentSection.kind === 'requirement'
+    ) {
+      flushItem()
+
+      currentItem = {
+        anchorAreaId: pendingAnchor,
+        kind: 'requirement',
+        title: requirementBullet[1].trim().slice(0, 80),
+        body: '',
+        bodyLines: [],
+      }
+      pendingAnchor = null
+      continue
+    }
+
+    // Exporter-derived and Spec Kit boilerplate lines are presentation,
+    // not canvas content.
+    if (isDerivedLine(line)) continue
 
     if (line.trim().length === 0) {
       if (currentItem) currentItem.bodyLines.push(line)
@@ -374,9 +472,25 @@ const parseTaskItem = (
 const isBundleFileHeading = (heading: string) =>
   /^(spec|plan|tasks)\.md$/i.test(heading.trim())
 
+// Spec Kit companion-file H1s; spec.md's Feature Specification title wins.
+const isSpecKitFileHeading = (heading: string) =>
+  /^(Implementation Plan|Tasks):/i.test(heading.trim())
+
 function normalizeHeading(heading: string) {
-  return heading.trim().toLowerCase()
+  return heading
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\*\([^)]*\)\*\s*$/, '')
 }
+
+// Spec Kit H3 subsection headers that switch section kind (see
+// SPEC_KIT_TEMPLATE_VERSION in sddExport.ts for the verified template).
+const H3_SECTION_KINDS = new Map<string, AreaKind>([
+  ['functional requirements', 'requirement'],
+  ['edge cases', 'risk'],
+  ['key entities', 'api'],
+  ['measurable outcomes', 'note'],
+])
 
 function buildHeadingKindMap() {
   const map = new Map<string, AreaKind>()
@@ -390,6 +504,17 @@ function buildHeadingKindMap() {
   map.set('notes', 'note')
   map.set('tasks', 'task')
   map.set('architecture', 'component')
+
+  // Spec Kit template headings (github/spec-kit main, verified 2026-07-06).
+  map.set('functional requirements', 'requirement')
+  map.set('user scenarios & testing', 'ui-state')
+  map.set('user scenarios and testing', 'ui-state')
+  map.set('edge cases', 'risk')
+  map.set('assumptions', 'note')
+  map.set('success criteria', 'note')
+  map.set('summary', 'note')
+  map.set('technical context', 'component')
+  map.set('key entities', 'api')
 
   return map
 }

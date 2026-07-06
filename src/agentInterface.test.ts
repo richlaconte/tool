@@ -936,3 +936,188 @@ test('prompt-injection text inside areas cannot escalate agent permissions', () 
   assert.equal(result.ok, false)
   assert.match(result.errors.join('\n'), /page:write/)
 })
+
+const linkFixtureState = (): PageAppState => ({
+  ...state,
+  links: [
+    {
+      id: 'link-existing',
+      fromAreaId: 'area-1',
+      toAreaId: 'area-2',
+      kind: 'answers',
+      label: 'answered by',
+      createdAt: now,
+      updatedAt: now,
+    },
+  ],
+})
+
+test('createLink operations validate endpoints, apply, and undo', () => {
+  const fixture = linkFixtureState()
+  const patch: AgentPatch = {
+    schemaVersion: 1,
+    id: 'patch-links',
+    pageId: fixture.page.id,
+    source: {
+      kind: 'mcp-agent',
+      clientId: writeClient.id,
+      displayName: writeClient.displayName,
+    },
+    operations: [
+      {
+        op: 'createArea',
+        tempId: 'new-area',
+        area: {
+          id: 'new-area',
+          type: 'text',
+          text: 'Created by patch',
+          x: 500,
+          y: 500,
+          width: 200,
+          height: 100,
+        },
+      },
+      {
+        op: 'createLink',
+        link: {
+          id: 'patch-link-1',
+          fromAreaId: 'new-area',
+          toAreaId: 'area-1',
+          kind: 'implements',
+          label: 'covers',
+          direction: 'forward',
+        },
+      },
+    ],
+    createdAt: now,
+  }
+
+  const validation = validateAgentPatch(fixture, patch, writeClient)
+
+  assert.deepEqual(validation, { ok: true })
+
+  const applied = applyAgentPatch(fixture, patch, writeClient)
+
+  assert.ok(applied.ok)
+  assert.equal(applied.state.links?.length, 2)
+
+  const created = applied.state.links?.find(
+    (link) => link.id === 'patch-link-1'
+  )
+
+  assert.ok(created)
+  assert.equal(created.kind, 'implements')
+  assert.equal(created.label, 'covers')
+  assert.equal(created.visual?.direction, 'forward')
+
+  const undone = applyAgentPatch(
+    applied.state,
+    applied.auditRecord.undoPatch,
+    writeClient
+  )
+
+  assert.ok(undone.ok)
+  assert.equal(
+    undone.state.links?.some((link) => link.id === 'patch-link-1'),
+    false
+  )
+  assert.equal(
+    undone.state.links?.some((link) => link.id === 'link-existing'),
+    true
+  )
+})
+
+test('createLink rejects unknown endpoints, bad kinds, and duplicate ids', () => {
+  const fixture = linkFixtureState()
+  const validate = (link: Record<string, unknown>) =>
+    validateAgentPatch(
+      fixture,
+      {
+        schemaVersion: 1,
+        id: 'patch-bad-link',
+        pageId: fixture.page.id,
+        source: {
+          kind: 'mcp-agent',
+          clientId: suggestClient.id,
+          displayName: suggestClient.displayName,
+        },
+        operations: [{ op: 'createLink', link } as never],
+        createdAt: now,
+      },
+      suggestClient
+    )
+
+  const unknownEndpoint = validate({
+    fromAreaId: 'missing-area',
+    toAreaId: 'area-1',
+  })
+  const badKind = validate({
+    fromAreaId: 'area-1',
+    toAreaId: 'area-2',
+    kind: 'sparkles',
+  })
+  const duplicate = validate({
+    fromAreaId: 'area-1',
+    toAreaId: 'area-2',
+    id: 'link-existing',
+  })
+
+  assert.equal(unknownEndpoint.ok, false)
+  assert.ok(!unknownEndpoint.ok)
+  assert.match(unknownEndpoint.errors.join(' '), /unknown Area endpoint/)
+  assert.equal(badKind.ok, false)
+  assert.ok(!badKind.ok)
+  assert.match(badKind.errors.join(' '), /invalid link kind/)
+  assert.equal(duplicate.ok, false)
+  assert.ok(!duplicate.ok)
+  assert.match(duplicate.errors.join(' '), /link id already exists/)
+})
+
+test('deleteLink applies, undoes, and rejects unknown links', () => {
+  const fixture = linkFixtureState()
+  const patch: AgentPatch = {
+    schemaVersion: 1,
+    id: 'patch-delete-link',
+    pageId: fixture.page.id,
+    source: {
+      kind: 'mcp-agent',
+      clientId: writeClient.id,
+      displayName: writeClient.displayName,
+    },
+    operations: [{ op: 'deleteLink', linkId: 'link-existing' }],
+    createdAt: now,
+  }
+  const applied = applyAgentPatch(fixture, patch, writeClient)
+
+  assert.ok(applied.ok)
+  assert.equal(applied.state.links?.length, 0)
+
+  const undone = applyAgentPatch(
+    applied.state,
+    applied.auditRecord.undoPatch,
+    writeClient
+  )
+
+  assert.ok(undone.ok)
+
+  const restored = undone.state.links?.find(
+    (link) => link.id === 'link-existing'
+  )
+
+  assert.ok(restored)
+  assert.equal(restored.kind, 'answers')
+  assert.equal(restored.label, 'answered by')
+
+  const unknown = validateAgentPatch(
+    fixture,
+    {
+      ...patch,
+      operations: [{ op: 'deleteLink', linkId: 'missing-link' }],
+    },
+    writeClient
+  )
+
+  assert.equal(unknown.ok, false)
+  assert.ok(!unknown.ok)
+  assert.match(unknown.errors.join(' '), /unknown link/)
+})

@@ -1,3 +1,6 @@
+/* chrome-token-exception: Markdown/code rendering inside Areas is canvas
+   content — syntax and inline-code colors below stay fixed in both
+   schemes. Only chrome affordances (.md-mermaid-convert) use tokens. */
 .area-markdown {
   box-sizing: border-box;
   position: relative;
@@ -99,4 +102,26 @@ h3.md-heading {
 
 .md-token-number {
   color: #b45309;
+}
+
+.md-mermaid-block {
+  position: relative;
+  display: grid;
+  gap: 6px;
+}
+
+.md-mermaid-convert {
+  justify-self: start;
+  font-size: 11px;
+  padding: 2px 10px;
+  border: 1px solid var(--chrome-border-strong);
+  border-radius: 4px;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-accent);
+  cursor: pointer;
+}
+
+.md-mermaid-convert:hover,
+.md-mermaid-convert:focus-visible {
+  border-color: var(--chrome-accent);
 }

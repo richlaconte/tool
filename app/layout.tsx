@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
+import { COLOR_SCHEME_BOOTSTRAP_SCRIPT } from '../src/colorScheme'
 import '../src/index.css'
 import '../src/App.css'
 import '../src/components/area.css'
@@ -26,6 +27,12 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
       {process.env.TOOL_TELEMETRY_DISABLED === 'true' && (
         <meta content="disabled" name="cascadery-telemetry" />
       )}
+      {/* Synchronous scheme bootstrap: no flash of the wrong theme. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: COLOR_SCHEME_BOOTSTRAP_SCRIPT,
+        }}
+      />
     </head>
     <body>{children}</body>
   </html>

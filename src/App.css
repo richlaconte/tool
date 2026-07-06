@@ -1,7 +1,7 @@
 .shelf-page {
   min-height: 100vh;
-  background: #f8fafc;
-  color: #172033;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
   padding: 48px;
@@ -40,7 +40,7 @@
 
 .shelf-page p {
   max-width: 560px;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   line-height: 1.5;
   margin: 0;
 }
@@ -54,10 +54,10 @@
 .shelf-actions a,
 .shelf-actions button,
 .shelf-card button {
-  border: 1px solid rgb(100 116 139 / 24%);
+  border: 1px solid rgb(var(--chrome-muted-rgb) / 24%);
   border-radius: 7px;
-  background: #ffffff;
-  color: #1e293b;
+  background: var(--chrome-surface);
+  color: var(--chrome-text);
   cursor: pointer;
   font: 600 13px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -76,15 +76,15 @@
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 14px;
-  border: 1px solid rgb(100 116 139 / 16%);
+  border: 1px solid rgb(var(--chrome-muted-rgb) / 16%);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--chrome-surface);
   padding: 14px;
 }
 
 .shelf-card a {
   overflow: hidden;
-  color: #0f172a;
+  color: var(--chrome-text);
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -92,7 +92,7 @@
 
 .shelf-card time,
 .shelf-empty {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 13px;
 }
 
@@ -127,8 +127,8 @@
   position: absolute;
   z-index: 65;
   box-sizing: border-box;
-  border: 1px solid rgb(37 99 235 / 64%);
-  background: rgb(37 99 235 / 8%);
+  border: 1px solid rgb(var(--chrome-accent-rgb) / 64%);
+  background: rgb(var(--chrome-accent-rgb) / 8%);
   pointer-events: none;
 }
 
@@ -153,7 +153,7 @@
 }
 
 .area-link-layer marker path {
-  fill: #475569;
+  fill: var(--chrome-text-soft);
 }
 
 .area-link-group {
@@ -161,7 +161,7 @@
 }
 
 .area-link-line {
-  stroke: rgb(71 85 105 / 48%);
+  stroke: rgb(var(--chrome-muted-rgb) / 48%);
   stroke-linecap: round;
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
@@ -172,18 +172,18 @@
 }
 
 .area-link-line--schema {
-  stroke: rgb(37 99 235 / 54%);
+  stroke: rgb(var(--chrome-accent-rgb) / 54%);
 }
 
 .area-link-line--selected {
-  stroke: #334155;
+  stroke: var(--chrome-text-secondary);
   stroke-dasharray: none;
   stroke-width: 2.4;
 }
 
 .area-link-preview-line {
   pointer-events: none;
-  stroke: rgb(37 99 235 / 58%);
+  stroke: rgb(var(--chrome-accent-rgb) / 58%);
   stroke-dasharray: 6 5;
   stroke-linecap: round;
   stroke-width: 2;
@@ -200,7 +200,7 @@
 }
 
 .area-link-hit-target:focus-visible + .area-link-line {
-  stroke: #334155;
+  stroke: var(--chrome-text-secondary);
   stroke-dasharray: none;
   stroke-width: 2.4;
   outline: none;
@@ -209,15 +209,15 @@
 .area-link-endpoint-mark {
   fill: white;
   pointer-events: none;
-  stroke: rgb(37 99 235 / 62%);
+  stroke: rgb(var(--chrome-accent-rgb) / 62%);
   stroke-width: 1.5;
   vector-effect: non-scaling-stroke;
 }
 
 .area-link-endpoint-handle {
-  fill: #ffffff;
+  fill: var(--chrome-surface);
   pointer-events: all;
-  stroke: #2563eb;
+  stroke: var(--chrome-accent);
   stroke-width: 2;
   cursor: grab;
   vector-effect: non-scaling-stroke;
@@ -225,9 +225,9 @@
 
 .area-link-endpoint-handle:hover,
 .area-link-endpoint-handle:focus-visible {
-  fill: #eff6ff;
+  fill: var(--chrome-accent-faint);
   outline: none;
-  stroke: #1d4ed8;
+  stroke: var(--chrome-accent-strong);
 }
 
 .area-link-endpoint-handle:active {
@@ -236,11 +236,11 @@
 
 .area-link-label {
   paint-order: stroke fill;
-  fill: #334155;
+  fill: var(--chrome-text-secondary);
   font: 11px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   pointer-events: none;
-  stroke: rgb(255 255 255 / 92%);
+  stroke: rgb(var(--chrome-surface-rgb) / 92%);
   stroke-linejoin: round;
   stroke-width: 5;
   user-select: none;
@@ -249,13 +249,13 @@
 .area-link-edit-button {
   position: absolute;
   z-index: 63;
-  border: 1px solid rgb(148 163 184 / 42%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 42%);
   border-radius: 6px;
-  background: rgb(255 255 255 / 96%);
+  background: rgb(var(--chrome-surface-rgb) / 96%);
   box-shadow:
-    0 5px 18px rgb(15 23 42 / 12%),
-    0 1px 4px rgb(15 23 42 / 8%);
-  color: #334155;
+    0 5px 18px rgb(var(--chrome-shadow-rgb) / 12%),
+    0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: 600 11px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -270,9 +270,9 @@
 
 .area-link-edit-button:hover,
 .area-link-edit-button:focus-visible {
-  background: #f8fafc;
-  color: #111827;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 1px;
 }
 
@@ -282,13 +282,13 @@
   display: grid;
   width: min(340px, calc(100vw - 32px));
   gap: 8px;
-  border: 1px solid rgb(148 163 184 / 34%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 34%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 98%);
+  background: rgb(var(--chrome-surface-rgb) / 98%);
   box-shadow:
-    0 18px 48px rgb(15 23 42 / 16%),
-    0 2px 8px rgb(15 23 42 / 8%);
-  color: #111827;
+    0 18px 48px rgb(var(--chrome-shadow-rgb) / 16%),
+    0 2px 8px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text);
   font: 12px/1.25 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 9px;
@@ -309,7 +309,7 @@
 
 .area-link-flyout-header strong {
   min-width: 0;
-  color: #1f2937;
+  color: var(--chrome-text);
   font-weight: 650;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -325,10 +325,10 @@
 .area-link-flyout-chip,
 .area-link-flyout-close,
 .area-link-flyout-actions button {
-  border: 1px solid rgb(148 163 184 / 38%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 38%);
   border-radius: 6px;
-  background: #ffffff;
-  color: #334155;
+  background: var(--chrome-surface);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: inherit;
   padding: 5px 7px;
@@ -350,29 +350,29 @@
 .area-link-flyout-close:focus-visible,
 .area-link-flyout-actions button:hover,
 .area-link-flyout-actions button:focus-visible {
-  background: #f8fafc;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  background: var(--chrome-surface-raised);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 1px;
 }
 
 .area-link-flyout-chip--selected {
-  border-color: rgb(37 99 235 / 48%);
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: rgb(var(--chrome-accent-rgb) / 48%);
+  background: var(--chrome-accent-faint);
+  color: var(--chrome-accent-strong);
 }
 
 .area-link-flyout-label {
   display: grid;
   gap: 4px;
-  color: #475569;
+  color: var(--chrome-text-soft);
 }
 
 .area-link-flyout-label input {
   box-sizing: border-box;
   width: 100%;
-  border: 1px solid rgb(148 163 184 / 42%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 42%);
   border-radius: 6px;
-  color: #111827;
+  color: var(--chrome-text);
   font: inherit;
   padding: 6px 7px;
 }
@@ -384,8 +384,8 @@
 }
 
 .area-link-flyout-actions .area-link-flyout-danger {
-  border-color: rgb(248 113 113 / 42%);
-  color: #b91c1c;
+  border-color: rgb(var(--chrome-danger-rgb) / 42%);
+  color: var(--chrome-danger);
 }
 
 .gif-search-flyout {
@@ -396,13 +396,13 @@
   max-width: calc(100vw - 32px);
   overflow: hidden;
   gap: 10px;
-  border: 1px solid rgb(148 163 184 / 36%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 36%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 98%);
+  background: rgb(var(--chrome-surface-rgb) / 98%);
   box-shadow:
-    0 18px 50px rgb(15 23 42 / 18%),
-    0 2px 8px rgb(15 23 42 / 10%);
-  color: #111827;
+    0 18px 50px rgb(var(--chrome-shadow-rgb) / 18%),
+    0 2px 8px rgb(var(--chrome-shadow-rgb) / 10%);
+  color: var(--chrome-text);
   font: 12px/1.3 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 10px;
@@ -418,13 +418,13 @@
   display: grid;
   width: min(320px, calc(100vw - 32px));
   gap: 10px;
-  border: 1px solid rgb(148 163 184 / 34%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 34%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 98%);
+  background: rgb(var(--chrome-surface-rgb) / 98%);
   box-shadow:
-    0 18px 48px rgb(15 23 42 / 16%),
-    0 2px 8px rgb(15 23 42 / 8%);
-  color: #111827;
+    0 18px 48px rgb(var(--chrome-shadow-rgb) / 16%),
+    0 2px 8px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text);
   font: 12px/1.35 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 10px;
@@ -449,13 +449,13 @@
 }
 
 .area-comment-panel-header strong {
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
 }
 
 .area-comment-panel-header span {
   overflow: hidden;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -466,10 +466,10 @@
   width: 24px;
   height: 24px;
   place-items: center;
-  border: 1px solid rgb(148 163 184 / 38%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 38%);
   border-radius: 6px;
-  background: #ffffff;
-  color: #334155;
+  background: var(--chrome-surface);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: inherit;
   padding: 0;
@@ -484,9 +484,9 @@
 .area-comment,
 .area-comment-empty {
   margin: 0;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 8px;
 }
 
@@ -499,12 +499,12 @@
   min-width: 0;
   align-items: center;
   gap: 6px;
-  color: #64748b;
+  color: var(--chrome-text-muted);
 }
 
 .area-comment-meta strong {
   overflow: hidden;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -518,7 +518,7 @@
 
 .area-comment p {
   margin: 7px 0 0;
-  color: #1f2937;
+  color: var(--chrome-text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   user-select: text;
@@ -533,10 +533,10 @@
 
 .area-comment-actions button,
 .area-comment-form button {
-  border: 1px solid rgb(148 163 184 / 38%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 38%);
   border-radius: 6px;
-  background: #ffffff;
-  color: #334155;
+  background: var(--chrome-surface);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: inherit;
   padding: 5px 7px;
@@ -544,8 +544,8 @@
 }
 
 .area-comment-actions .area-comment-delete {
-  border-color: rgb(248 113 113 / 42%);
-  color: #b91c1c;
+  border-color: rgb(var(--chrome-danger-rgb) / 42%);
+  color: var(--chrome-danger);
 }
 
 .area-comment-form {
@@ -557,23 +557,23 @@
   box-sizing: border-box;
   width: 100%;
   resize: none;
-  border: 1px solid rgb(148 163 184 / 42%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 42%);
   border-radius: 7px;
-  color: #111827;
+  color: var(--chrome-text);
   font: inherit;
   padding: 7px;
 }
 
 .area-comment-form button {
   justify-self: end;
-  border-color: rgb(37 99 235 / 30%);
-  background: #2563eb;
+  border-color: rgb(var(--chrome-accent-rgb) / 30%);
+  background: var(--chrome-accent);
   color: white;
 }
 
 .area-comment-error {
   margin: 0;
-  color: #b91c1c;
+  color: var(--chrome-danger);
 }
 
 .area-comment-actions button:hover,
@@ -582,7 +582,7 @@
 .area-comment-form button:focus-visible,
 .area-comment-panel-close:hover,
 .area-comment-panel-close:focus-visible {
-  outline: 2px solid rgb(37 99 235 / 18%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 1px;
 }
 
@@ -609,7 +609,7 @@
 
 .gif-search-header span,
 .gif-search-footer {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 11px;
 }
 
@@ -622,7 +622,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #475569;
+  color: var(--chrome-text-soft);
   cursor: pointer;
   font: inherit;
   padding: 0;
@@ -630,8 +630,8 @@
 
 .gif-search-close:hover,
 .gif-search-close:focus-visible {
-  background: #f1f5f9;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  background: var(--chrome-surface-sunken);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 1px;
 }
 
@@ -648,7 +648,7 @@
   overflow: hidden;
   border: 2px solid transparent;
   border-radius: 7px;
-  background: #e5e7eb;
+  background: var(--chrome-border);
   cursor: pointer;
   padding: 0;
 }
@@ -663,16 +663,16 @@
 
 .gif-search-result--selected,
 .gif-search-result:focus-visible {
-  border-color: #2563eb;
+  border-color: var(--chrome-accent);
   outline: none;
 }
 
 .gif-search-message {
   margin: 0;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 7px;
-  background: #f8fafc;
-  color: #475569;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text-soft);
   padding: 10px;
 }
 
@@ -680,12 +680,12 @@
   background-image:
     linear-gradient(
       to right,
-      rgb(148 163 184 / 18%) 1px,
+      rgb(var(--chrome-border-rgb) / 18%) 1px,
       transparent 1px
     ),
     linear-gradient(
       to bottom,
-      rgb(148 163 184 / 18%) 1px,
+      rgb(var(--chrome-border-rgb) / 18%) 1px,
       transparent 1px
     );
   background-size:
@@ -701,10 +701,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid rgb(148 163 184 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 94%);
-  box-shadow: 0 2px 10px rgb(15 23 42 / 12%);
+  background: rgb(var(--chrome-surface-rgb) / 94%);
+  box-shadow: 0 2px 10px rgb(var(--chrome-shadow-rgb) / 12%);
   padding: 4px;
   user-select: none;
 }
@@ -716,7 +716,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #1f2937;
+  color: var(--chrome-text);
   cursor: pointer;
   font: 600 13px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -725,15 +725,15 @@
 
 .canvas-zoom-value {
   min-width: 64px;
-  color: #475569;
+  color: var(--chrome-text-soft);
 }
 
 .canvas-zoom-button:hover,
 .canvas-zoom-button:focus-visible,
 .canvas-zoom-value:hover,
 .canvas-zoom-value:focus-visible {
-  background: #f3f4f6;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  background: var(--chrome-surface-sunken);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 1px;
 }
 
@@ -754,13 +754,13 @@
   width: 40px;
   height: 40px;
   place-items: center;
-  border: 1px solid rgb(100 116 139 / 36%);
+  border: 1px solid rgb(var(--chrome-muted-rgb) / 36%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 92%);
+  background: rgb(var(--chrome-surface-rgb) / 92%);
   box-shadow:
-    0 8px 24px rgb(15 23 42 / 13%),
-    0 1px 4px rgb(15 23 42 / 12%);
-  color: #334155;
+    0 8px 24px rgb(var(--chrome-shadow-rgb) / 13%),
+    0 1px 4px rgb(var(--chrome-shadow-rgb) / 12%);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   padding: 0;
   pointer-events: auto;
@@ -769,10 +769,10 @@
 
 .offscreen-area-indicator:hover,
 .offscreen-area-indicator:focus-visible {
-  border-color: rgb(37 99 235 / 34%);
-  background: #ffffff;
-  color: #1d4ed8;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  border-color: rgb(var(--chrome-accent-rgb) / 34%);
+  background: var(--chrome-surface);
+  color: var(--chrome-accent-strong);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 2px;
 }
 
@@ -797,10 +797,10 @@
   height: 18px;
   box-sizing: border-box;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 90%);
+  border: 1px solid rgb(var(--chrome-surface-rgb) / 90%);
   border-radius: 999px;
-  background: #0f172a;
-  color: #ffffff;
+  background: var(--chrome-inverse-surface-deep);
+  color: var(--chrome-surface);
   font: 700 10px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 0 4px;
@@ -814,7 +814,7 @@
   display: grid;
   width: min(720px, calc(100vw - 40px));
   gap: 10px;
-  color: #9ca3af;
+  color: var(--chrome-text-faint);
   font: 15px/1.4 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   pointer-events: none;
@@ -824,16 +824,16 @@
 }
 
 .canvas-hint strong {
-  color: #8b95a1;
+  color: var(--chrome-text-faint);
   font-size: 17px;
   line-height: 1.25;
 }
 
 .canvas-hint kbd {
-  border: 1px solid rgb(156 163 175 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 5px;
-  background: rgb(243 244 246 / 72%);
-  color: #6b7280;
+  background: rgb(var(--chrome-surface-sunken-rgb) / 72%);
+  color: var(--chrome-text-muted);
   font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 2px 5px;
@@ -852,11 +852,11 @@
   display: grid;
   min-width: 0;
   gap: 3px;
-  border: 1px solid rgb(148 163 184 / 30%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 30%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 82%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 7%);
-  color: #374151;
+  background: rgb(var(--chrome-surface-rgb) / 82%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 7%);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: 12px/1.25 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -877,7 +877,7 @@
 .context-kit-picker-button small {
   display: -webkit-box;
   overflow: hidden;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 11px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -887,9 +887,9 @@
 .context-kit-button:focus-visible,
 .context-kit-picker-button:hover,
 .context-kit-picker-button:focus-visible {
-  border-color: rgb(37 99 235 / 30%);
-  background: #ffffff;
-  outline: 2px solid rgb(37 99 235 / 16%);
+  border-color: rgb(var(--chrome-accent-rgb) / 30%);
+  background: var(--chrome-surface);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 16%);
   outline-offset: 2px;
 }
 
@@ -901,11 +901,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgb(156 163 175 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 90%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #1f2937;
+  background: rgb(var(--chrome-surface-rgb) / 90%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text);
   cursor: pointer;
   font: 600 13px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -914,12 +914,12 @@
 }
 
 .site-brand:hover {
-  background: #ffffff;
-  border-color: rgb(107 114 128 / 40%);
+  background: var(--chrome-surface);
+  border-color: rgb(var(--chrome-muted-rgb) / 40%);
 }
 
 .site-brand:focus-visible {
-  outline: 2px solid rgb(59 130 246 / 48%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 48%);
   outline-offset: 2px;
 }
 
@@ -935,11 +935,11 @@
   top: 16px;
   right: 16px;
   z-index: 18;
-  border: 1px solid rgb(156 163 175 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 90%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #1f2937;
+  background: rgb(var(--chrome-surface-rgb) / 90%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text);
   font: 600 13px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 10px 12px;
@@ -949,9 +949,9 @@
 
 .view-only-create-canvas:hover,
 .view-only-create-canvas:focus-visible {
-  background: #ffffff;
-  border-color: rgb(107 114 128 / 40%);
-  outline: 2px solid rgb(59 130 246 / 42%);
+  background: var(--chrome-surface);
+  border-color: rgb(var(--chrome-muted-rgb) / 40%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 42%);
   outline-offset: 2px;
 }
 
@@ -963,40 +963,40 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #374151;
+  color: var(--chrome-text-secondary);
   font: 12px/1.3 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   user-select: none;
 }
 
 .save-status {
-  border: 1px solid rgb(156 163 175 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 88%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #4b5563;
+  background: rgb(var(--chrome-surface-rgb) / 88%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text-soft);
   padding: 5px 9px;
 }
 
 .access-mode-badge {
-  border: 1px solid rgb(148 163 184 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 999px;
-  background: rgb(248 250 252 / 92%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #475569;
+  background: rgb(var(--chrome-surface-raised-rgb) / 92%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text-soft);
   padding: 5px 9px;
 }
 
 .access-mode-badge--view-only {
-  color: #0369a1;
+  color: var(--chrome-accent-strong);
 }
 
 .mcp-status-badge {
-  border: 1px solid rgb(20 184 166 / 32%);
+  border: 1px solid rgb(var(--chrome-success-rgb) / 32%);
   border-radius: 999px;
-  background: rgb(240 253 250 / 92%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #0f766e;
+  background: rgb(var(--chrome-success-faint-rgb) / 92%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-success);
   cursor: default;
   font: inherit;
   padding: 5px 9px;
@@ -1008,69 +1008,69 @@ button.mcp-status-badge {
 
 button.mcp-status-badge:hover,
 button.mcp-status-badge:focus-visible {
-  background: rgb(204 251 241 / 92%);
-  outline: 2px solid rgb(20 184 166 / 20%);
+  background: rgb(var(--chrome-success-soft-rgb) / 92%);
+  outline: 2px solid rgb(var(--chrome-success-rgb) / 20%);
   outline-offset: 2px;
 }
 
 .mcp-activity-status {
   max-width: min(260px, 30vw);
   overflow: hidden;
-  border: 1px solid rgb(148 163 184 / 30%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 30%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 88%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #475569;
+  background: rgb(var(--chrome-surface-rgb) / 88%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text-soft);
   padding: 5px 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .save-status--saving {
-  color: #854d0e;
+  color: var(--chrome-warning-strong);
 }
 
 .save-status--syncing {
-  color: #854d0e;
+  color: var(--chrome-warning-strong);
 }
 
 .save-status--saved-locally {
-  color: #0369a1;
+  color: var(--chrome-accent-strong);
 }
 
 .save-status--offline-changes {
-  color: #b91c1c;
+  color: var(--chrome-danger);
 }
 
 .save-status--offline-unavailable {
-  color: #b91c1c;
+  color: var(--chrome-danger);
 }
 
 .page-persistence-button {
-  border: 1px solid rgb(156 163 175 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 7px;
-  background: rgb(255 255 255 / 92%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #1f2937;
+  background: rgb(var(--chrome-surface-rgb) / 92%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text);
   cursor: pointer;
   font: inherit;
   padding: 6px 9px;
 }
 
 .page-persistence-button--accent {
-  border-color: rgb(37 99 235 / 28%);
-  background: rgb(239 246 255 / 94%);
-  color: #1d4ed8;
+  border-color: rgb(var(--chrome-accent-rgb) / 28%);
+  background: rgb(var(--chrome-accent-faint-rgb) / 94%);
+  color: var(--chrome-accent-strong);
 }
 
 .page-persistence-link {
   display: inline-flex;
   align-items: center;
-  border: 1px solid rgb(156 163 175 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 7px;
-  background: rgb(255 255 255 / 92%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #1f2937;
+  background: rgb(var(--chrome-surface-rgb) / 92%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text);
   font: inherit;
   min-height: 28px;
   padding: 0 9px;
@@ -1085,8 +1085,8 @@ button.mcp-status-badge:focus-visible {
 .page-persistence-button:focus-visible,
 .page-persistence-link:hover,
 .page-persistence-link:focus-visible {
-  background: #f9fafb;
-  outline: 2px solid rgb(107 114 128 / 18%);
+  background: var(--chrome-surface-raised);
+  outline: 2px solid rgb(var(--chrome-muted-rgb) / 18%);
   outline-offset: 2px;
 }
 
@@ -1102,7 +1102,7 @@ button.mcp-status-badge:focus-visible {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--chrome-accent);
   box-shadow: 0 0 0 2px white;
 }
 
@@ -1112,11 +1112,11 @@ button.mcp-status-badge:focus-visible {
 
 .import-error {
   max-width: 220px;
-  border: 1px solid rgb(248 113 113 / 35%);
+  border: 1px solid rgb(var(--chrome-danger-rgb) / 35%);
   border-radius: 7px;
-  background: rgb(254 242 242 / 96%);
-  box-shadow: 0 1px 4px rgb(127 29 29 / 8%);
-  color: #b91c1c;
+  background: rgb(var(--chrome-danger-faint-rgb) / 96%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-danger-strong-rgb) / 8%);
+  color: var(--chrome-danger);
   padding: 6px 9px;
 }
 
@@ -1128,27 +1128,27 @@ button.mcp-status-badge:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   font: 12px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   user-select: none;
 }
 
 .collaboration-status {
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 90%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #047857;
+  background: rgb(var(--chrome-surface-rgb) / 90%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-success);
   padding: 6px 9px;
 }
 
 .collaboration-status--offline {
-  color: #b91c1c;
+  color: var(--chrome-danger);
 }
 
 .collaboration-status--syncing {
-  color: #854d0e;
+  color: var(--chrome-warning-strong);
 }
 
 .presence-avatar {
@@ -1159,8 +1159,8 @@ button.mcp-status-badge:focus-visible {
   border: 2px solid var(--presence-color);
   border-radius: 999px;
   background: white;
-  box-shadow: 0 1px 4px rgb(15 23 42 / 10%);
-  color: #111827;
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 10%);
+  color: var(--chrome-text);
   font-weight: 700;
   letter-spacing: 0;
 }
@@ -1171,9 +1171,9 @@ button.mcp-status-badge:focus-visible {
 
 .presence-avatar--agent {
   border-style: dashed;
-  border-color: #2563eb;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--chrome-accent);
+  background: var(--chrome-accent-faint);
+  color: var(--chrome-accent-strong);
   font-size: 10px;
 }
 
@@ -1183,11 +1183,11 @@ button.mcp-status-badge:focus-visible {
   width: 26px;
   place-items: center;
   padding: 0;
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 90%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #334155;
+  background: rgb(var(--chrome-surface-rgb) / 90%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text-secondary);
   font-size: 16px;
   font-weight: 700;
   line-height: 1;
@@ -1198,12 +1198,12 @@ button.mcp-status-badge:focus-visible {
 
 .presence-share-button:hover {
   background: white;
-  border-color: rgb(148 163 184 / 55%);
-  color: #0f172a;
+  border-color: rgb(var(--chrome-border-rgb) / 55%);
+  color: var(--chrome-text);
 }
 
 .presence-share-button:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--chrome-accent);
   outline-offset: 2px;
 }
 
@@ -1219,7 +1219,7 @@ button.mcp-status-badge:focus-visible {
   box-sizing: border-box;
   border: 2px solid var(--presence-color);
   border-radius: 6px;
-  box-shadow: 0 0 0 2px rgb(255 255 255 / 84%);
+  box-shadow: 0 0 0 2px rgb(var(--chrome-surface-rgb) / 84%);
 }
 
 .remote-selection-ring span,
@@ -1248,7 +1248,7 @@ button.mcp-status-badge:focus-visible {
   border-top: 13px solid var(--presence-color);
   border-right: 8px solid transparent;
   content: "";
-  filter: drop-shadow(0 1px 2px rgb(15 23 42 / 24%));
+  filter: drop-shadow(0 1px 2px rgb(var(--chrome-shadow-rgb) / 24%));
   transform: rotate(-18deg);
 }
 
@@ -1263,18 +1263,18 @@ button.mcp-status-badge:focus-visible {
   z-index: 30;
   display: grid;
   place-items: center;
-  background: rgb(15 23 42 / 18%);
+  background: rgb(var(--chrome-shadow-rgb) / 18%);
 }
 
 .command-dialog {
   width: min(560px, calc(100vw - 40px));
-  border: 1px solid rgb(148 163 184 / 40%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 40%);
   border-radius: 10px;
-  background: rgb(255 255 255 / 98%);
+  background: rgb(var(--chrome-surface-rgb) / 98%);
   box-shadow:
-    0 24px 72px rgb(15 23 42 / 24%),
-    0 2px 8px rgb(15 23 42 / 10%);
-  color: #111827;
+    0 24px 72px rgb(var(--chrome-shadow-rgb) / 24%),
+    0 2px 8px rgb(var(--chrome-shadow-rgb) / 10%);
+  color: var(--chrome-text);
   font: 14px/1.5 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 20px;
@@ -1288,26 +1288,26 @@ button.mcp-status-badge:focus-visible {
 
 .command-dialog p {
   margin: 0 0 18px;
-  color: #475569;
+  color: var(--chrome-text-soft);
 }
 
 .keyboard-shortcuts-table {
   width: 100%;
   border-collapse: collapse;
-  color: #1f2937;
+  color: var(--chrome-text);
   font-size: 13px;
 }
 
 .keyboard-shortcuts-table th,
 .keyboard-shortcuts-table td {
-  border-bottom: 1px solid rgb(148 163 184 / 22%);
+  border-bottom: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   padding: 9px 8px;
   text-align: left;
   vertical-align: top;
 }
 
 .keyboard-shortcuts-table th {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1316,10 +1316,10 @@ button.mcp-status-badge:focus-visible {
 
 .keyboard-shortcuts-table kbd {
   display: inline-block;
-  border: 1px solid rgb(100 116 139 / 24%);
+  border: 1px solid rgb(var(--chrome-muted-rgb) / 24%);
   border-radius: 5px;
-  background: #f8fafc;
-  color: #111827;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text);
   font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas,
     monospace;
   padding: 4px 6px;
@@ -1346,10 +1346,10 @@ button.mcp-status-badge:focus-visible {
 .page-outline-item {
   display: grid;
   width: 100%;
-  border: 1px solid rgb(100 116 139 / 16%);
+  border: 1px solid rgb(var(--chrome-muted-rgb) / 16%);
   border-radius: 7px;
-  background: #ffffff;
-  color: #172033;
+  background: var(--chrome-surface);
+  color: var(--chrome-text);
   cursor: pointer;
   gap: 3px;
   padding: 9px 10px;
@@ -1358,8 +1358,8 @@ button.mcp-status-badge:focus-visible {
 
 .page-outline-item:hover,
 .page-outline-item:focus-visible {
-  border-color: rgb(37 99 235 / 36%);
-  background: #f8fafc;
+  border-color: rgb(var(--chrome-accent-rgb) / 36%);
+  background: var(--chrome-surface-raised);
   outline: none;
 }
 
@@ -1371,7 +1371,7 @@ button.mcp-status-badge:focus-visible {
 }
 
 .page-outline-item small {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 11px;
 }
 
@@ -1413,17 +1413,17 @@ button.mcp-status-badge:focus-visible {
 }
 
 .area-style-dialog-header span {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
 .area-style-close-button,
 .area-style-remove-button,
 .area-style-apply-button {
-  border: 1px solid rgb(148 163 184 / 40%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 40%);
   border-radius: 7px;
-  background: #fff;
-  color: #111827;
+  background: var(--chrome-surface);
+  color: var(--chrome-text);
   cursor: pointer;
   font: inherit;
   padding: 7px 9px;
@@ -1431,14 +1431,14 @@ button.mcp-status-badge:focus-visible {
 
 .area-style-close-button,
 .area-style-remove-button {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
 .area-style-apply-button {
-  background: #111827;
-  border-color: #111827;
-  color: #fff;
+  background: var(--chrome-inverse-surface);
+  border-color: var(--chrome-inverse-surface);
+  color: var(--chrome-surface);
 }
 
 .area-style-close-button:hover,
@@ -1447,17 +1447,17 @@ button.mcp-status-badge:focus-visible {
 .area-style-close-button:focus-visible,
 .area-style-remove-button:focus-visible,
 .area-style-apply-button:focus-visible {
-  outline: 2px solid rgb(37 99 235 / 18%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 2px;
 }
 
 .area-style-close-button:hover,
 .area-style-remove-button:hover {
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
 }
 
 .area-style-apply-button:hover {
-  background: #1f2937;
+  background: var(--chrome-inverse-surface-hover);
 }
 
 .area-style-section {
@@ -1468,21 +1468,21 @@ button.mcp-status-badge:focus-visible {
 
 .area-style-section h3 {
   margin: 0;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
 
 .area-style-section p {
   margin: 0;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 13px;
 }
 
 .area-style-active-summary {
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 10px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 12px;
 }
 
@@ -1497,7 +1497,7 @@ button.mcp-status-badge:focus-visible {
 }
 
 .area-style-active-group-label {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1522,10 +1522,10 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: minmax(96px, 0.46fr) minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  border: 1px solid rgb(148 163 184 / 22%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   border-radius: 8px;
-  background: #ffffff;
-  color: #334155;
+  background: var(--chrome-surface);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: inherit;
   padding: 8px 9px;
@@ -1534,8 +1534,8 @@ button.mcp-status-badge:focus-visible {
 
 .area-style-active-edit:hover,
 .area-style-active-edit:focus-visible {
-  background: #f1f5f9;
-  outline: 2px solid rgb(37 99 235 / 16%);
+  background: var(--chrome-surface-sunken);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 16%);
   outline-offset: 1px;
 }
 
@@ -1543,7 +1543,7 @@ button.mcp-status-badge:focus-visible {
 .area-style-property-row code,
 .area-style-selected-property code,
 .area-style-suggestion code {
-  color: #475569;
+  color: var(--chrome-text-soft);
   font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   overflow-wrap: anywhere;
@@ -1559,9 +1559,9 @@ button.mcp-status-badge:focus-visible {
   display: inline-flex;
   gap: 4px;
   margin: 14px 0 0;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 9px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 4px;
 }
 
@@ -1569,7 +1569,7 @@ button.mcp-status-badge:focus-visible {
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
@@ -1579,15 +1579,15 @@ button.mcp-status-badge:focus-visible {
 
 .area-style-tab:hover,
 .area-style-tab:focus-visible {
-  color: #111827;
-  outline: 2px solid rgb(37 99 235 / 16%);
+  color: var(--chrome-text);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 16%);
   outline-offset: 1px;
 }
 
 .area-style-tab--active {
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgb(15 23 42 / 12%);
-  color: #111827;
+  background: var(--chrome-surface);
+  box-shadow: 0 1px 3px rgb(var(--chrome-shadow-rgb) / 12%);
+  color: var(--chrome-text);
 }
 
 .area-style-panel {
@@ -1602,13 +1602,13 @@ button.mcp-status-badge:focus-visible {
   display: grid;
   gap: 8px;
   margin: 14px 0 0;
-  border-top: 1px solid rgb(148 163 184 / 22%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   padding-top: 12px;
 }
 
 .area-style-css-matches h3 {
   margin: 0;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
@@ -1616,10 +1616,10 @@ button.mcp-status-badge:focus-visible {
 .area-style-advanced-toggle,
 .area-style-browse-button {
   justify-self: start;
-  border: 1px solid rgb(148 163 184 / 34%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 34%);
   border-radius: 8px;
-  background: #ffffff;
-  color: #334155;
+  background: var(--chrome-surface);
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
@@ -1635,9 +1635,9 @@ button.mcp-status-badge:focus-visible {
 .area-style-advanced-toggle:focus-visible,
 .area-style-browse-button:hover,
 .area-style-browse-button:focus-visible {
-  border-color: rgb(37 99 235 / 20%);
-  background: #f8fafc;
-  outline: 2px solid rgb(37 99 235 / 14%);
+  border-color: rgb(var(--chrome-accent-rgb) / 20%);
+  background: var(--chrome-surface-raised);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 14%);
   outline-offset: 1px;
 }
 
@@ -1650,7 +1650,7 @@ button.mcp-status-badge:focus-visible {
 .area-style-quick-group {
   display: grid;
   gap: 9px;
-  border-top: 1px solid rgb(148 163 184 / 22%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   padding-top: 12px;
 }
 
@@ -1661,13 +1661,13 @@ button.mcp-status-badge:focus-visible {
 
 .area-style-quick-group-header h3 {
   margin: 0;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
 
 .area-style-quick-group-header span {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
@@ -1686,10 +1686,10 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: 2px 8px;
-  border: 1px solid rgb(148 163 184 / 22%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   border-radius: 8px;
-  background: #ffffff;
-  color: #111827;
+  background: var(--chrome-surface);
+  color: var(--chrome-text);
   cursor: pointer;
   font: inherit;
   padding: 8px;
@@ -1698,9 +1698,9 @@ button.mcp-status-badge:focus-visible {
 
 .area-style-preset:hover,
 .area-style-preset:focus-visible {
-  border-color: rgb(37 99 235 / 18%);
-  background: #f8fafc;
-  outline: 2px solid rgb(37 99 235 / 14%);
+  border-color: rgb(var(--chrome-accent-rgb) / 18%);
+  background: var(--chrome-surface-raised);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 14%);
   outline-offset: 1px;
 }
 
@@ -1709,9 +1709,9 @@ button.mcp-status-badge:focus-visible {
   display: block;
   width: 24px;
   height: 24px;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--chrome-surface);
 }
 
 .area-style-preset-preview {
@@ -1736,7 +1736,7 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: minmax(220px, 0.85fr) minmax(280px, 1fr);
   gap: 16px;
   margin: 16px 0 0;
-  border-top: 1px solid rgb(148 163 184 / 22%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   padding-top: 16px;
 }
 
@@ -1759,7 +1759,7 @@ button.mcp-status-badge:focus-visible {
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: inherit;
   padding: 8px;
@@ -1769,7 +1769,7 @@ button.mcp-status-badge:focus-visible {
 .area-style-property-row span,
 .area-style-suggestion span {
   overflow: hidden;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -1786,7 +1786,7 @@ button.mcp-status-badge:focus-visible {
 
 .area-style-property-row small {
   overflow: hidden;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1799,31 +1799,31 @@ button.mcp-status-badge:focus-visible {
 .area-style-suggestion:hover,
 .area-style-suggestion:focus-visible,
 .area-style-suggestion--highlighted {
-  border-color: rgb(37 99 235 / 18%);
-  background: #f8fafc;
+  border-color: rgb(var(--chrome-accent-rgb) / 18%);
+  background: var(--chrome-surface-raised);
   outline: none;
 }
 
 .area-style-selected-property {
   display: grid;
   gap: 3px;
-  border: 1px solid rgb(148 163 184 / 22%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 9px;
 }
 
 .area-style-selected-property span {
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   font-weight: 700;
 }
 
 .area-style-validation {
-  border: 1px solid rgb(248 113 113 / 35%);
+  border: 1px solid rgb(var(--chrome-danger-rgb) / 35%);
   border-radius: 8px;
-  background: rgb(254 242 242 / 96%);
-  color: #b91c1c !important;
+  background: rgb(var(--chrome-danger-faint-rgb) / 96%);
+  color: var(--chrome-danger) !important;
   padding: 8px 10px;
 }
 
@@ -1861,13 +1861,13 @@ button.mcp-status-badge:focus-visible {
 .area-link-schema-fields {
   display: grid;
   gap: 12px;
-  border-top: 1px solid rgb(148 163 184 / 22%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   padding-top: 14px;
 }
 
 .area-link-schema-fields h3 {
   margin: 0;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
@@ -1884,11 +1884,58 @@ button.mcp-status-badge:focus-visible {
   gap: 8px;
 }
 
+.ears-lint-hints {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgb(var(--chrome-border-rgb) / 40%);
+  border-left: 3px solid var(--chrome-warning);
+  border-radius: 8px;
+  background: var(--chrome-warning-faint);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--chrome-text-secondary);
+}
+
+.ears-lint-hints strong {
+  color: var(--chrome-warning-strong);
+  font-size: 12px;
+}
+
+.ears-lint-hints ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.ears-lint-hints button {
+  justify-self: start;
+}
+
+.spec-kit-export-dialog {
+  display: grid;
+  gap: 14px;
+}
+
+.spec-kit-export-dialog p {
+  margin: 0;
+}
+
+.spec-kit-directory-preview {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px;
+  color: var(--chrome-text-soft);
+  background: var(--chrome-surface-raised);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 40%);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
 .settings-presence-preview {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
@@ -1904,13 +1951,13 @@ button.mcp-status-badge:focus-visible {
 }
 
 .page-style-section + .page-style-section {
-  border-top: 1px solid rgb(148 163 184 / 22%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   padding-top: 16px;
 }
 
 .page-style-section h3 {
   margin: 0;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
@@ -1918,7 +1965,7 @@ button.mcp-status-badge:focus-visible {
 .page-style-control {
   display: grid;
   gap: 6px;
-  color: #374151;
+  color: var(--chrome-text-secondary);
   font-size: 13px;
   user-select: none;
 }
@@ -1931,7 +1978,7 @@ button.mcp-status-badge:focus-visible {
 .page-style-control input[type="checkbox"] {
   height: 15px;
   width: 15px;
-  accent-color: #2563eb;
+  accent-color: var(--chrome-accent);
 }
 
 .page-style-control input[type="number"],
@@ -1939,10 +1986,10 @@ button.mcp-status-badge:focus-visible {
 .page-style-control select {
   width: 96px;
   box-sizing: border-box;
-  border: 1px solid rgb(148 163 184 / 48%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 48%);
   border-radius: 7px;
   background: white;
-  color: #111827;
+  color: var(--chrome-text);
   font: inherit;
   padding: 7px 8px;
 }
@@ -1956,7 +2003,7 @@ button.mcp-status-badge:focus-visible {
   height: 34px;
   width: 48px;
   box-sizing: border-box;
-  border: 1px solid rgb(148 163 184 / 48%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 48%);
   border-radius: 7px;
   background: white;
   cursor: pointer;
@@ -1967,7 +2014,7 @@ button.mcp-status-badge:focus-visible {
 .page-style-control input[type="text"]:focus-visible,
 .page-style-control input[type="color"]:focus-visible,
 .page-style-control select:focus-visible {
-  outline: 2px solid rgb(37 99 235 / 26%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 26%);
   outline-offset: 2px;
 }
 
@@ -1981,10 +2028,10 @@ button.mcp-status-badge:focus-visible {
 .theme-color-add-button,
 .theme-color-remove-button,
 .area-link-create-button {
-  border: 1px solid rgb(148 163 184 / 40%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 40%);
   border-radius: 7px;
-  background: #fff;
-  color: #111827;
+  background: var(--chrome-surface);
+  color: var(--chrome-text);
   cursor: pointer;
   font: inherit;
   padding: 8px 10px;
@@ -1996,8 +2043,8 @@ button.mcp-status-badge:focus-visible {
 .theme-color-add-button:focus-visible,
 .theme-color-remove-button:focus-visible,
 .area-link-create-button:focus-visible {
-  background: #f8fafc;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  background: var(--chrome-surface-raised);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 2px;
 }
 
@@ -2011,9 +2058,9 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  border: 1px solid rgb(148 163 184 / 22%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 8px;
 }
 
@@ -2023,7 +2070,7 @@ button.mcp-status-badge:focus-visible {
   height: 18px;
   width: 18px;
   flex: 0 0 auto;
-  border: 1px solid rgb(15 23 42 / 16%);
+  border: 1px solid rgb(var(--chrome-shadow-rgb) / 16%);
   border-radius: 5px;
 }
 
@@ -2031,7 +2078,7 @@ button.mcp-status-badge:focus-visible {
   display: grid;
   min-width: 0;
   gap: 2px;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   font-size: 12px;
 }
 
@@ -2042,17 +2089,17 @@ button.mcp-status-badge:focus-visible {
 }
 
 .theme-color-row-text code {
-  color: #475569;
+  color: var(--chrome-text-soft);
   font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 .theme-color-warning {
-  color: #b45309;
+  color: var(--chrome-warning-strong);
 }
 
 .theme-color-remove-button {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
   padding: 6px 8px;
 }
@@ -2074,11 +2121,11 @@ button.mcp-status-badge:focus-visible {
   align-items: center;
   max-width: 180px;
   gap: 6px;
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 999px;
-  background: rgb(255 255 255 / 92%);
-  box-shadow: 0 1px 4px rgb(15 23 42 / 8%);
-  color: #334155;
+  background: rgb(var(--chrome-surface-rgb) / 92%);
+  box-shadow: 0 1px 4px rgb(var(--chrome-shadow-rgb) / 8%);
+  color: var(--chrome-text-secondary);
   font: 12px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 5px 8px 5px 5px;
@@ -2101,10 +2148,10 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-proposal-error {
-  border: 1px solid rgb(248 113 113 / 35%);
+  border: 1px solid rgb(var(--chrome-danger-rgb) / 35%);
   border-radius: 8px;
-  background: rgb(254 242 242 / 96%);
-  color: #b91c1c;
+  background: rgb(var(--chrome-danger-faint-rgb) / 96%);
+  color: var(--chrome-danger);
   font-size: 13px;
   line-height: 1.35;
   padding: 8px 10px;
@@ -2119,20 +2166,20 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-proposal-summary {
-  border: 1px solid rgb(37 99 235 / 18%);
+  border: 1px solid rgb(var(--chrome-accent-rgb) / 18%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 10px;
 }
 
 .agent-proposal-summary strong {
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
 
 .agent-proposal-summary span {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
@@ -2144,19 +2191,19 @@ button.mcp-status-badge:focus-visible {
 .agent-proposal-operation {
   display: grid;
   gap: 9px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #ffffff;
-  color: #334155;
+  background: var(--chrome-surface);
+  color: var(--chrome-text-secondary);
   padding: 9px 10px;
 }
 
 .agent-proposal-operation-copy code {
   flex: 0 0 auto;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 6px;
-  background: #f1f5f9;
-  color: #1e40af;
+  background: var(--chrome-surface-sunken);
+  color: var(--chrome-accent-strong);
   font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 4px 6px;
@@ -2165,7 +2212,7 @@ button.mcp-status-badge:focus-visible {
 .agent-proposal-operation-copy span {
   min-width: 0;
   overflow: hidden;
-  color: #475569;
+  color: var(--chrome-text-soft);
   font-size: 13px;
   text-align: right;
   text-overflow: ellipsis;
@@ -2180,10 +2227,10 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-proposal-mini-button {
-  border: 1px solid rgb(37 99 235 / 24%);
+  border: 1px solid rgb(var(--chrome-accent-rgb) / 24%);
   border-radius: 6px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--chrome-accent-faint);
+  color: var(--chrome-accent-strong);
   cursor: pointer;
   font: 600 11px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -2191,21 +2238,21 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-proposal-mini-button--secondary {
-  border-color: rgb(148 163 184 / 30%);
-  background: #f8fafc;
-  color: #475569;
+  border-color: rgb(var(--chrome-border-rgb) / 30%);
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text-soft);
 }
 
 .agent-proposal-mini-button:hover,
 .agent-proposal-mini-button:focus-visible {
-  background: #dbeafe;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  background: var(--chrome-accent-soft);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 2px;
 }
 
 .agent-proposal-mini-button--secondary:hover,
 .agent-proposal-mini-button--secondary:focus-visible {
-  background: #f1f5f9;
+  background: var(--chrome-surface-sunken);
 }
 
 .agent-proposal-actions {
@@ -2216,9 +2263,9 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-proposal-button {
-  border: 1px solid rgb(37 99 235 / 30%);
+  border: 1px solid rgb(var(--chrome-accent-rgb) / 30%);
   border-radius: 7px;
-  background: #2563eb;
+  background: var(--chrome-accent);
   color: white;
   cursor: pointer;
   font: inherit;
@@ -2226,19 +2273,19 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-proposal-button--secondary {
-  border-color: rgb(148 163 184 / 40%);
+  border-color: rgb(var(--chrome-border-rgb) / 40%);
   background: white;
-  color: #334155;
+  color: var(--chrome-text-secondary);
 }
 
 .agent-proposal-button:hover,
 .agent-proposal-button:focus-visible {
-  outline: 2px solid rgb(37 99 235 / 22%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 22%);
   outline-offset: 2px;
 }
 
 .agent-proposal-audit {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
@@ -2258,9 +2305,9 @@ button.mcp-status-badge:focus-visible {
 .task-board-attention {
   display: grid;
   gap: 8px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 10px;
 }
 
@@ -2270,7 +2317,7 @@ button.mcp-status-badge:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: #0f172a;
+  color: var(--chrome-text);
   font-size: 13px;
 }
 
@@ -2284,10 +2331,10 @@ button.mcp-status-badge:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 7px;
   background: white;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   cursor: pointer;
   font: inherit;
   padding: 8px 10px;
@@ -2298,7 +2345,7 @@ button.mcp-status-badge:focus-visible {
 .task-board-card-meta,
 .task-board-card label span,
 .task-board-empty {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
@@ -2313,16 +2360,16 @@ button.mcp-status-badge:focus-visible {
   align-content: start;
   gap: 8px;
   min-height: 220px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 10px;
 }
 
 .task-board-column h3 span {
   border-radius: 999px;
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--chrome-border);
+  color: var(--chrome-text-soft);
   font-size: 11px;
   padding: 2px 6px;
 }
@@ -2336,10 +2383,10 @@ button.mcp-status-badge:focus-visible {
 .task-board-card {
   display: grid;
   gap: 8px;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 7px;
   background: white;
-  color: #1f2937;
+  color: var(--chrome-text);
   cursor: pointer;
   padding: 9px;
 }
@@ -2360,10 +2407,10 @@ button.mcp-status-badge:focus-visible {
 
 .task-board-card-meta span,
 .task-board-card-meta button {
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 999px;
-  background: #f8fafc;
-  color: #475569;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text-soft);
   font: inherit;
   font-size: 11px;
   padding: 3px 6px;
@@ -2379,10 +2426,10 @@ button.mcp-status-badge:focus-visible {
 }
 
 .task-board-card select {
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 6px;
   background: white;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   font: inherit;
   padding: 5px 6px;
 }
@@ -2391,8 +2438,8 @@ button.mcp-status-badge:focus-visible {
 .task-board-attention-item:focus-visible,
 .task-board-card:hover,
 .task-board-card:focus-visible {
-  border-color: rgb(37 99 235 / 35%);
-  outline: 2px solid rgb(37 99 235 / 14%);
+  border-color: rgb(var(--chrome-accent-rgb) / 35%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 14%);
   outline-offset: 2px;
 }
 
@@ -2405,11 +2452,11 @@ button.mcp-status-badge:focus-visible {
   width: min(360px, calc(100vw - 32px));
   max-height: min(620px, calc(100vh - 128px));
   overflow: hidden;
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 96%);
-  box-shadow: 0 16px 48px rgb(15 23 42 / 16%);
-  color: #1f2937;
+  background: rgb(var(--chrome-surface-rgb) / 96%);
+  box-shadow: 0 16px 48px rgb(var(--chrome-shadow-rgb) / 16%);
+  color: var(--chrome-text);
   font: 13px/1.4 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
@@ -2419,7 +2466,7 @@ button.mcp-status-badge:focus-visible {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgb(148 163 184 / 20%);
+  border-bottom: 1px solid rgb(var(--chrome-border-rgb) / 20%);
   padding: 12px;
 }
 
@@ -2429,13 +2476,13 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-journal-header strong {
-  color: #0f172a;
+  color: var(--chrome-text);
 }
 
 .agent-journal-header span,
 .agent-journal-entry-meta span,
 .agent-journal-composer span {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
@@ -2444,10 +2491,10 @@ button.mcp-status-badge:focus-visible {
   width: 26px;
   height: 26px;
   place-items: center;
-  border: 1px solid rgb(148 163 184 / 32%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 32%);
   border-radius: 6px;
   background: white;
-  color: #475569;
+  color: var(--chrome-text-soft);
   cursor: pointer;
 }
 
@@ -2462,15 +2509,15 @@ button.mcp-status-badge:focus-visible {
 .agent-journal-entry {
   display: grid;
   gap: 6px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 7px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 9px;
 }
 
 .agent-journal-entry--agent {
-  border-color: rgb(37 99 235 / 22%);
-  background: #eff6ff;
+  border-color: rgb(var(--chrome-accent-rgb) / 22%);
+  background: var(--chrome-accent-faint);
 }
 
 .agent-journal-entry-meta {
@@ -2487,10 +2534,10 @@ button.mcp-status-badge:focus-visible {
 
 .agent-journal-area-link {
   justify-self: start;
-  border: 1px solid rgb(37 99 235 / 22%);
+  border: 1px solid rgb(var(--chrome-accent-rgb) / 22%);
   border-radius: 6px;
   background: white;
-  color: #1d4ed8;
+  color: var(--chrome-accent-strong);
   cursor: pointer;
   font: 600 12px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -2500,7 +2547,7 @@ button.mcp-status-badge:focus-visible {
 .agent-journal-composer {
   display: grid;
   gap: 8px;
-  border-top: 1px solid rgb(148 163 184 / 20%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 20%);
   padding: 12px;
 }
 
@@ -2512,9 +2559,9 @@ button.mcp-status-badge:focus-visible {
 .agent-journal-composer textarea {
   min-height: 72px;
   resize: vertical;
-  border: 1px solid rgb(148 163 184 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 7px;
-  color: #111827;
+  color: var(--chrome-text);
   font: inherit;
   padding: 8px;
 }
@@ -2548,10 +2595,10 @@ button.mcp-status-badge:focus-visible {
 .agent-handoff-warnings {
   display: grid;
   gap: 6px;
-  border: 1px solid rgb(245 158 11 / 30%);
+  border: 1px solid rgb(var(--chrome-warning-rgb) / 30%);
   border-radius: 8px;
-  background: #fffbeb;
-  color: #92400e;
+  background: var(--chrome-warning-faint);
+  color: var(--chrome-warning-strong);
   padding: 9px 10px;
 }
 
@@ -2568,10 +2615,10 @@ button.mcp-status-badge:focus-visible {
 .agent-handoff-preview {
   max-height: min(44vh, 420px);
   overflow: auto;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 8px;
-  background: #f8fafc;
-  color: #1f2937;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text);
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 10px;
@@ -2599,34 +2646,34 @@ button.mcp-status-badge:focus-visible {
   display: grid;
   gap: 4px;
   font-size: 12px;
-  color: #475569;
+  color: var(--chrome-text-soft);
 }
 
 .sdd-import-textarea {
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
-  border: 1px solid rgb(148 163 184 / 40%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 40%);
   border-radius: 8px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--chrome-surface);
+  color: var(--chrome-text);
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 10px;
 }
 
 .sdd-import-textarea:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--chrome-accent);
   outline-offset: 1px;
 }
 
 .sdd-import-preview {
   display: grid;
   gap: 6px;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 8px;
-  background: #f8fafc;
-  color: #1f2937;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text);
   padding: 9px 10px;
   font-size: 12px;
 }
@@ -2634,7 +2681,7 @@ button.mcp-status-badge:focus-visible {
 .sdd-import-warnings {
   margin: 0;
   padding-left: 18px;
-  color: #92400e;
+  color: var(--chrome-warning-strong);
 }
 
 .history-dialog p {
@@ -2654,9 +2701,9 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--chrome-surface);
   padding: 10px;
 }
 
@@ -2668,7 +2715,7 @@ button.mcp-status-badge:focus-visible {
 
 .history-event-copy strong {
   overflow: hidden;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -2677,7 +2724,7 @@ button.mcp-status-badge:focus-visible {
 
 .history-event-copy span {
   overflow: hidden;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
   line-height: 1.3;
   text-overflow: ellipsis;
@@ -2685,10 +2732,10 @@ button.mcp-status-badge:focus-visible {
 }
 
 .history-event-button {
-  border: 1px solid rgb(37 99 235 / 28%);
+  border: 1px solid rgb(var(--chrome-accent-rgb) / 28%);
   border-radius: 7px;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: var(--chrome-accent-faint);
+  color: var(--chrome-accent-strong);
   cursor: pointer;
   font: 600 12px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -2697,39 +2744,39 @@ button.mcp-status-badge:focus-visible {
 
 .history-event-button:hover,
 .history-event-button:focus-visible {
-  background: #dbeafe;
-  outline: 2px solid rgb(37 99 235 / 18%);
+  background: var(--chrome-accent-soft);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 18%);
   outline-offset: 2px;
 }
 
 .history-event-button--secondary {
-  border-color: rgb(148 163 184 / 38%);
-  background: #ffffff;
-  color: #334155;
+  border-color: rgb(var(--chrome-border-rgb) / 38%);
+  background: var(--chrome-surface);
+  color: var(--chrome-text-secondary);
 }
 
 .history-event-button--secondary:hover,
 .history-event-button--secondary:focus-visible {
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
 }
 
 .history-event-button--danger {
-  border-color: rgb(239 68 68 / 28%);
-  background: #fff1f2;
-  color: #b91c1c;
+  border-color: rgb(var(--chrome-danger-rgb) / 28%);
+  background: var(--chrome-danger-faint);
+  color: var(--chrome-danger);
 }
 
 .history-event-button--danger:hover,
 .history-event-button--danger:focus-visible {
-  background: #ffe4e6;
+  background: var(--chrome-danger-soft);
 }
 
 .snapshot-section {
   display: grid;
   gap: 10px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 10px;
 }
 
@@ -2749,14 +2796,14 @@ button.mcp-status-badge:focus-visible {
 
 .snapshot-section-header strong,
 .snapshot-diff > strong {
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
 
 .snapshot-section-header span,
 .snapshot-status {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
   line-height: 1.35;
 }
@@ -2778,9 +2825,9 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  border: 1px solid rgb(148 163 184 / 22%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--chrome-surface);
   padding: 9px;
 }
 
@@ -2789,7 +2836,7 @@ button.mcp-status-badge:focus-visible {
   align-items: center;
   min-width: 0;
   gap: 8px;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
 }
 
@@ -2807,14 +2854,14 @@ button.mcp-status-badge:focus-visible {
 }
 
 .snapshot-radio span span {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
 .snapshot-diff {
   display: grid;
   gap: 8px;
-  border-top: 1px solid rgb(148 163 184 / 24%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   padding-top: 10px;
 }
 
@@ -2828,20 +2875,20 @@ button.mcp-status-badge:focus-visible {
   display: grid;
   align-content: start;
   gap: 6px;
-  border: 1px solid rgb(148 163 184 / 22%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 22%);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--chrome-surface);
   padding: 8px;
 }
 
 .snapshot-diff-grid span {
-  color: #334155;
+  color: var(--chrome-text-secondary);
   font-size: 12px;
   font-weight: 700;
 }
 
 .snapshot-diff-grid p {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
@@ -2851,8 +2898,8 @@ button.mcp-status-badge:focus-visible {
   width: 100%;
   border: 0;
   border-radius: 6px;
-  background: #f8fafc;
-  color: #1f2937;
+  background: var(--chrome-surface-raised);
+  color: var(--chrome-text);
   cursor: pointer;
   font: 12px/1.3 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -2865,7 +2912,7 @@ button.mcp-status-badge:focus-visible {
 }
 
 .snapshot-diff-row small {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 11px;
 }
 
@@ -2891,9 +2938,9 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: end;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 10px;
 }
 
@@ -2904,23 +2951,23 @@ button.mcp-status-badge:focus-visible {
 }
 
 .share-link-copy strong {
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
 
 .share-link-copy span {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
 }
 
 .share-link-copy input {
   min-width: 0;
   box-sizing: border-box;
-  border: 1px solid rgb(148 163 184 / 42%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 42%);
   border-radius: 7px;
   background: white;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 8px;
@@ -2934,9 +2981,9 @@ button.mcp-status-badge:focus-visible {
 }
 
 .share-link-button {
-  border: 1px solid rgb(37 99 235 / 30%);
+  border: 1px solid rgb(var(--chrome-accent-rgb) / 30%);
   border-radius: 7px;
-  background: #2563eb;
+  background: var(--chrome-accent);
   color: white;
   cursor: pointer;
   font: inherit;
@@ -2944,14 +2991,14 @@ button.mcp-status-badge:focus-visible {
 }
 
 .share-link-button--secondary {
-  border-color: rgb(148 163 184 / 40%);
+  border-color: rgb(var(--chrome-border-rgb) / 40%);
   background: white;
-  color: #334155;
+  color: var(--chrome-text-secondary);
 }
 
 .share-link-button:hover,
 .share-link-button:focus-visible {
-  outline: 2px solid rgb(37 99 235 / 22%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 22%);
   outline-offset: 2px;
 }
 
@@ -2968,15 +3015,15 @@ button.mcp-status-badge:focus-visible {
 .agent-connections-section {
   display: grid;
   gap: 10px;
-  border: 1px solid rgb(148 163 184 / 24%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 24%);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--chrome-surface-raised);
   padding: 12px;
 }
 
 .agent-connections-section h3 {
   margin: 0;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
 }
@@ -2995,22 +3042,22 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-connections-warning {
-  background: #fff7ed;
-  color: #9a3412;
+  background: var(--chrome-warning-faint);
+  color: var(--chrome-warning-strong);
 }
 
 .agent-connections-error {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--chrome-danger-faint);
+  color: var(--chrome-danger);
 }
 
 .agent-connections-snippet {
   overflow: auto;
   margin: 0;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 7px;
   background: white;
-  color: #334155;
+  color: var(--chrome-text-secondary);
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 10px;
@@ -3028,7 +3075,7 @@ button.mcp-status-badge:focus-visible {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
-  border-top: 1px solid rgb(148 163 184 / 18%);
+  border-top: 1px solid rgb(var(--chrome-border-rgb) / 18%);
   padding-top: 8px;
 }
 
@@ -3045,7 +3092,7 @@ button.mcp-status-badge:focus-visible {
 
 .agent-token-row strong {
   overflow: hidden;
-  color: #111827;
+  color: var(--chrome-text);
   font-size: 13px;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -3053,7 +3100,7 @@ button.mcp-status-badge:focus-visible {
 }
 
 .agent-token-row span {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   font-size: 12px;
   line-height: 1.3;
 }
@@ -3071,10 +3118,10 @@ button.mcp-status-badge:focus-visible {
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  border: 1px solid rgb(148 163 184 / 28%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 28%);
   border-radius: 7px;
-  background: rgb(248 250 252 / 92%);
-  color: #334155;
+  background: rgb(var(--chrome-surface-raised-rgb) / 92%);
+  color: var(--chrome-text-secondary);
   font: 11px/1.2 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 3px 5px;
@@ -3095,13 +3142,13 @@ button.mcp-status-badge:focus-visible {
 }
 
 .area-evidence-remove {
-  color: #64748b;
+  color: var(--chrome-text-muted);
 }
 
 .area-evidence-drift {
   border-radius: 999px;
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--chrome-warning-faint);
+  color: var(--chrome-warning-strong);
   font-size: 10px;
   line-height: 1;
   padding: 2px 4px;
@@ -3117,11 +3164,11 @@ button.mcp-status-badge:focus-visible {
   width: min(420px, 80vw);
   max-height: 260px;
   overflow: auto;
-  border: 1px solid rgb(15 23 42 / 12%);
+  border: 1px solid rgb(var(--chrome-shadow-rgb) / 12%);
   border-radius: 8px;
-  background: #0f172a;
-  box-shadow: 0 18px 48px rgb(15 23 42 / 24%);
-  color: #e2e8f0;
+  background: var(--chrome-inverse-surface-deep);
+  box-shadow: 0 18px 48px rgb(var(--chrome-shadow-rgb) / 24%);
+  color: var(--chrome-border);
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
   padding: 10px;
@@ -3133,8 +3180,8 @@ button.mcp-status-badge:focus-visible {
   top: -10px;
   z-index: 1;
   margin: -10px -10px 8px;
-  background: #1e293b;
-  color: #cbd5e1;
+  background: var(--chrome-inverse-surface-hover);
+  color: var(--chrome-border-strong);
   padding: 7px 10px;
 }
 
@@ -3151,31 +3198,31 @@ button.mcp-status-badge:focus-visible {
 }
 
 .area-evidence-snippet-number {
-  color: #64748b;
+  color: var(--chrome-text-muted);
   text-align: right;
   user-select: none;
 }
 
 .code-token--keyword {
-  color: #93c5fd;
+  color: var(--chrome-accent-border);
 }
 
 .code-token--string {
-  color: #86efac;
+  color: var(--chrome-success-border);
 }
 
 .code-token--comment {
-  color: #94a3b8;
+  color: var(--chrome-text-faint);
 }
 
 .code-token--number {
-  color: #fca5a5;
+  color: var(--chrome-danger-border);
 }
 
 .command-dialog-button {
   border: 0;
   border-radius: 7px;
-  background: #2563eb;
+  background: var(--chrome-accent);
   color: white;
   cursor: pointer;
   font: inherit;
@@ -3183,18 +3230,18 @@ button.mcp-status-badge:focus-visible {
 }
 
 .command-dialog-button--secondary {
-  border: 1px solid rgb(148 163 184 / 40%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 40%);
   background: white;
-  color: #334155;
+  color: var(--chrome-text-secondary);
 }
 
 .command-dialog-button--danger {
-  background: #b91c1c;
+  background: var(--chrome-danger);
   color: white;
 }
 
 .command-dialog-button:focus-visible {
-  outline: 2px solid rgb(37 99 235 / 35%);
+  outline: 2px solid rgb(var(--chrome-accent-rgb) / 35%);
   outline-offset: 2px;
 }
 
@@ -3212,13 +3259,13 @@ button.mcp-status-badge:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgb(148 163 184 / 35%);
+  border: 1px solid rgb(var(--chrome-border-rgb) / 35%);
   border-radius: 8px;
-  background: rgb(255 255 255 / 98%);
+  background: rgb(var(--chrome-surface-rgb) / 98%);
   box-shadow:
-    0 16px 48px rgb(15 23 42 / 18%),
-    0 2px 8px rgb(15 23 42 / 10%);
-  color: #1f2937;
+    0 16px 48px rgb(var(--chrome-shadow-rgb) / 18%),
+    0 2px 8px rgb(var(--chrome-shadow-rgb) / 10%);
+  color: var(--chrome-text);
   font: 14px/1.4 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding: 10px;
@@ -3229,7 +3276,7 @@ button.mcp-status-badge:focus-visible {
 .undo-toast-button {
   border: 0;
   border-radius: 6px;
-  background: #111827;
+  background: var(--chrome-inverse-surface);
   color: white;
   cursor: pointer;
   font: inherit;
@@ -3239,8 +3286,8 @@ button.mcp-status-badge:focus-visible {
 
 .undo-toast-button:hover,
 .undo-toast-button:focus-visible {
-  background: #374151;
-  outline: 2px solid rgb(17 24 39 / 18%);
+  background: var(--chrome-inverse-surface-hover);
+  outline: 2px solid rgb(var(--chrome-shadow-rgb) / 18%);
   outline-offset: 2px;
 }
 
@@ -3253,7 +3300,7 @@ button.mcp-status-badge:focus-visible {
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #64748b;
+  color: var(--chrome-text-muted);
   cursor: pointer;
   font: 600 13px/1 ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -3261,8 +3308,8 @@ button.mcp-status-badge:focus-visible {
 
 .undo-toast-close:hover,
 .undo-toast-close:focus-visible {
-  background: rgb(15 23 42 / 7%);
-  color: #111827;
-  outline: 2px solid rgb(17 24 39 / 14%);
+  background: rgb(var(--chrome-shadow-rgb) / 7%);
+  color: var(--chrome-text);
+  outline: 2px solid rgb(var(--chrome-shadow-rgb) / 14%);
   outline-offset: 1px;
 }

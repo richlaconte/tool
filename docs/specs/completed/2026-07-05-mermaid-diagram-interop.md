@@ -2,9 +2,26 @@
 
 ## Status
 
-Priority: P1 — queue #3 (2026-07-06 audit). See the Priority Queue in README.md before starting work.
+Completed MVP spec on 2026-07-06. Shipped: `src/mermaidImport.ts` (subset
+parser with line-anchored errors, unsupported shapes/diagram types fail
+loudly, chains and one subgraph level supported, deterministic layered
+layout) and `src/mermaidExport.ts` (shapes from kinds, subgraphs from one
+nesting level, `%% lossy:` manifest comment, direction by selection
+bounds); `createLink`/`deleteLink` became first-class agent patch
+operations (validated, applied, undoable in `src/agentInterface.ts`) so
+`import_mermaid` proposals arrive whole; MCP tools `export_mermaid`
+(page:read, optional areaIds, cache metadata) and `import_mermaid`
+(page:suggest, reviewable dry-run proposal); UI: "Import Mermaid…" palette
+dialog, "Copy as Mermaid" (selection when multi-select is active), and a
+"Convert to Areas" action on rendered ```mermaid fences (edit mode only,
+source Area untouched, structure lands right of the source).
 
-Created on 2026-07-05 from a market and product research pass. Active.
+Resolved open questions: only the `{decision}` shape maps to a kind in v1;
+converted structure lands right of the source at a fixed gap; dotted/thick
+edge styles import as plain links (the connector visual model has no
+stroke-style field — documented in the module).
+
+Created on 2026-07-05 from a market and product research pass.
 Named twice as a "future spec if demanded" in completed specs
 (completed/2026-07-02-json-canvas-interop.md,
 completed/2026-07-02-markdown-code-area-content.md); market signal now

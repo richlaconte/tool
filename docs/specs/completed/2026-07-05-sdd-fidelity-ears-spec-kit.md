@@ -2,9 +2,25 @@
 
 ## Status
 
-Priority: P1 — queue #2 (2026-07-06 audit). See the Priority Queue in README.md before starting work.
+Completed MVP spec on 2026-07-06. Shipped: the `requirement` Area kind with
+full JSON/Yjs/Markdown/JSON Canvas round-trip; the Spec Kit export profile
+(`compileSpecKitBundle` in `src/sddExport.ts`, headings verified against the
+github/spec-kit main templates — see `SPEC_KIT_TEMPLATE_VERSION`) with a
+dependency-free zip download (`src/zipArchive.ts`) and FR/T numbering plus
+cross-references; Spec Kit-aware import (FR bullets, phase headings, marker
+stripping, boilerplate skipping — one parser handles both shapes, so the
+validated `profile` argument on `export_sdd`/`import_sdd` selects output
+shape on export and is accepted for forward compatibility on import); the
+five EARS scaffolds and ten-rule gentle lint (`src/earsLint.ts`) with
+per-Area dismissal; and requirement→task traceability
+(`src/sddTraceability.ts`) rendered in exports, with the coverage-gaps
+section and the "Show uncovered requirements" palette action.
 
-Created on 2026-07-05 from a market and product research pass. Active.
+Resolved open questions: Spec Kit templates pinned (record in module docs,
+re-check on releases); the constitution file deferred as recommended;
+feature number is user-editable defaulting to 001.
+
+Created on 2026-07-05 from a market and product research pass.
 This is v2 of the completed SDD artifact interchange spec
 (completed/2026-07-02-sdd-artifact-interchange.md), which deliberately chose
 "generic well-structured Markdown first, Spec Kit's file naming second."

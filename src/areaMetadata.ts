@@ -2,6 +2,7 @@ export const AREA_KINDS = [
   'note',
   'decision',
   'question',
+  'requirement',
   'task',
   'risk',
   'file',
@@ -136,6 +137,9 @@ export type AreaMetadata = {
   filePath?: string
   url?: string
   evidence?: AreaEvidenceReference[]
+  // EARS lint hints were dismissed for this requirement Area (SDD fidelity
+  // spec). Only meaningful on `requirement` kind; stored only when true.
+  earsHintDismissed?: boolean
 }
 
 type AreaWithMetadata = {
@@ -286,6 +290,9 @@ export const normalizeAreaMetadata = (
       : {}),
     ...(Array.isArray(metadata?.evidence)
       ? { evidence: normalizeEvidence(metadata.evidence) }
+      : {}),
+    ...(metadata?.earsHintDismissed === true
+      ? { earsHintDismissed: true }
       : {}),
   }
 }

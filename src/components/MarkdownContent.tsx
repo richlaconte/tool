@@ -9,20 +9,33 @@ import {
 
 type MarkdownContentProps = {
   text: string
+  // Mermaid interop: when set, rendered ```mermaid fences get a
+  // "Convert to Areas" action. The block keeps rendering as highlighted
+  // code either way.
+  onConvertMermaid?: (code: string) => void
 }
 
-const MarkdownContent = ({ text }: MarkdownContentProps) => (
+const MarkdownContent = ({
+  text,
+  onConvertMermaid,
+}: MarkdownContentProps) => (
   <div className="area-markdown">
     {parseMarkdown(text).map((block, index) => (
-      <MarkdownBlockContent block={block} key={index} />
+      <MarkdownBlockContent
+        block={block}
+        key={index}
+        onConvertMermaid={onConvertMermaid}
+      />
     ))}
   </div>
 )
 
 const MarkdownBlockContent = ({
   block,
+  onConvertMermaid,
 }: {
   block: MarkdownBlock
+  onConvertMermaid?: (code: string) => void
 }) => {
   if (block.type === 'heading') {
     const HeadingTag = (['h1', 'h2', 'h3'] as const)[
@@ -37,7 +50,7 @@ const MarkdownBlockContent = ({
   }
 
   if (block.type === 'codeBlock') {
-    return (
+    const codeBlock = (
       <pre className="md-code-block">
         <code>
           {highlightCode(block.code, block.language).map(
@@ -56,6 +69,27 @@ const MarkdownBlockContent = ({
         </code>
       </pre>
     )
+
+    if (block.language === 'mermaid' && onConvertMermaid) {
+      return (
+        <div className="md-mermaid-block">
+          {codeBlock}
+          <button
+            className="md-mermaid-convert"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onConvertMermaid(block.code)
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            Convert to Areas
+          </button>
+        </div>
+      )
+    }
+
+    return codeBlock
   }
 
   if (block.type === 'list') {

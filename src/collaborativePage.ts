@@ -953,6 +953,9 @@ const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {
     ...(Array.isArray(metadata.evidence)
       ? { evidence: metadata.evidence as AreaMetadata['evidence'] }
       : {}),
+    ...(metadata.earsHintDismissed === true
+      ? { earsHintDismissed: true }
+      : {}),
   })
 }
 

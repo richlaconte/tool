@@ -12,6 +12,9 @@ New raw ideas can go below this line before being turned into full specs.
 
 ## One-way live sync loss after post-connect Area creation (defect, found by E2E harness 2026-07-05)
 
+Completed as a highest-priority reliability spec on 2026-07-06:
+`docs/specs/completed/2026-07-06-live-collaboration-convergence.md`.
+
 Deterministic repro (production server build): client A loads a fresh page,
 waits for "Connected", creates an Area, types. Client B joins via the edit
 link and drags that Area. B's move reaches the server (any fresh client
@@ -26,8 +29,8 @@ regeneration. Suspects: the local-state→Yjs echo loop in
 state patch…, bounded only by the 1.5s pending-change TTL) and the server
 boot warning "Yjs was already imported. This breaks constructor checks"
 (dual Yjs instances in the production bundle can break Hocuspocus document
-bookkeeping). The E2E suite pins this as a `test.fixme` in
-`e2e/collaboration.spec.ts` — unskip it when fixing.
+bookkeeping). The E2E suite now runs the original-client convergence
+scenario as an active regression test in `e2e/collaboration.spec.ts`.
 
 ## Collaboration message coalescing (defect, found by E2E harness 2026-07-05)
 
@@ -42,3 +45,7 @@ animation frame and throttle awareness updates during pointer drags
 (`src/useCollaborativePage.ts`), then revisit whether 240/min is right.
 The E2E config raises the limit for its isolated server so golden paths
 keep testing sync correctness.
+
+Completed by coalescing local React-state writes before publishing Yjs
+patches; a one-second rapid drag smoke stayed connected under the default
+server rate limit.

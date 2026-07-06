@@ -86,6 +86,7 @@ type AreaProps = {
   onCancelLinkDrag: () => void
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
+  onConvertMermaid?: (id: string, code: string) => void
   onOpenStyles: (id: string) => void
   onOpenComments: (id: string) => void
   onResize: (
@@ -142,6 +143,7 @@ const Area = ({
   onCancelLinkDrag,
   onDuplicate,
   onDelete,
+  onConvertMermaid,
   onOpenStyles,
   onOpenComments,
   onResize,
@@ -874,7 +876,15 @@ const Area = ({
               focusEditableAtEnd()
             }}
           >
-            <MarkdownContent text={areaText} />
+            <MarkdownContent
+              text={areaText}
+              {...(onConvertMermaid && !isReadOnly
+                ? {
+                    onConvertMermaid: (code: string) =>
+                      onConvertMermaid(area.id, code),
+                  }
+                : {})}
+            />
           </div>
         ) : (
           <div

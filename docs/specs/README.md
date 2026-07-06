@@ -35,8 +35,6 @@ overrides — do not renumber mid-flight work.
 
 | # | Spec | Band | W | C | U | D | Rationale |
 |---|------|------|---|---|---|---|-----------|
-| 2 | [SDD Fidelity: EARS + Spec Kit](2026-07-05-sdd-fidelity-ears-spec-kit.md) | P1 | 2 | 2 | 0 | 1 | Rides SDD market momentum; deepens the flagship interchange spec. |
-| 3 | [Mermaid Diagram Interop](2026-07-05-mermaid-diagram-interop.md) | P1 | 2 | 1 | 1 | 1 | Mermaid is the lingua franca of agent-emitted structure; feeds the import/review path. |
 | 4 | [Adaptive Color Scheme](2026-07-06-adaptive-color-scheme.md) | P1 | 1 | 0 | 1 | 2 | Dark-IDE audience fit; token layer retires the contrast-audit debt and unblocks theming. |
 | 5 | [Canvas Wayfinding: Minimap + Viewport History](2026-07-06-canvas-wayfinding-minimap.md) | P2 | 1 | 0 | 1 | 1 | Deferred-until-perf minimap (precondition met); viewport history feeds #6. |
 | 6 | [Async Change Awareness](2026-07-06-async-change-awareness.md) | P2 | 2 | 0 | 0 | 1 | The async agent-edit recap; sequenced after #5 for reversible jumps (dependency override). |
@@ -69,10 +67,7 @@ core, Tasks and Apps extensions), spec-driven development going mainstream
 tools for parallel coding agents, and Mermaid as the lingua franca of
 agent-emitted structure. Suggested order: MCP alignment and mission control
 first (they compound the agent wedge), then SDD fidelity, then Mermaid.
-MCP 2026 alignment is complete.
-
-- [SDD Fidelity: EARS Requirements and Spec Kit Layout Compatibility](2026-07-05-sdd-fidelity-ears-spec-kit.md) — queue #2
-- [Mermaid Diagram Interop: Paste Agent Diagrams, Export Canvas Structure](2026-07-05-mermaid-diagram-interop.md) — queue #3
+All Tier 5 specs are complete.
 
 ### Tier 6 — 2026-07-06 HCI/UX Research Pass
 
@@ -90,6 +85,14 @@ awareness (it benefits from wayfinding's viewport history).
 - [Adaptive Color Scheme: Semantic Chrome Tokens and Dark Mode](2026-07-06-adaptive-color-scheme.md) — queue #4
 - [Canvas Wayfinding: Minimap and Viewport History](2026-07-06-canvas-wayfinding-minimap.md) — queue #5
 - [Asynchronous Change Awareness: The "Since You Were Away" Recap](2026-07-06-async-change-awareness.md) — queue #6
+
+### Tier 7 — 2026-07-06 Reliability Defects
+
+Created from live product debugging rather than market research. These specs
+preempt normal queue order when they threaten the core promise of a shared
+canvas.
+
+All Tier 7 specs are complete.
 
 ## Completed MVP Specs
 
@@ -126,8 +129,10 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [JSON Canvas Interoperability](completed/2026-07-02-json-canvas-interop.md)
 - [Keyboard-First Canvas and Accessibility](completed/2026-07-02-keyboard-first-canvas-accessibility.md)
 - [Markdown and Code-Native Area Content](completed/2026-07-02-markdown-code-area-content.md)
+- [Mermaid Diagram Interop: Paste Agent Diagrams, Export Canvas Structure](completed/2026-07-05-mermaid-diagram-interop.md)
 - [MCP 2026 Alignment: Stateless Core, Tasks Extension, and an MCP App Surface](completed/2026-07-05-mcp-2026-alignment.md)
 - [Linked Areas Direct Manipulation UX](completed/2026-06-30-linked-areas-direct-manipulation-ux.md)
+- [Live Collaboration Convergence](completed/2026-07-06-live-collaboration-convergence.md)
 - [Multi-Select and Group Manipulation](completed/2026-07-02-multi-select-group-manipulation.md)
 - [Multi-User Collaboration](completed/2026-06-26-multi-user-collaboration.md)
 - [Named Snapshots and Visual Diff](completed/2026-07-02-named-snapshots-visual-diff.md)
@@ -142,6 +147,7 @@ Completed specs live in [completed](completed). A completed spec means its core 
 - [Share Links](completed/2026-06-26-share-links.md)
 - [Smooth Trackpad Zoom](completed/2026-06-29-smooth-trackpad-zoom.md)
 - [SDD Artifact Interchange](completed/2026-07-02-sdd-artifact-interchange.md)
+- [SDD Fidelity: EARS Requirements and Spec Kit Layout Compatibility](completed/2026-07-05-sdd-fidelity-ears-spec-kit.md)
 - [Snap Grid](completed/2026-06-26-snap-grid.md)
 - [Sprint Retro Context Kit](completed/2026-06-30-sprint-retro-context-kit.md)
 - [Theme Color Shortcuts](completed/2026-06-26-theme-color-shortcuts.md)

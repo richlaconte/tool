@@ -5,8 +5,16 @@ import { createDefaultPageState, type PageAppState } from './pagePersistence.ts'
 import {
   handleMcpJsonRpcRequest,
   MCP_JSON_RPC_VERSION,
+  MCP_PROTOCOL_VERSION_2025,
+  MCP_PROTOCOL_VERSION_2026,
+  MCP_READ_CACHE_TTL_MS,
+  negotiateMcpProtocolVersion,
+  readMcpRoutingHeaders,
+  resolveMcpRequest,
   type McpAgentActionRecord,
   type McpGatewayContext,
+  type McpGatewayTaskRecord,
+  type McpGatewayTaskStore,
 } from './mcpGateway.ts'
 
 const now = '2026-06-26T12:00:00.000Z'
@@ -153,6 +161,7 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       'update_area_styles',
       'append_journal_entry',
       'update_area_status',
+      'claim_task',
       'move_area',
       'nest_area',
       'delete_area',
@@ -187,6 +196,7 @@ test('MCP gateway initializes without auth and lists low-risk tools', async () =
       ['update_area_styles', 'page:write'],
       ['append_journal_entry', 'page:suggest'],
       ['update_area_status', 'page:write'],
+      ['claim_task', 'page:write'],
       ['move_area', 'page:write'],
       ['nest_area', 'page:write'],
       ['delete_area', 'page:write'],
@@ -370,6 +380,7 @@ test('MCP resources list and read page context without leaking raw assets', asyn
     'cascadery://pages/page-1/handoff',
     'cascadery://pages/page-1/json-canvas',
     'cascadery://pages/page-1/agent-actions',
+    'cascadery://pages/page-1/app',
   ])
 
   const pages = await readJsonResource('cascadery://pages')
@@ -1309,6 +1320,611 @@ test('update_area_status returns a proposal unless status auto-accept is enabled
   assert.equal(autoAcceptResponse.result.auditRecord.id, 'action-status-auto')
   assert.equal(savedState.areas[0].metadata?.status, 'blocked')
   assert.match(savedState.journal?.[0]?.text ?? '', /marked .* blocked/)
+})
+
+test('claim_task assigns an unclaimed task to the calling agent atomically', async () => {
+  let savedState: PageAppState = {
+    ...state,
+    areas: [
+      {
+        ...state.areas[0],
+        metadata: {
+          kind: 'task',
+          tags: [],
+        },
+      },
+    ],
+  }
+
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'claim-task',
+      method: 'tools/call',
+      params: {
+        name: 'claim_task',
+        arguments: {
+          pageId: 'page-1',
+          areaId: 'area-1',
+        },
+      },
+    },
+    {
+      ...context,
+      client: {
+        id: 'agent-glm',
+        displayName: 'GLM Worker',
+        scopes: ['page:write'],
+      },
+      createJournalId: () => 'journal-claim',
+      getPage: async () => savedState,
+      now: () => now,
+      savePageState: async (nextState) => {
+        savedState = nextState
+      },
+    }
+  )
+
+  assert.equal(response.error, undefined)
+  assert.equal(response.result.claimed, true)
+  assert.equal(savedState.areas[0].metadata?.status, 'in-progress')
+  assert.deepEqual(savedState.areas[0].metadata?.assignee, {
+    kind: 'agent',
+    name: 'GLM Worker',
+  })
+  assert.match(savedState.journal?.[0]?.text ?? '', /claimed/)
+  assert.equal(savedState.journal?.[0]?.taskAreaId, 'area-1')
+})
+
+test('claim_task rejects already claimed tasks with the current assignee', async () => {
+  let saved = false
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'claim-task-taken',
+      method: 'tools/call',
+      params: {
+        name: 'claim_task',
+        arguments: {
+          pageId: 'page-1',
+          areaId: 'area-1',
+        },
+      },
+    },
+    {
+      ...context,
+      client: {
+        id: 'agent-glm',
+        displayName: 'GLM Worker',
+        scopes: ['page:write'],
+      },
+      getPage: async () => ({
+        ...state,
+        areas: [
+          {
+            ...state.areas[0],
+            metadata: {
+              kind: 'task',
+              tags: [],
+              assignee: {
+                kind: 'agent',
+                name: 'Other Agent',
+              },
+            },
+          },
+        ],
+      }),
+      savePageState: async () => {
+        saved = true
+      },
+    }
+  )
+
+  assert.equal(response.error?.code, -32031)
+  assert.match(response.error?.message ?? '', /Other Agent/)
+  assert.equal(saved, false)
+})
+
+const createInMemoryTaskStore = () => {
+  const tasks = new Map<string, McpGatewayTaskRecord>()
+  let sequence = 0
+  const store: McpGatewayTaskStore = {
+    cancel: async (taskId) => {
+      const task = tasks.get(taskId)
+
+      if (task && task.status === 'working') {
+        task.status = 'cancelled'
+      }
+
+      return task ?? null
+    },
+    complete: async (taskId, result) => {
+      const task = tasks.get(taskId)
+
+      if (task && task.status === 'working') {
+        task.status = 'completed'
+        task.result = result
+      }
+    },
+    create: async ({ pageId, tokenId, toolName }) => {
+      sequence += 1
+      const task: McpGatewayTaskRecord = {
+        id: `task-${sequence}`,
+        pageId,
+        tokenId,
+        toolName,
+        status: 'working',
+        createdAt: now,
+        updatedAt: now,
+        result: null,
+        error: null,
+      }
+
+      tasks.set(task.id, task)
+
+      return task
+    },
+    fail: async (taskId, message) => {
+      const task = tasks.get(taskId)
+
+      if (task && (task.status === 'working' || task.status === 'completed')) {
+        task.status = 'failed'
+        task.error = message
+      }
+    },
+    get: async (taskId) => tasks.get(taskId) ?? null,
+    listForPage: async (pageId) =>
+      Array.from(tasks.values()).filter((task) => task.pageId === pageId),
+  }
+
+  return { store, tasks }
+}
+
+const waitForMicrotasks = () =>
+  new Promise((resolve) => setTimeout(resolve, 0))
+
+test('MCP protocol version negotiation echoes supported revisions and answers latest otherwise', async () => {
+  assert.equal(
+    negotiateMcpProtocolVersion(MCP_PROTOCOL_VERSION_2026),
+    MCP_PROTOCOL_VERSION_2026
+  )
+  assert.equal(
+    negotiateMcpProtocolVersion(MCP_PROTOCOL_VERSION_2025),
+    MCP_PROTOCOL_VERSION_2025
+  )
+  assert.equal(
+    negotiateMcpProtocolVersion('2030-01-01'),
+    MCP_PROTOCOL_VERSION_2026
+  )
+  assert.equal(negotiateMcpProtocolVersion(undefined), MCP_PROTOCOL_VERSION_2026)
+
+  const legacy = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'init-legacy',
+      method: 'initialize',
+      params: { protocolVersion: MCP_PROTOCOL_VERSION_2025 },
+    },
+    context
+  )
+  const current = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'init-2026',
+      method: 'initialize',
+      params: { protocolVersion: MCP_PROTOCOL_VERSION_2026 },
+    },
+    context
+  )
+
+  assert.equal(legacy.result.protocolVersion, MCP_PROTOCOL_VERSION_2025)
+  assert.equal(legacy.result.extensions, undefined)
+  assert.equal(current.result.protocolVersion, MCP_PROTOCOL_VERSION_2026)
+  assert.deepEqual(current.result.extensions.tasks, {})
+  assert.equal(
+    current.result.extensions.apps.templates[0].name,
+    'cascadery-page-outline'
+  )
+})
+
+test('MCP routing headers resolve header-routed requests and reject mismatches', () => {
+  const headers = readMcpRoutingHeaders((name) =>
+    name.toLowerCase() === 'mcp-method'
+      ? 'tools/call'
+      : name.toLowerCase() === 'mcp-name'
+        ? 'get_page'
+        : null
+  )
+
+  assert.deepEqual(headers, { method: 'tools/call', toolName: 'get_page' })
+
+  const headerRouted = resolveMcpRequest(
+    { id: 7, params: { arguments: { pageId: 'page-1' } } },
+    headers
+  )
+  const bodyRouted = resolveMcpRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 8,
+      method: 'tools/list',
+    },
+    { method: null, toolName: null }
+  )
+  const methodMismatch = resolveMcpRequest(
+    { method: 'tools/list' },
+    { method: 'tools/call', toolName: null }
+  )
+  const nameMismatch = resolveMcpRequest(
+    { method: 'tools/call', params: { name: 'list_pages' } },
+    { method: 'tools/call', toolName: 'get_page' }
+  )
+  const missingMethod = resolveMcpRequest(
+    { params: {} },
+    { method: null, toolName: null }
+  )
+  const wrongJsonRpc = resolveMcpRequest(
+    { jsonrpc: '1.0', method: 'tools/list' },
+    { method: null, toolName: null }
+  )
+
+  assert.equal(headerRouted.ok, true)
+  assert.ok(headerRouted.ok)
+  assert.equal(headerRouted.request.method, 'tools/call')
+  assert.deepEqual(headerRouted.request.params, {
+    arguments: { pageId: 'page-1' },
+    name: 'get_page',
+  })
+  assert.ok(bodyRouted.ok)
+  assert.equal(bodyRouted.request.method, 'tools/list')
+  assert.equal(methodMismatch.ok, false)
+  assert.equal(nameMismatch.ok, false)
+  assert.equal(missingMethod.ok, false)
+  assert.equal(wrongJsonRpc.ok, false)
+})
+
+test('MCP header-routed tool calls run without an initialize round-trip', async () => {
+  const resolved = resolveMcpRequest(
+    { id: 'stateless-1', params: { arguments: { pageId: 'page-1' } } },
+    { method: 'tools/call', toolName: 'get_page' }
+  )
+
+  assert.ok(resolved.ok)
+
+  const response = await handleMcpJsonRpcRequest(resolved.request, context)
+
+  assert.equal(response.error, undefined)
+  assert.equal(response.result.page.id, 'page-1')
+})
+
+test('MCP read tools carry cache metadata and suggest/write tools carry none', async () => {
+  const read = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'cache-read',
+      method: 'tools/call',
+      params: { name: 'get_page', arguments: { pageId: 'page-1' } },
+    },
+    context
+  )
+  const suggest = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'cache-suggest',
+      method: 'tools/call',
+      params: { name: 'suggest_decision_log', arguments: { pageId: 'page-1' } },
+    },
+    context
+  )
+  const write = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'cache-write',
+      method: 'tools/call',
+      params: {
+        name: 'create_area',
+        arguments: {
+          pageId: 'page-1',
+          text: 'No cache',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+        },
+      },
+    },
+    context
+  )
+  const missing = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'cache-missing',
+      method: 'tools/call',
+      params: { name: 'get_page', arguments: { pageId: 'missing' } },
+    },
+    context
+  )
+
+  assert.deepEqual(read.result._meta.cache, {
+    ttlMs: MCP_READ_CACHE_TTL_MS,
+    cacheScope: 'private',
+  })
+  assert.equal(suggest.result._meta, undefined)
+  assert.equal(write.result._meta, undefined)
+  assert.equal(missing.result, undefined)
+})
+
+test('ai_suggest_decision_log returns a task handle that tasks/get drives to completion', async () => {
+  const { store } = createInMemoryTaskStore()
+  const taskContext: McpGatewayContext = {
+    ...context,
+    createAiDecisionLogPatch: async () => ({
+      schemaVersion: 1,
+      id: 'patch-task',
+      pageId: 'page-1',
+      source: {
+        kind: 'mcp-agent',
+        clientId: 'glm',
+        displayName: 'GLM',
+      },
+      operations: [],
+      createdAt: now,
+    }),
+    taskStore: store,
+  }
+
+  const created = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-create',
+      method: 'tools/call',
+      params: {
+        name: 'ai_suggest_decision_log',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    taskContext
+  )
+
+  assert.equal(created.error, undefined)
+  assert.equal(created.result.task.status, 'working')
+
+  await waitForMicrotasks()
+
+  const polled = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-get',
+      method: 'tasks/get',
+      params: { taskId: created.result.task.taskId },
+    },
+    taskContext
+  )
+
+  assert.equal(polled.error, undefined)
+  assert.equal(polled.result.task.status, 'completed')
+  assert.equal(polled.result.task.result.id, 'patch-task')
+})
+
+test('tasks/cancel stops a working task and a failing provider marks it failed', async () => {
+  const { store } = createInMemoryTaskStore()
+  let releaseProvider: (() => void) | null = null
+  const cancelContext: McpGatewayContext = {
+    ...context,
+    createAiDecisionLogPatch: () =>
+      new Promise((_resolve, reject) => {
+        releaseProvider = () => reject(new Error('GLM request failed with 500.'))
+      }),
+    taskStore: store,
+  }
+
+  const created = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-create-cancel',
+      method: 'tools/call',
+      params: {
+        name: 'ai_suggest_decision_log',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    cancelContext
+  )
+  const cancelled = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-cancel',
+      method: 'tasks/cancel',
+      params: { taskId: created.result.task.taskId },
+    },
+    cancelContext
+  )
+
+  assert.equal(cancelled.result.task.status, 'cancelled')
+
+  releaseProvider?.()
+  await waitForMicrotasks()
+
+  const afterLateFailure = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-after-late-failure',
+      method: 'tasks/get',
+      params: { taskId: created.result.task.taskId },
+    },
+    cancelContext
+  )
+
+  assert.equal(afterLateFailure.result.task.status, 'cancelled')
+
+  const failingContext: McpGatewayContext = {
+    ...cancelContext,
+    createAiDecisionLogPatch: async () => {
+      throw new Error('GLM request failed with 500.')
+    },
+  }
+  const failing = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-create-fail',
+      method: 'tools/call',
+      params: {
+        name: 'ai_suggest_decision_log',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    failingContext
+  )
+
+  await waitForMicrotasks()
+
+  const failed = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-get-failed',
+      method: 'tasks/get',
+      params: { taskId: failing.result.task.taskId },
+    },
+    failingContext
+  )
+
+  assert.equal(failed.result.task.status, 'failed')
+  assert.match(failed.result.task.error, /GLM request failed/)
+})
+
+test('task creation requires page:suggest and polling fails closed on inactive tokens', async () => {
+  const { store, tasks } = createInMemoryTaskStore()
+  const securityEvents: Array<{ reason?: string }> = []
+  const readOnlyContext: McpGatewayContext = {
+    ...context,
+    authorizedPageId: 'page-1',
+    client: {
+      id: 'mcp-token-read',
+      displayName: 'Read token',
+      scopes: ['page:read'],
+    },
+    createAiDecisionLogPatch: async () => {
+      throw new Error('Should never run for read-only tokens.')
+    },
+    logSecurityEvent: (event) => {
+      securityEvents.push(event)
+    },
+    taskStore: store,
+  }
+
+  const denied = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-denied',
+      method: 'tools/call',
+      params: {
+        name: 'ai_suggest_decision_log',
+        arguments: { pageId: 'page-1' },
+      },
+    },
+    readOnlyContext
+  )
+
+  assert.equal(denied.error?.code, -32003)
+  assert.equal(tasks.size, 0)
+
+  await store.create({
+    pageId: 'page-1',
+    tokenId: 'revoked-token',
+    toolName: 'ai_suggest_decision_log',
+  })
+  await store.complete('task-1', { id: 'patch-should-not-leak' })
+
+  const revokedPoll = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-revoked-poll',
+      method: 'tasks/get',
+      params: { taskId: 'task-1' },
+    },
+    {
+      ...readOnlyContext,
+      isTokenActive: async () => false,
+    }
+  )
+
+  assert.equal(revokedPoll.error?.code, -32003)
+  assert.equal(tasks.get('task-1')?.status, 'failed')
+  assert.equal(
+    securityEvents.some(
+      (event) => event.reason === 'task-token-inactive'
+    ),
+    true
+  )
+
+  const missingTask = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'task-missing',
+      method: 'tasks/get',
+      params: { taskId: 'task-none' },
+    },
+    readOnlyContext
+  )
+
+  assert.equal(missingTask.error?.code, -32040)
+})
+
+test('the MCP App resource renders outline and proposals with zero external requests', async () => {
+  const { store } = createInMemoryTaskStore()
+
+  await store.create({
+    pageId: 'page-1',
+    tokenId: null,
+    toolName: 'ai_suggest_decision_log',
+  })
+  await store.complete('task-1', {
+    schemaVersion: 1,
+    id: 'patch-app',
+    pageId: 'page-1',
+    source: {
+      kind: 'mcp-agent',
+      clientId: 'glm',
+      displayName: 'GLM',
+    },
+    operations: [
+      {
+        op: 'createArea',
+        tempId: 'app-area',
+        area: {
+          text: 'Proposal body',
+          x: 0,
+          y: 0,
+          width: 100,
+          height: 100,
+          styles: {},
+        },
+      },
+    ],
+    createdAt: now,
+  })
+
+  const response = await handleMcpJsonRpcRequest(
+    {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: 'app-resource',
+      method: 'resources/read',
+      params: { uri: 'cascadery://pages/page-1/app' },
+    },
+    {
+      ...context,
+      taskStore: store,
+    }
+  )
+  const content = response.result.contents[0]
+
+  assert.equal(response.error, undefined)
+  assert.equal(content.mimeType, 'text/html')
+  assert.match(content.text, /Decision: expose read-only MCP/)
+  assert.match(content.text, /GLM proposed 1 operation/)
+  assert.match(content.text, /data-action="accept"/)
+  assert.match(content.text, /data-patch-id="patch-app"/)
+  assert.doesNotMatch(content.text, /https?:\/\//)
+  assert.doesNotMatch(content.text, /src=/)
 })
 
 test('export_sdd and import_sdd are recorded in the agent action audit trail', async () => {

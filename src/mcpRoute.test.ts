@@ -29,6 +29,16 @@ test('MCP route requires bearer auth, preserves explicit loopback anonymous mode
   assert.match(source, /listMcpAgentActions/)
   assert.match(source, /listAgentActions/)
   assert.match(source, /recordAgentAction/)
+  // 2026-07-28 stateless core: routing headers resolve through pure gateway
+  // logic, and the SQLite task store plus fail-closed token check are wired.
+  assert.match(source, /readMcpRoutingHeaders/)
+  assert.match(source, /resolveMcpRequest/)
+  assert.match(source, /taskStore/)
+  assert.match(source, /createMcpTask/)
+  assert.match(source, /getMcpTask/)
+  assert.match(source, /cancelMcpTask/)
+  assert.match(source, /listMcpTasks/)
+  assert.match(source, /isMcpTokenActive/)
   assert.match(metadataSource, /protected_resource/)
   assert.match(metadataSource, /bearer/)
   assert.match(env, /TOOL_MCP_ENABLED/)

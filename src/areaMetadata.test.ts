@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   createAreaLink,
   getAreaMetadata,
+  normalizeAreaMetadata,
   normalizeAreaLink,
   removeAreaLinksForDeletedAreas,
   setAreaMetadata,
@@ -49,6 +50,39 @@ test('sets area metadata while preserving existing area content', () => {
     filePath: 'src/App.tsx',
     url: 'https://example.com/decision',
   })
+})
+
+test('normalizes task assignees for agent mission control', () => {
+  assert.deepEqual(
+    normalizeAreaMetadata({
+      kind: 'task',
+      tags: [],
+      assignee: {
+        kind: 'agent',
+        name: ' GLM Worker ',
+      },
+    }),
+    {
+      kind: 'task',
+      tags: [],
+      assignee: {
+        kind: 'agent',
+        name: 'GLM Worker',
+      },
+    }
+  )
+
+  assert.deepEqual(
+    normalizeAreaMetadata({
+      kind: 'task',
+      tags: [],
+      assignee: {
+        kind: 'agent',
+        name: ' ',
+      },
+    }).assignee,
+    undefined
+  )
 })
 
 test('creates directional links between stable area ids', () => {

@@ -93,6 +93,24 @@ export const setupDatabase = (database: ToolDatabase) => {
     create index if not exists mcp_tokens_hash_lookup
       on mcp_tokens(token_hash);
 
+    create table if not exists mcp_tasks (
+      id text primary key,
+      page_id text not null,
+      token_id text,
+      tool_name text not null,
+      status text not null check (
+        status in ('working', 'completed', 'failed', 'cancelled')
+      ),
+      created_at text not null,
+      updated_at text not null,
+      result_json text,
+      error text,
+      foreign key (page_id) references pages(id)
+    );
+
+    create index if not exists mcp_tasks_page_lookup
+      on mcp_tasks(page_id, created_at);
+
     create table if not exists page_snapshots (
       id text primary key,
       page_id text not null,
@@ -134,6 +152,13 @@ export const setupDatabase = (database: ToolDatabase) => {
 
     create index if not exists auth_sessions_token_lookup
       on auth_sessions(token_hash, expires_at);
+
+    create table if not exists telemetry_counts (
+      event text not null,
+      day text not null,
+      count integer not null default 0,
+      primary key (event, day)
+    );
   `)
 
   addColumnIfMissing(database, 'pages', 'owner_user_id', 'text')

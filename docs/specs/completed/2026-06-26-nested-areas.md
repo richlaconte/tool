@@ -1,5 +1,7 @@
 # Nested Areas Spec
 
+Status: Completed MVP spec (status line added in the 2026-07-06 spec audit).
+
 ## Idea
 
 Areas should support nesting. A parent Area can contain multiple child Areas that move around inside the parent and stay anchored to it when the parent moves.

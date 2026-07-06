@@ -2,6 +2,13 @@
 
 ## Status
 
+Completed — the server-backed implementation shipped: the custom Next.js
+server (`server.ts`) runs Hocuspocus/Yjs collaboration, the client connects
+through `HocuspocusProvider` (`src/useCollaborativePage.ts`), and share-link
+enforcement landed via the share-links and collaboration-security specs. The
+`BroadcastChannel` interim described below no longer exists (stale status
+corrected in the 2026-07-06 spec audit).
+
 Expanded on 2026-06-26 after research. This spec supersedes the earlier high-level collaboration note. The current implementation is still a Vite client using `BroadcastChannel`; that is useful for same-browser tab sync only and does not satisfy this spec.
 
 Updated on 2026-06-26 for the MVP access decision: authentication and edit/view authorization are not required yet. The first server-backed implementation treats every `/p/[pageId]` URL as an editable collaboration room. Share-token validation, signed sessions, and view-only links are future work.

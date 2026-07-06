@@ -2,6 +2,8 @@
 
 ## Status
 
+Priority: P1-gated — queue #8; start only when a launch date exists or the queue is nearly drained (2026-07-06 audit). See the Priority Queue in README.md before starting work.
+
 Created on 2026-07-02 from the Spec Suite Roadmap (Tier 4.4). Active.
 Market fit cannot be tested without distribution; this spec is the
 distribution surface. Sequence after the SDD interchange spec (Tier 2.1) so

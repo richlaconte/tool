@@ -3,6 +3,8 @@ import type { AgentScope } from '../../../src/agentInterface'
 import {
   handleMcpJsonRpcRequest,
   MCP_JSON_RPC_VERSION,
+  readMcpRoutingHeaders,
+  resolveMcpRequest,
   type McpJsonRpcRequest,
 } from '../../../src/mcpGateway'
 import { createDatabase } from '../../../src/server/database'
@@ -29,8 +31,23 @@ import {
   listMcpAgentActions,
   recordMcpAgentAction,
 } from '../../../src/server/mcpAgentActions'
-import { validateMcpToken } from '../../../src/server/mcpTokens'
+import {
+  cancelMcpTask,
+  completeMcpTask,
+  createMcpTask,
+  failMcpTask,
+  getMcpTask,
+  listMcpTasks,
+} from '../../../src/server/mcpTasks'
+import {
+  isMcpTokenActive,
+  validateMcpToken,
+} from '../../../src/server/mcpTokens'
 import { createConsoleSecurityLogger } from '../../../src/server/securityLog'
+import {
+  isServerTelemetryDisabled,
+  recordTelemetryEvent,
+} from '../../../src/server/telemetryStore'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -75,10 +92,10 @@ export const POST = async (request: Request) => {
     return createUnauthorizedResponse(authorization.reason)
   }
 
-  let rpcRequest: McpJsonRpcRequest
+  let requestBody: unknown
 
   try {
-    rpcRequest = (await request.json()) as McpJsonRpcRequest
+    requestBody = await request.json()
   } catch {
     return Response.json(
       createJsonRpcError(null, -32700, 'Request body must be JSON.'),
@@ -87,6 +104,24 @@ export const POST = async (request: Request) => {
       }
     )
   }
+
+  // 2026-07-28 stateless core: header-routed requests (Mcp-Method/Mcp-Name)
+  // and body-routed requests resolve through the same pure gateway logic.
+  const resolved = resolveMcpRequest(
+    requestBody,
+    readMcpRoutingHeaders((name) => request.headers.get(name))
+  )
+
+  if (!resolved.ok) {
+    return Response.json(
+      createJsonRpcError(null, -32600, resolved.error),
+      {
+        status: 400,
+      }
+    )
+  }
+
+  const rpcRequest: McpJsonRpcRequest = resolved.request
 
   const glmConfig = getGlmProviderConfigFromEnv()
   const rateLimitKey = authorization.client?.id ?? clientRateLimitKey
@@ -156,6 +191,20 @@ export const POST = async (request: Request) => {
       return result.ok ? result.snippet : null
     },
     logSecurityEvent: securityLogger,
+    // Tasks extension: SQLite-backed so any instance can answer tasks/get.
+    taskStore: {
+      cancel: async (taskId) => cancelMcpTask(database, taskId),
+      complete: async (taskId, result) => {
+        completeMcpTask(database, taskId, result)
+      },
+      create: async (task) => createMcpTask(database, task),
+      fail: async (taskId, message) => {
+        failMcpTask(database, taskId, message)
+      },
+      get: async (taskId) => getMcpTask(database, taskId),
+      listForPage: async (pageId) => listMcpTasks(database, pageId),
+    },
+    isTokenActive: async (tokenId) => isMcpTokenActive(database, tokenId),
     savePageState: async (state) => {
       saveStoredCollaborativePageState(database, {
         ...state,
@@ -170,7 +219,32 @@ export const POST = async (request: Request) => {
     },
   })
 
+  recordMcpTelemetry(database, rpcRequest)
+
   return Response.json(response)
+}
+
+// Counts only: `mcp_request` plus the tool name for tools/call (tool names
+// are API surface, never content). See docs/telemetry.md.
+const recordMcpTelemetry = (
+  database: ReturnType<typeof createDatabase>,
+  rpcRequest: McpJsonRpcRequest
+) => {
+  if (isServerTelemetryDisabled()) return
+
+  const params = rpcRequest.params as
+    | { name?: unknown }
+    | undefined
+  const toolName =
+    rpcRequest.method === 'tools/call' &&
+    typeof params?.name === 'string'
+      ? params.name
+      : null
+
+  recordTelemetryEvent(
+    database,
+    toolName ? `mcp_request:${toolName}` : 'mcp_request'
+  )
 }
 
 const getPageState = (

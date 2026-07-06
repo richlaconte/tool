@@ -114,6 +114,11 @@ export type AreaLinkOptionality =
   (typeof AREA_LINK_OPTIONALITIES)[number]
 export type AreaEvidenceKind = (typeof AREA_EVIDENCE_KINDS)[number]
 
+export type AreaAssignee = {
+  kind: 'agent' | 'human'
+  name: string
+}
+
 export type AreaEvidenceReference = {
   id: string
   kind: AreaEvidenceKind
@@ -127,6 +132,7 @@ export type AreaMetadata = {
   kind: AreaKind
   status?: AreaStatus
   tags: string[]
+  assignee?: AreaAssignee
   filePath?: string
   url?: string
   evidence?: AreaEvidenceReference[]
@@ -261,23 +267,28 @@ export const removeAreaLinksForDeletedAreas = (
 
 export const normalizeAreaMetadata = (
   metadata: Partial<AreaMetadata> | null | undefined
-): AreaMetadata => ({
-  kind: isAreaKind(metadata?.kind) ? metadata.kind : 'note',
-  ...(isAreaStatus(metadata?.status)
-    ? { status: metadata.status }
-    : {}),
-  tags: normalizeTags(metadata?.tags),
-  ...(typeof metadata?.filePath === 'string' &&
-  metadata.filePath.trim()
-    ? { filePath: metadata.filePath.trim() }
-    : {}),
-  ...(typeof metadata?.url === 'string' && metadata.url.trim()
-    ? { url: metadata.url.trim() }
-    : {}),
-  ...(Array.isArray(metadata?.evidence)
-    ? { evidence: normalizeEvidence(metadata.evidence) }
-    : {}),
-})
+): AreaMetadata => {
+  const assignee = normalizeAreaAssignee(metadata?.assignee)
+
+  return {
+    kind: isAreaKind(metadata?.kind) ? metadata.kind : 'note',
+    ...(isAreaStatus(metadata?.status)
+      ? { status: metadata.status }
+      : {}),
+    tags: normalizeTags(metadata?.tags),
+    ...(assignee ? { assignee } : {}),
+    ...(typeof metadata?.filePath === 'string' &&
+    metadata.filePath.trim()
+      ? { filePath: metadata.filePath.trim() }
+      : {}),
+    ...(typeof metadata?.url === 'string' && metadata.url.trim()
+      ? { url: metadata.url.trim() }
+      : {}),
+    ...(Array.isArray(metadata?.evidence)
+      ? { evidence: normalizeEvidence(metadata.evidence) }
+      : {}),
+  }
+}
 
 export const isAreaKind = (value: unknown): value is AreaKind =>
   typeof value === 'string' &&
@@ -286,6 +297,10 @@ export const isAreaKind = (value: unknown): value is AreaKind =>
 export const isAreaStatus = (value: unknown): value is AreaStatus =>
   typeof value === 'string' &&
   AREA_STATUSES.includes(value as AreaStatus)
+
+export const isAreaAssigneeKind = (
+  value: unknown
+): value is AreaAssignee['kind'] => value === 'agent' || value === 'human'
 
 export const isAreaLinkKind = (value: unknown): value is AreaLinkKind =>
   typeof value === 'string' &&
@@ -366,6 +381,28 @@ const normalizeTags = (tags: unknown) => {
         .filter(Boolean)
     )
   )
+}
+
+export const normalizeAreaAssignee = (
+  assignee: unknown
+): AreaAssignee | undefined => {
+  if (
+    typeof assignee !== 'object' ||
+    assignee === null ||
+    Array.isArray(assignee)
+  ) {
+    return undefined
+  }
+
+  const record = assignee as Record<string, unknown>
+  const name = typeof record.name === 'string' ? record.name.trim() : ''
+
+  if (!isAreaAssigneeKind(record.kind) || !name) return undefined
+
+  return {
+    kind: record.kind,
+    name: name.slice(0, 80),
+  }
 }
 
 const normalizeAreaLinkEndpoint = (

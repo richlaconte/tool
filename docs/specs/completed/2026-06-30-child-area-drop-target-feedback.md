@@ -1,7 +1,7 @@
 # Child Area Drop Target Feedback Spec
 
 Created: 2026-06-30
-Status: Active foundational spec
+Status: Completed MVP spec (status corrected in the 2026-07-06 spec audit).
 
 ## Problem
 

@@ -1,3 +1,8 @@
+// Authorization currency (2026-07-28 SEPs): the token model stays
+// user-minted page-scoped bearer tokens, so `authorization_servers` is
+// empty by design. The issuer-validation and OAuth-alignment SEPs only bind
+// once a real authorization server ships (identity spec follow-up); until
+// then there is no OAuth-compatible flow here to validate.
 export const dynamic = 'force-dynamic'
 
 export const GET = (request: Request) => {

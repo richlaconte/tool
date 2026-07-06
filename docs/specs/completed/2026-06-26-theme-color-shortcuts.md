@@ -1,5 +1,7 @@
 # Theme Color Shortcuts Spec
 
+Status: Completed MVP spec (status line added in the 2026-07-06 spec audit).
+
 ## Idea
 
 Page settings should let users define theme colors that can be reused in Area styling commands. Users should be able to type plain CSS color names like `blue`, but also shortcut names such as `${businessName}-blue` to resolve to a saved page theme color.

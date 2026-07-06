@@ -1,5 +1,7 @@
 # Area Toolbar Delete Spec
 
+Status: Completed MVP spec (status line added in the 2026-07-06 spec audit).
+
 ## Idea
 
 Add a delete option to each Area toolbar, likely on the top right, while keeping the existing drag handle.

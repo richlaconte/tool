@@ -2,6 +2,8 @@
 
 ## Status
 
+Priority: P2 — queue #7 (2026-07-06 audit). See the Priority Queue in README.md before starting work.
+
 Created on 2026-07-02 from the Spec Suite Roadmap (Tier 4.3). Active.
 Depends on the keyboard/a11y spec's outline component (`getPageOutline`) if it
 has landed; otherwise build the outline helper here and share it back.

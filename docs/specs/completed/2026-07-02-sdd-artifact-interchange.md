@@ -2,7 +2,10 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 2.1). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 2.1). Completed —
+core path shipped in `src/sddExport.ts` / `src/sddImport.ts` with the
+`export_sdd` / `import_sdd` MCP tools and colocated tests (stale "Active."
+status corrected in the 2026-07-06 spec audit).
 This is the flagship market-position spec: Cascadery as the visual layer for
 spec-driven development.
 

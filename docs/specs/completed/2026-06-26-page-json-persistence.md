@@ -1,5 +1,7 @@
 # Page JSON Persistence Spec
 
+Status: Completed MVP spec (status line added in the 2026-07-06 spec audit).
+
 ## Idea
 
 Save the whole page state in a carefully planned JSON format so the canvas can be persisted, shared, versioned, and later synchronized across users.

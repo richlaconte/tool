@@ -943,6 +943,9 @@ const readAreaMetadata = (value: unknown): AreaMetadata | undefined => {
       ? { status: metadata.status }
       : {}),
     tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+    ...(metadata.assignee
+      ? { assignee: metadata.assignee as AreaMetadata['assignee'] }
+      : {}),
     ...(typeof metadata.filePath === 'string'
       ? { filePath: metadata.filePath }
       : {}),

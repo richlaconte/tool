@@ -1,5 +1,7 @@
 # Area Duplicate Action Spec
 
+Status: Completed MVP spec (status line added in the 2026-07-06 spec audit).
+
 ## Idea
 
 Support an Area toolbar action to duplicate Areas, similar to existing move behavior and planned delete behavior.

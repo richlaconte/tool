@@ -188,7 +188,8 @@ const Area = ({
     (gifPlaybackOverride === 'pause' ||
       (gifPlaybackOverride === null && prefersReducedMotion))
   const areaText = isImageArea ? '' : area.text
-  const evidence = getAreaMetadata(area).evidence ?? []
+  const metadata = getAreaMetadata(area)
+  const evidence = metadata.evidence ?? []
   const supportsThemedCssDeclaration = (
     property: string,
     value: string
@@ -681,6 +682,12 @@ const Area = ({
             isSelected={isSelected}
             onRemoveEvidence={onRemoveEvidence}
           />
+        )}
+        {metadata.assignee && (
+          <span className="area-assignee-badge">
+            {metadata.assignee.kind === 'agent' ? 'Agent' : 'Human'}:{' '}
+            {metadata.assignee.name}
+          </span>
         )}
         {!isReadOnly && unresolvedCommentCount > 0 && (
           <button

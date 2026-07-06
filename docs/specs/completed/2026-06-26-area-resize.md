@@ -1,5 +1,7 @@
 # Area Resize Spec
 
+Status: Completed MVP spec (status line added in the 2026-07-06 spec audit).
+
 ## Idea
 
 Add Area resize controls, likely using a draggable corner, so users can change Area width and eventually image dimensions.

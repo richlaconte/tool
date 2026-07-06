@@ -22,6 +22,11 @@ export const metadata: Metadata = {
 
 const RootLayout = ({ children }: { children: ReactNode }) => (
   <html lang="en">
+    <head>
+      {process.env.TOOL_TELEMETRY_DISABLED === 'true' && (
+        <meta content="disabled" name="cascadery-telemetry" />
+      )}
+    </head>
     <body>{children}</body>
   </html>
 )

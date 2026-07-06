@@ -63,3 +63,40 @@ test('app exposes an agent journal panel, presence chip, and MCP status setting'
   assert.match(css, /\.agent-journal-toggle--unread/)
   assert.match(css, /\.presence-avatar--agent/)
 })
+
+test('app exposes an agent mission-control task board lens', async () => {
+  const source = await readFile(
+    new URL('./App.tsx', import.meta.url),
+    'utf8'
+  )
+  const css = await readFile(
+    new URL('./App.css', import.meta.url),
+    'utf8'
+  )
+  const commandSource = await readFile(
+    new URL('./commandPaletteOptions.ts', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(commandSource, /id: 'task-board'/)
+  assert.match(source, /buildTaskBoard/)
+  assert.match(source, /buildNeedsAttentionQueue/)
+  assert.match(source, /task-board-dialog/)
+  assert.match(source, /draggable=\{!isViewOnly\}/)
+  assert.match(source, /updateTaskBoardAreaStatus/)
+  assert.match(source, /Area assignee/)
+  assert.match(css, /\.task-board-dialog/)
+  assert.match(css, /\.task-board-card/)
+
+  const areaCss = await readFile(
+    new URL('./components/area.css', import.meta.url),
+    'utf8'
+  )
+  const areaSource = await readFile(
+    new URL('./components/Area.tsx', import.meta.url),
+    'utf8'
+  )
+
+  assert.match(areaSource, /area-assignee-badge/)
+  assert.match(areaCss, /\.area-assignee-badge/)
+})

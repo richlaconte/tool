@@ -4,6 +4,10 @@ import { getUserFromRequest } from '../../../../../src/server/auth'
 import { createDatabase } from '../../../../../src/server/database'
 import { getPageSessionSecret } from '../../../../../src/server/pageAccess'
 import { createShareLinkMutation } from '../../../../../src/server/shareLinkApi'
+import {
+  isServerTelemetryDisabled,
+  recordTelemetryEvent,
+} from '../../../../../src/server/telemetryStore'
 
 type RouteContext = {
   params: Promise<{
@@ -46,6 +50,10 @@ export const POST = async (request: Request, { params }: RouteContext) => {
         status: 403,
       }
     )
+  }
+
+  if (!isServerTelemetryDisabled()) {
+    recordTelemetryEvent(database, 'share_link_created')
   }
 
   const response = NextResponse.json({

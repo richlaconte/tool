@@ -1,5 +1,16 @@
+// MCP gateway for Cascadery pages.
+//
+// Protocol currency (2026-07-28 revision): the gateway is stateless per
+// request — clients on the 2026-07-28 revision can call any method without
+// an `initialize` round-trip, optionally routing via the `Mcp-Method` and
+// `Mcp-Name` HTTP headers. `2025-06-18` initialize flows keep working during
+// a documented transition window. The deprecated protocol features (roots,
+// sampling, MCP logging) were never implemented by this gateway, so the
+// 2026-07-28 deprecations cost nothing here.
 import {
+  getAreaMetadata,
   isAreaStatus,
+  setAreaMetadata,
   type AreaStatus,
 } from './areaMetadata.ts'
 import {
@@ -34,6 +45,10 @@ import {
   pruneJournalEntries,
 } from './agentJournal.ts'
 import { parseCodeReference, type ResolvedCodeSnippet } from './codeReferences.ts'
+import {
+  MCP_APP_HTML_MIME_TYPE,
+  renderMcpAppHtml,
+} from './mcpAppTemplate.ts'
 import { createAgentHandoffBrief } from './agentHandoff.ts'
 import { compileSddBundle } from './sddExport.ts'
 import { buildSddImportPatch } from './sddImport.ts'
@@ -46,6 +61,130 @@ import {
 import type { PageAppState } from './pagePersistence.ts'
 
 export const MCP_JSON_RPC_VERSION = '2.0'
+
+// 2026-07-28 is the stateless-core release-candidate revision; 2025-06-18
+// stays supported as the documented transition window for slower agent hosts.
+export const MCP_PROTOCOL_VERSION_2026 = '2026-07-28'
+export const MCP_PROTOCOL_VERSION_2025 = '2025-06-18'
+export const SUPPORTED_MCP_PROTOCOL_VERSIONS = [
+  MCP_PROTOCOL_VERSION_2026,
+  MCP_PROTOCOL_VERSION_2025,
+] as const
+
+// Pages are live-collaborative, so read caches must stay short. Token
+// revocation is re-checked on every request, so a cached window can never
+// outlive a revoked token by more than this TTL — err low (5s).
+export const MCP_READ_CACHE_TTL_MS = 5_000
+export const MCP_READ_CACHE_SCOPE = 'private'
+
+// Supported version requested → echo it back; unknown or missing → answer
+// with the newest revision this gateway speaks (MCP negotiation rule).
+export const negotiateMcpProtocolVersion = (requested: unknown): string =>
+  typeof requested === 'string' &&
+  (SUPPORTED_MCP_PROTOCOL_VERSIONS as readonly string[]).includes(requested)
+    ? requested
+    : MCP_PROTOCOL_VERSION_2026
+
+export type McpRoutingHeaders = {
+  method: string | null
+  toolName: string | null
+}
+
+export const readMcpRoutingHeaders = (
+  getHeader: (name: string) => string | null
+): McpRoutingHeaders => ({
+  method: normalizeHeaderValue(getHeader('mcp-method') ?? getHeader('Mcp-Method')),
+  toolName: normalizeHeaderValue(getHeader('mcp-name') ?? getHeader('Mcp-Name')),
+})
+
+export type ResolveMcpRequestResult =
+  | { ok: true; request: McpJsonRpcRequest }
+  | { ok: false; error: string }
+
+// Merge the 2026-07-28 routing headers with the JSON body. Header-routed
+// requests may omit `method` (and `params.name` for tools/call) from the
+// body; when both are present they must agree.
+export const resolveMcpRequest = (
+  body: unknown,
+  headers: McpRoutingHeaders
+): ResolveMcpRequestResult => {
+  const bodyRecord = isRecord(body) ? body : {}
+
+  if (
+    bodyRecord.jsonrpc !== undefined &&
+    bodyRecord.jsonrpc !== MCP_JSON_RPC_VERSION
+  ) {
+    return {
+      ok: false,
+      error: 'Invalid JSON-RPC version.',
+    }
+  }
+
+  const bodyMethod =
+    typeof bodyRecord.method === 'string' ? bodyRecord.method : null
+
+  if (headers.method && bodyMethod && headers.method !== bodyMethod) {
+    return {
+      ok: false,
+      error: 'Mcp-Method header does not match the request body method.',
+    }
+  }
+
+  const method = bodyMethod ?? headers.method
+
+  if (!method) {
+    return {
+      ok: false,
+      error: 'Request must carry a method in the body or Mcp-Method header.',
+    }
+  }
+
+  const params = isRecord(bodyRecord.params) ? bodyRecord.params : undefined
+
+  if (method === 'tools/call' && headers.toolName) {
+    const bodyToolName =
+      params && typeof params.name === 'string' ? params.name : null
+
+    if (bodyToolName && bodyToolName !== headers.toolName) {
+      return {
+        ok: false,
+        error: 'Mcp-Name header does not match the request body tool name.',
+      }
+    }
+
+    return {
+      ok: true,
+      request: {
+        jsonrpc: MCP_JSON_RPC_VERSION,
+        id: readRequestId(bodyRecord.id),
+        method,
+        params: {
+          ...(params ?? {}),
+          name: bodyToolName ?? headers.toolName,
+        },
+      },
+    }
+  }
+
+  return {
+    ok: true,
+    request: {
+      jsonrpc: MCP_JSON_RPC_VERSION,
+      id: readRequestId(bodyRecord.id),
+      method,
+      ...(bodyRecord.params === undefined ? {} : { params: bodyRecord.params }),
+    },
+  }
+}
+
+const normalizeHeaderValue = (value: string | null) => {
+  const trimmed = value?.trim()
+
+  return trimmed ? trimmed : null
+}
+
+const readRequestId = (value: unknown): string | number | null =>
+  typeof value === 'string' || typeof value === 'number' ? value : null
 
 export type McpJsonRpcRequest = {
   jsonrpc: typeof MCP_JSON_RPC_VERSION
@@ -95,6 +234,33 @@ type McpResourceDefinition = {
   mimeType: string
 }
 
+export type McpTaskStatus = 'working' | 'completed' | 'failed' | 'cancelled'
+
+export type McpGatewayTaskRecord = {
+  id: string
+  pageId: string
+  tokenId: string | null
+  toolName: string
+  status: McpTaskStatus
+  createdAt: string
+  updatedAt: string
+  result: unknown
+  error: string | null
+}
+
+export type McpGatewayTaskStore = {
+  create: (task: {
+    pageId: string
+    tokenId: string | null
+    toolName: string
+  }) => Promise<McpGatewayTaskRecord>
+  get: (taskId: string) => Promise<McpGatewayTaskRecord | null>
+  cancel: (taskId: string) => Promise<McpGatewayTaskRecord | null>
+  complete: (taskId: string, result: unknown) => Promise<void>
+  fail: (taskId: string, message: string) => Promise<void>
+  listForPage: (pageId: string) => Promise<McpGatewayTaskRecord[]>
+}
+
 export type McpGatewayContext = {
   authorizedPageId?: string
   checkToolRateLimit?: (
@@ -120,6 +286,12 @@ export type McpGatewayContext = {
   logSecurityEvent?: (event: McpGatewaySecurityEvent) => void
   now?: () => string
   recordAgentAction?: (record: McpAgentActionRecord) => Promise<void>
+  // Tasks extension: when present, provider-backed tools return task
+  // handles and tasks/get / tasks/cancel drive the lifecycle.
+  taskStore?: McpGatewayTaskStore
+  // Fail-closed check for polled tasks: false when the minting token has
+  // been revoked or expired since the task was created.
+  isTokenActive?: (tokenId: string) => Promise<boolean>
   resolveEvidence?: (
     target: string
   ) => Promise<ResolvedCodeSnippet | null>
@@ -452,6 +624,24 @@ const toolDefinitions = [
     },
   },
   {
+    name: 'claim_task',
+    minimumScope: 'page:write',
+    description:
+      'Assign an unclaimed task Area to the calling agent and mark it in progress.',
+    inputSchema: {
+      type: 'object',
+      required: ['pageId', 'areaId'],
+      properties: {
+        pageId: {
+          type: 'string',
+        },
+        areaId: {
+          type: 'string',
+        },
+      },
+    },
+  },
+  {
     name: 'move_area',
     minimumScope: 'page:write',
     description: 'Return a dry-run patch for moving an Area.',
@@ -567,6 +757,61 @@ const toolDefinitions = [
   },
 ]
 
+// Read-class tools whose successful responses carry cache metadata for
+// 2026-07-28 clients. Suggest and write tools intentionally carry none —
+// their results must never be replayed from a cache.
+const READ_CACHE_TOOL_NAMES = new Set([
+  'list_pages',
+  'get_page',
+  'get_area',
+  'search_areas',
+  'summarize_page',
+  'extract_decisions',
+  'extract_open_questions',
+  'export_sdd',
+])
+
+// Apps extension: one declared template — the page outline and pending
+// proposal review, rendered from the `app` page resource. The view is
+// read-only state plus existing review actions; it adds no mutation paths.
+export const MCP_APP_TEMPLATE_DESCRIPTOR = {
+  name: 'cascadery-page-outline',
+  description:
+    'Page outline and pending agent proposals for one Cascadery page.',
+  resourceUri: `${CASCADERY_RESOURCE_PREFIX}/{pageId}/app`,
+  mimeType: 'text/html',
+  sandbox: 'iframe',
+} as const
+
+const withReadCacheMetadata = (
+  params: unknown,
+  response: McpJsonRpcResponse
+): McpJsonRpcResponse => {
+  if (
+    response.error ||
+    !isRecord(response.result) ||
+    !isRecord(params) ||
+    typeof params.name !== 'string' ||
+    !READ_CACHE_TOOL_NAMES.has(params.name)
+  ) {
+    return response
+  }
+
+  return {
+    ...response,
+    result: {
+      ...response.result,
+      _meta: {
+        ...(isRecord(response.result._meta) ? response.result._meta : {}),
+        cache: {
+          ttlMs: MCP_READ_CACHE_TTL_MS,
+          cacheScope: MCP_READ_CACHE_SCOPE,
+        },
+      },
+    },
+  }
+}
+
 export const handleMcpJsonRpcRequest = async (
   request: McpJsonRpcRequest,
   context: McpGatewayContext
@@ -578,12 +823,26 @@ export const handleMcpJsonRpcRequest = async (
   }
 
   if (request.method === 'initialize') {
+    const protocolVersion = negotiateMcpProtocolVersion(
+      isRecord(request.params) ? request.params.protocolVersion : undefined
+    )
+
     return resultResponse(id, {
-      protocolVersion: '2025-06-18',
+      protocolVersion,
       capabilities: {
         tools: {},
         resources: {},
       },
+      ...(protocolVersion === MCP_PROTOCOL_VERSION_2026
+        ? {
+            extensions: {
+              tasks: {},
+              apps: {
+                templates: [MCP_APP_TEMPLATE_DESCRIPTOR],
+              },
+            },
+          }
+        : {}),
       serverInfo: {
         name: 'cascadery',
         version: 1,
@@ -591,6 +850,14 @@ export const handleMcpJsonRpcRequest = async (
       auth: 'none',
       rateLimited: true,
     })
+  }
+
+  if (request.method === 'tasks/get') {
+    return getTask(id, request.params, context)
+  }
+
+  if (request.method === 'tasks/cancel') {
+    return cancelTask(id, request.params, context)
   }
 
   if (request.method === 'tools/list') {
@@ -612,7 +879,10 @@ export const handleMcpJsonRpcRequest = async (
   }
 
   if (request.method === 'tools/call') {
-    const response = await callTool(id, request.params, context)
+    const response = withReadCacheMetadata(
+      request.params,
+      await callTool(id, request.params, context)
+    )
     await recordMcpToolAction(request.params, response, context)
 
     return response
@@ -786,6 +1056,28 @@ const callTool = async (
       return errorResponse(id, -32010, 'GLM provider is not configured.')
     }
 
+    // Tasks extension: provider-backed latency returns a task handle when a
+    // task store is configured. Fast tools keep returning results directly.
+    if (context.taskStore) {
+      const task = await context.taskStore.create({
+        pageId: state.page.id,
+        tokenId: context.client?.id ?? null,
+        toolName: params.name,
+      })
+
+      void runAiDecisionLogTask(state, client, context, task.id)
+
+      return resultResponse(id, {
+        schemaVersion: 1,
+        task: {
+          taskId: task.id,
+          status: task.status,
+          createdAt: task.createdAt,
+          pollIntervalMs: 1000,
+        },
+      })
+    }
+
     return resultResponse(
       id,
       await context.createAiDecisionLogPatch(state, client)
@@ -947,6 +1239,85 @@ const callTool = async (
     })
   }
 
+  if (params.name === 'claim_task') {
+    const state = await getPageFromArgs(args, context)
+    if (!state) return pageNotFoundResponse(id)
+
+    if (!context.savePageState) {
+      return errorResponse(id, -32012, 'Page task writes are not configured.')
+    }
+
+    const areaId = typeof args.areaId === 'string' ? args.areaId : ''
+    const area = state.areas.find((candidate) => candidate.id === areaId)
+
+    if (!area) {
+      return errorResponse(id, -32602, 'Task Area was not found.')
+    }
+
+    const metadata = getAreaMetadata(area)
+    if (metadata.kind !== 'task') {
+      return errorResponse(id, -32602, 'Area is not a task.')
+    }
+
+    if (metadata.assignee) {
+      return errorResponse(
+        id,
+        -32031,
+        `Task is already claimed by ${metadata.assignee.name}.`,
+        {
+          assignee: metadata.assignee,
+        }
+      )
+    }
+
+    const now = context.now?.() ?? new Date().toISOString()
+    const assignee = {
+      kind: 'agent' as const,
+      name: client.displayName,
+    }
+    const nextAreas = state.areas.map((candidate) =>
+      candidate.id === area.id
+        ? {
+            ...setAreaMetadata(candidate, {
+              assignee,
+              status: 'in-progress',
+            }),
+            updatedAt: now,
+          }
+        : candidate
+    )
+    const journalResult = createJournalEntry({
+      actorKind: 'agent',
+      actorName: client.displayName,
+      createId: context.createJournalId,
+      knownAreaIds: state.areas.map((candidate) => candidate.id),
+      now,
+      taskAreaId: area.id,
+      text: `${client.displayName} claimed "${getAreaJournalLabel(area)}".`,
+    })
+    const nextState: PageAppState = {
+      ...state,
+      areas: nextAreas,
+      journal: journalResult.ok
+        ? pruneJournalEntries([
+            ...(state.journal ?? []),
+            journalResult.entry,
+          ])
+        : state.journal,
+    }
+
+    await context.savePageState(nextState)
+
+    return resultResponse(id, {
+      schemaVersion: 1,
+      claimed: true,
+      areaId: area.id,
+      assignee,
+      status: 'in-progress',
+      warnings: journalResult.ok ? journalResult.warnings : [],
+    })
+  }
+
   if (params.name === 'move_area') {
     const state = await getPageFromArgs(args, context)
     if (!state) return pageNotFoundResponse(id)
@@ -1067,6 +1438,127 @@ const callTool = async (
   }
   return errorResponse(id, -32601, 'Tool not found.')
 }
+
+const runAiDecisionLogTask = async (
+  state: PageAppState,
+  client: AgentClient,
+  context: McpGatewayContext,
+  taskId: string
+) => {
+  try {
+    const patch = await context.createAiDecisionLogPatch?.(state, client)
+
+    if (patch) {
+      await context.taskStore?.complete(taskId, patch)
+    } else {
+      await context.taskStore?.fail(taskId, 'GLM provider is not configured.')
+    }
+  } catch (error) {
+    await context.taskStore?.fail(
+      taskId,
+      error instanceof Error ? error.message : 'Task failed.'
+    )
+  }
+}
+
+const getTask = async (
+  id: string | number | null,
+  params: unknown,
+  context: McpGatewayContext
+): Promise<McpJsonRpcResponse> => {
+  if (!context.taskStore) {
+    return errorResponse(id, -32601, 'Tasks are not enabled.')
+  }
+
+  if (!isRecord(params) || typeof params.taskId !== 'string') {
+    return errorResponse(id, -32602, 'Task params are invalid.')
+  }
+
+  const task = await context.taskStore.get(params.taskId)
+
+  if (!task) return errorResponse(id, -32040, 'Task not found.')
+
+  const authorization = authorizeMcpAccess({
+    context,
+    pageId: task.pageId,
+    scope: 'page:read',
+    toolName: 'tasks/get',
+  })
+
+  if (!authorization.ok) {
+    return authorization.response(id)
+  }
+
+  // Fail closed: a revoked or expired minting token kills its tasks on the
+  // next poll instead of leaking the pending result.
+  if (
+    task.tokenId &&
+    context.isTokenActive &&
+    !(await context.isTokenActive(task.tokenId))
+  ) {
+    await context.taskStore.fail(task.id, 'MCP token is no longer active.')
+    logMcpDenial(context, {
+      clientId: getMcpClient(context).id,
+      pageId: task.pageId,
+      reason: 'task-token-inactive',
+      tokenId: task.tokenId,
+      toolName: 'tasks/get',
+    })
+
+    return errorResponse(id, -32003, 'MCP token is no longer active.')
+  }
+
+  return resultResponse(id, {
+    schemaVersion: 1,
+    task: toTaskView(task),
+  })
+}
+
+const cancelTask = async (
+  id: string | number | null,
+  params: unknown,
+  context: McpGatewayContext
+): Promise<McpJsonRpcResponse> => {
+  if (!context.taskStore) {
+    return errorResponse(id, -32601, 'Tasks are not enabled.')
+  }
+
+  if (!isRecord(params) || typeof params.taskId !== 'string') {
+    return errorResponse(id, -32602, 'Task params are invalid.')
+  }
+
+  const task = await context.taskStore.get(params.taskId)
+
+  if (!task) return errorResponse(id, -32040, 'Task not found.')
+
+  const authorization = authorizeMcpAccess({
+    context,
+    pageId: task.pageId,
+    scope: 'page:suggest',
+    toolName: 'tasks/cancel',
+  })
+
+  if (!authorization.ok) {
+    return authorization.response(id)
+  }
+
+  const cancelled = (await context.taskStore.cancel(task.id)) ?? task
+
+  return resultResponse(id, {
+    schemaVersion: 1,
+    task: toTaskView(cancelled),
+  })
+}
+
+const toTaskView = (task: McpGatewayTaskRecord) => ({
+  taskId: task.id,
+  toolName: task.toolName,
+  status: task.status,
+  createdAt: task.createdAt,
+  updatedAt: task.updatedAt,
+  ...(task.status === 'completed' ? { result: task.result } : {}),
+  ...(task.error === null ? {} : { error: task.error }),
+})
 
 const recordMcpToolAction = async (
   params: unknown,
@@ -1290,6 +1782,19 @@ const readResource = async (
     )
   }
 
+  if (parsedResource.kind === 'app') {
+    return resourceResponse(
+      id,
+      params.uri,
+      renderMcpAppHtml(state, {
+        tasks: context.taskStore
+          ? await context.taskStore.listForPage(state.page.id)
+          : [],
+      }),
+      MCP_APP_HTML_MIME_TYPE
+    )
+  }
+
   return resourceResponse(id, params.uri, {
     schemaVersion: 1,
     page: {
@@ -1355,6 +1860,13 @@ const createResourceDefinitions = (
       description: 'Agent action records for this Cascadery page.',
       mimeType: JSON_MIME_TYPE,
     },
+    {
+      uri: `${CASCADERY_RESOURCE_PREFIX}/${state.page.id}/app`,
+      name: `${state.page.title} MCP App view`,
+      description:
+        'Self-contained outline and proposal-review view for MCP App hosts.',
+      mimeType: MCP_APP_HTML_MIME_TYPE,
+    },
   ]),
 ]
 
@@ -1369,6 +1881,7 @@ const parsePageResourceUri = (uri: string):
         | 'handoff'
         | 'json-canvas'
         | 'agent-actions'
+        | 'app'
     }
   | null => {
   const match = /^cascadery:\/\/pages\/([^/]+)(?:\/([^/]+))?$/.exec(uri)
@@ -1391,7 +1904,8 @@ const parsePageResourceUri = (uri: string):
     suffix !== 'markdown' &&
     suffix !== 'handoff' &&
     suffix !== 'json-canvas' &&
-    suffix !== 'agent-actions'
+    suffix !== 'agent-actions' &&
+    suffix !== 'app'
   ) {
     return null
   }

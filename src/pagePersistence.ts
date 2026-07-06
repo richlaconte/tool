@@ -7,6 +7,7 @@ import {
 } from './agentJournal.ts'
 import {
   isAreaKind,
+  isAreaAssigneeKind,
   isAreaEvidenceKind,
   isAreaLinkKind,
   isAreaStatus,
@@ -558,6 +559,15 @@ const parseAreaMetadata = (
   if (!Array.isArray(value.tags)) return undefined
 
   if (
+    value.assignee !== undefined &&
+    (!isRecord(value.assignee) ||
+      !isAreaAssigneeKind(value.assignee.kind) ||
+      typeof value.assignee.name !== 'string')
+  ) {
+    return undefined
+  }
+
+  if (
     value.filePath !== undefined &&
     typeof value.filePath !== 'string'
   ) {
@@ -579,6 +589,7 @@ const parseAreaMetadata = (
     kind: value.kind,
     ...(value.status ? { status: value.status } : {}),
     tags: value.tags,
+    ...(value.assignee ? { assignee: value.assignee } : {}),
     ...(value.filePath ? { filePath: value.filePath } : {}),
     ...(value.url ? { url: value.url } : {}),
     ...(evidence ? { evidence } : {}),

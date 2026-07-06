@@ -238,6 +238,30 @@ export const listMcpTokens = (
       .all(pageId) as McpTokenRow[]
   ).map(rowToRecord)
 
+// Fail-closed helper for polled MCP task handles: a task minted by a token
+// that has since been revoked or expired must stop yielding results.
+export const isMcpTokenActive = (
+  database: ToolDatabase,
+  tokenId: string,
+  now = new Date().toISOString()
+) => {
+  const row = database
+    .prepare(
+      `select expires_at as expiresAt,
+              revoked_at as revokedAt
+       from mcp_tokens
+       where id = ?
+       limit 1`
+    )
+    .get(tokenId) as
+    | { expiresAt: string | null; revokedAt: string | null }
+    | undefined
+
+  if (!row || row.revokedAt) return false
+
+  return !(row.expiresAt && Date.parse(row.expiresAt) <= Date.parse(now))
+}
+
 export const touchLastUsed = (
   database: ToolDatabase,
   tokenId: string,

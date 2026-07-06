@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "preview": "next start",
     "start": "NODE_ENV=production node dist/server.js",
-    "test": "node --test src/*.test.ts src/server/*.test.ts"
+    "test": "node --test src/*.test.ts src/server/*.test.ts",
+    "test:e2e": "playwright test",
+    "telemetry:report": "tsx scripts/telemetry-report.ts"
   },
   "dependencies": {
     "@hocuspocus/extension-sqlite": "^4.3.0",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
+    "@playwright/test": "^1.61.1",
     "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/babel__core": "^7.20.5",

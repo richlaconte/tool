@@ -101,6 +101,11 @@ import {
   isBlankCanvasPointerSurface,
 } from './canvasPointerActions'
 import {
+  isTelemetryOptedOut,
+  setTelemetryOptOut,
+  trackTelemetryEvent,
+} from './telemetry'
+import {
   applyAgentPatch,
   createAgentPatchForOperation,
   removeAgentPatchOperation,
@@ -176,6 +181,13 @@ import {
 } from './offscreenAreaIndicators'
 import { getVisibleAreaIds, isAreaLinkVisible } from './canvasCulling'
 import { createBenchmarkPageState } from './benchmarkPage'
+import {
+  buildNeedsAttentionQueue,
+  buildTaskBoard,
+  TASK_BOARD_COLUMNS,
+  type TaskBoardAttentionItem,
+  type TaskBoardColumnId,
+} from './taskBoard'
 import {
   createDefaultPageState,
   PAGE_STORAGE_KEY,
@@ -454,6 +466,10 @@ const COMMAND_DIALOGS: Record<
   'agent-connections': {
     title: 'Agent connections',
     body: 'Create scoped, revocable MCP tokens for agents that need this page.',
+  },
+  'task-board': {
+    title: 'Task board',
+    body: 'Review task Areas by status, assign attention, and jump back to the canvas.',
   },
   'insert-context-kit': {
     title: 'Insert context kit',
@@ -1307,6 +1323,9 @@ function App({
   const [commentPanelAreaId, setCommentPanelAreaId] = useState<
     string | null
   >(null)
+  const [draggedTaskAreaId, setDraggedTaskAreaId] = useState<
+    string | null
+  >(null)
   const [commentDraft, setCommentDraft] = useState('')
   const [commentError, setCommentError] = useState<string | null>(null)
   const [deletedAreaSnapshot, setDeletedAreaSnapshot] =
@@ -1344,6 +1363,9 @@ function App({
   const [agentAuditRecords, setAgentAuditRecords] = useState<
     AgentActionRecord[]
   >([])
+  const [telemetryOptedOut, setTelemetryOptedOutState] = useState(() =>
+    isTelemetryOptedOut()
+  )
   const [mcpAgentActivity, setMcpAgentActivity] = useState<{
     label: string | null
     pageId: string
@@ -1539,6 +1561,7 @@ function App({
     pageId: page.id,
     state: collaborativePageState,
   })
+  const setCollaborativePresence = collaborativeSync.setPresence
   const displayedRemotePresences = isServerCollaborationEnabled
     ? collaborativeSync.remotePresences
     : remotePresences
@@ -1929,7 +1952,7 @@ function App({
         Date.now()
       )
 
-      collaborativeSync.setPresence(presence)
+      setCollaborativePresence(presence)
 
       collaborationChannelRef.current?.postMessage({
         type: 'presence',
@@ -1937,7 +1960,7 @@ function App({
         presence,
       } satisfies CollaborationMessage)
     },
-    [collaborationProfile, collaborativeSync, selectedAreaIds]
+    [collaborationProfile, selectedAreaIds, setCollaborativePresence]
   )
 
   const updateCollaborationUserName = (userName: string) => {
@@ -2526,6 +2549,7 @@ function App({
       setLinkFlyoutLinkId(null)
       setCommentPanelAreaId(null)
       setAutoFocusAreaId(id)
+      trackTelemetryEvent('area_created')
     }
 
     const handlePointerMove = (event: PointerEvent) => {
@@ -3252,6 +3276,36 @@ function App({
           : area
       )
     )
+  }
+
+  const updateTaskBoardAreaStatus = (
+    areaId: string,
+    status: TaskBoardColumnId
+  ) => {
+    if (isViewOnly) return
+
+    setAreas((prev) =>
+      prev.map((area) =>
+        area.id === areaId
+          ? setAreaMetadata(area, {
+              status,
+            })
+          : area
+      )
+    )
+  }
+
+  const activateTaskBoardAttentionItem = (item: TaskBoardAttentionItem) => {
+    if (item.kind === 'proposal') {
+      setOpenDialogId('agent-suggestions')
+      return
+    }
+
+    jumpToArea(item.areaId)
+
+    if (item.kind === 'comment-thread') {
+      openCommentsForArea(item.areaId)
+    }
   }
 
   const addEvidenceToSelectedArea = (target: string) => {
@@ -4173,6 +4227,7 @@ function App({
       return
     }
 
+    trackTelemetryEvent('agent_proposal_accepted')
     setAreas(result.state.areas)
     setAssets(result.state.assets)
     setLinks(result.state.links ?? [])
@@ -4254,6 +4309,7 @@ function App({
   }
 
   const rejectAgentProposal = () => {
+    trackTelemetryEvent('agent_proposal_rejected')
     setAgentProposal(null)
     setAgentProposalError(null)
     setOpenDialogId(null)
@@ -4644,6 +4700,8 @@ function App({
     command: CssSlashCommand
   ) => {
     if (isViewOnly) return
+
+    trackTelemetryEvent('slash_command_used')
 
     const resolvedValue = resolveThemeColorTokens(
       command.value,
@@ -5137,6 +5195,7 @@ function App({
   }
 
   const exportPageMarkdown = () => {
+    trackTelemetryEvent('export_markdown')
     downloadPageFile({
       contents: exportPageAsMarkdown(getCurrentPageAppState()),
       extension: 'md',
@@ -5145,6 +5204,7 @@ function App({
   }
 
   const exportPageJsonCanvas = () => {
+    trackTelemetryEvent('export_json_canvas')
     downloadPageFile({
       contents: stringifyPageAsJsonCanvas(getCurrentPageAppState()),
       extension: 'canvas',
@@ -5172,6 +5232,8 @@ function App({
   }
 
   const exportSddBundle = () => {
+    trackTelemetryEvent('export_sdd')
+
     const bundle = compileSddBundle(getCurrentPageAppState())
     const slug = getPageExportSlug()
 
@@ -5257,6 +5319,8 @@ function App({
 
     const kit = getContextKitById(kitId)
     if (!kit) return
+
+    trackTelemetryEvent('context_kit_inserted')
 
     const areaIdStart = nextAreaId.current
     const linkIdStart = nextAreaLinkId.current
@@ -5355,6 +5419,8 @@ function App({
     e.currentTarget.value = ''
 
     if (!file) return
+
+    trackTelemetryEvent('import_page_json')
 
     const fileText = await file.text()
     const isJsonCanvasFile =
@@ -6043,6 +6109,19 @@ function App({
   const selectedAreaMetadata = selectedArea
     ? getAreaMetadata(selectedArea)
     : null
+  const taskBoardColumns = useMemo(
+    () => buildTaskBoard({ areas, comments }),
+    [areas, comments]
+  )
+  const taskBoardAttentionItems = useMemo(
+    () =>
+      buildNeedsAttentionQueue({
+        agentProposal,
+        areas,
+        comments,
+      }),
+    [agentProposal, areas, comments]
+  )
   const commentPanelArea = commentPanelAreaId
     ? areas.find((area) => area.id === commentPanelAreaId) ?? null
     : null
@@ -6462,6 +6541,7 @@ function App({
               ? ' canvas--grid-visible'
               : ''
           }`}
+          data-testid="canvas-surface"
         >
           <svg
             aria-label="Area connectors"
@@ -7066,12 +7146,12 @@ function App({
             }
 
             if (option.id === 'sign-in') {
-              window.location.href = '/api/auth/login'
+              window.location.assign('/api/auth/login')
               return
             }
 
             if (option.id === 'open-shelf') {
-              window.location.href = '/shelf'
+              window.location.assign('/shelf')
               return
             }
 
@@ -7293,6 +7373,12 @@ function App({
               createAgentSuggestion()
               return
             }
+            if (option.id === 'toggle-telemetry') {
+              const optedOut = !telemetryOptedOut
+              setTelemetryOptOut(optedOut)
+              setTelemetryOptedOutState(optedOut)
+              return
+            }
             setOpenDialogId(option.id)
           }}
           onEscape={() => {
@@ -7397,6 +7483,139 @@ function App({
                   ) : (
                     <p>No Areas yet.</p>
                   )}
+                </div>
+              ) : openDialogId === 'task-board' ? (
+                <div className="task-board-dialog">
+                  <p>{COMMAND_DIALOGS[openDialogId].body}</p>
+                  <section className="task-board-attention">
+                    <h3>Needs attention</h3>
+                    {taskBoardAttentionItems.length > 0 ? (
+                      <div className="task-board-attention-list">
+                        {taskBoardAttentionItems.map((item) => (
+                          <button
+                            className="task-board-attention-item"
+                            key={item.id}
+                            type="button"
+                            onClick={() =>
+                              activateTaskBoardAttentionItem(item)
+                            }
+                          >
+                            <span>{item.label}</span>
+                            <small>
+                              {item.kind === 'proposal'
+                                ? 'Proposal'
+                                : item.kind === 'blocked-task'
+                                  ? 'Blocked'
+                                  : `${item.count} comment${
+                                      item.count === 1 ? '' : 's'
+                                    }`}
+                            </small>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="task-board-empty">
+                        No proposals, blocked tasks, or open comments.
+                      </p>
+                    )}
+                  </section>
+                  <div className="task-board-columns">
+                    {taskBoardColumns.map((column) => (
+                      <section
+                        className="task-board-column"
+                        key={column.id}
+                        onDragOver={(event) => {
+                          if (!isViewOnly) event.preventDefault()
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault()
+                          if (draggedTaskAreaId) {
+                            updateTaskBoardAreaStatus(
+                              draggedTaskAreaId,
+                              column.id
+                            )
+                          }
+                          setDraggedTaskAreaId(null)
+                        }}
+                      >
+                        <h3>
+                          {column.label}
+                          <span>{column.cards.length}</span>
+                        </h3>
+                        <div className="task-board-card-list">
+                          {column.cards.length > 0 ? (
+                            column.cards.map((card) => (
+                              <article
+                                className="task-board-card"
+                                draggable={!isViewOnly}
+                                key={card.areaId}
+                                onClick={() => jumpToArea(card.areaId)}
+                                onDragEnd={() => setDraggedTaskAreaId(null)}
+                                onDragStart={() =>
+                                  setDraggedTaskAreaId(card.areaId)
+                                }
+                              >
+                                <strong>{card.title}</strong>
+                                <div className="task-board-card-meta">
+                                  {card.assignee && (
+                                    <span>
+                                      {card.assignee.kind === 'agent'
+                                        ? 'Agent'
+                                        : 'Human'}
+                                      : {card.assignee.name}
+                                    </span>
+                                  )}
+                                  {card.unresolvedCommentCount > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        openCommentsForArea(card.areaId)
+                                      }}
+                                    >
+                                      {card.unresolvedCommentCount} comment
+                                      {card.unresolvedCommentCount === 1
+                                        ? ''
+                                        : 's'}
+                                    </button>
+                                  )}
+                                </div>
+                                {!isViewOnly && (
+                                  <label>
+                                    <span>Status</span>
+                                    <select
+                                      value={card.status}
+                                      onChange={(event) =>
+                                        updateTaskBoardAreaStatus(
+                                          card.areaId,
+                                          event.currentTarget
+                                            .value as TaskBoardColumnId
+                                        )
+                                      }
+                                      onClick={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                    >
+                                      {TASK_BOARD_COLUMNS.map((status) => (
+                                        <option
+                                          key={status.id}
+                                          value={status.id}
+                                        >
+                                          {status.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                )}
+                              </article>
+                            ))
+                          ) : (
+                            <p className="task-board-empty">No tasks</p>
+                          )}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
                 </div>
               ) : openDialogId === 'share' ? (
                 <div className="share-link-controls">
@@ -7645,6 +7864,56 @@ function App({
                         ))}
                       </select>
                     </label>
+                    <label className="page-style-control">
+                      <span>Assignee</span>
+                      <input
+                        aria-label="Area assignee"
+                        type="text"
+                        value={selectedAreaMetadata.assignee?.name ?? ''}
+                        onChange={(e) => {
+                          const name = e.currentTarget.value
+
+                          updateSelectedAreaMetadata({
+                            assignee: name
+                              ? {
+                                  kind:
+                                    selectedAreaMetadata.assignee?.kind ??
+                                    'human',
+                                  name,
+                                }
+                              : undefined,
+                          })
+                        }}
+                        placeholder="Unassigned"
+                      />
+                    </label>
+                    <div className="area-metadata-actions">
+                      <button
+                        className="agent-proposal-mini-button"
+                        type="button"
+                        onClick={() =>
+                          updateSelectedAreaMetadata({
+                            assignee: {
+                              kind: 'human',
+                              name: collaborationProfile.userName,
+                            },
+                          })
+                        }
+                      >
+                        Assign to me
+                      </button>
+                      <button
+                        className="agent-proposal-mini-button agent-proposal-mini-button--secondary"
+                        type="button"
+                        onClick={() =>
+                          updateSelectedAreaMetadata({
+                            assignee: undefined,
+                          })
+                        }
+                      >
+                        Clear assignee
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <p>Select an Area first.</p>
@@ -8619,6 +8888,22 @@ function App({
                   </span>
                   <span>{collaborationProfile.color}</span>
                 </div>
+                <label className="page-style-control page-style-control--inline">
+                  <input
+                    aria-label="Share anonymous usage counts"
+                    checked={!telemetryOptedOut}
+                    type="checkbox"
+                    onChange={(e) => {
+                      const optedOut = !e.currentTarget.checked
+                      setTelemetryOptOut(optedOut)
+                      setTelemetryOptedOutState(optedOut)
+                    }}
+                  />
+                  <span>
+                    Share anonymous usage counts (event names only —
+                    never page content)
+                  </span>
+                </label>
               </div>
             ) : openDialogId === 'page-styles' ? (
               <div className="page-style-controls">

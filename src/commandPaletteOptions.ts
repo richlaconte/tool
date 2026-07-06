@@ -129,6 +129,13 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     scope: 'page',
   },
   {
+    id: 'task-board',
+    title: 'Task board',
+    description: 'Review task Areas by status and attention needed',
+    aliases: ['mission control', 'board', 'tasks', 'kanban', 'agent work'],
+    scope: 'page',
+  },
+  {
     id: 'export-sdd-bundle',
     title: 'Export SDD bundle',
     description: 'Download spec.md, plan.md, and tasks.md',
@@ -324,5 +331,19 @@ export const COMMAND_PALETTE_OPTIONS: CascaderyCommandOption[] = [
     description: 'Center the selected Area',
     aliases: ['selected area', 'center selection', 'focus area'],
     scope: 'area',
+  },
+  {
+    id: 'toggle-telemetry',
+    title: 'Toggle usage telemetry',
+    description:
+      'Enable or disable anonymous usage counts for this browser',
+    aliases: [
+      'disable usage telemetry',
+      'enable usage telemetry',
+      'privacy',
+      'analytics',
+      'opt out',
+    ],
+    scope: 'global',
   },
 ]

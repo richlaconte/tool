@@ -2,9 +2,49 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 4.5). Active.
-The roadmap recommends landing the E2E harness early (alongside Tier 1) —
-every subsequent spec's pointer-interaction work is safer with it.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 4.5).
+Completed on 2026-07-05 — see Completion Notes at the end.
+
+## Completion Notes (2026-07-05)
+
+- Harness: `playwright.config.ts` + `e2e/` with six golden-path specs;
+  `pnpm test:e2e` (run `pnpm build` first). Deliberate deviations from the
+  original scope, each forced by reality:
+  - The web server is the **production build** (`node e2e/start-server.mjs`
+    wrapping `dist/server.js`), not `pnpm dev`: Next allows one dev server
+    per project directory, so a dev-based harness collides with the
+    developer's own session — and testing the deployed artifact is more
+    faithful anyway.
+  - `reuseExistingServer` is `false` and the test-database wipe happens
+    inside the server start command, because Playwright boots the web
+    server before `globalSetup` — wiping afterwards strands the booted
+    server on a deleted SQLite inode.
+  - Base URL is `http://localhost` (not `127.0.0.1`): production session
+    cookies are `Secure`, and Chromium's trustworthy-origin exemption over
+    plain HTTP is dependable only for localhost.
+  - The E2E server raises `TOOL_COLLABORATION_MESSAGE_RATE_LIMIT_MAX` so
+    golden paths test sync correctness rather than the rate limiter — see
+    the defect below.
+- Sabotage checks recorded: disabling deselect handling fails the deselect
+  spec; destroying the `/collaboration` upgrade fails the collaboration
+  spec (both verified on 2026-07-05, then reverted).
+- The harness immediately caught two real product defects, logged in
+  `ideas.md`: (1) websocket message flooding (~3 msgs/keystroke, ~4 per
+  drag pointermove, plus an ~800-message echo storm after Area creation)
+  colliding with the 240/min collaboration rate limit; (2) one-way live
+  sync loss — a client that creates an Area after connecting stops
+  receiving remote updates. The second is pinned as a `test.fixme` in
+  `e2e/collaboration.spec.ts`; the passing golden path asserts live A→B
+  sync plus durable convergence via a fresh third browser.
+- Telemetry shipped as specified: closed `TelemetryEvent` union
+  (`src/telemetry.ts`), `(event, day, count)`-only store
+  (`src/server/telemetryStore.ts`), endpoint (`app/api/telemetry/route.ts`)
+  with in-memory rate limiting and no stored request metadata, env and
+  per-browser kill switches (settings checkbox + palette toggle +
+  `TOOL_TELEMETRY_DISABLED`), published event list (`docs/telemetry.md`)
+  with a parity test, and `pnpm telemetry:report`. Verified end to end:
+  the E2E run's isolated database accumulated client, server, and
+  per-tool `mcp_request:*` counters.
 
 ## Goal
 

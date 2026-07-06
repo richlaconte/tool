@@ -2,7 +2,10 @@
 
 ## Status
 
-Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.2). Active.
+Created on 2026-07-02 from the Spec Suite Roadmap (Tier 1.2). Completed —
+core path shipped in `src/markdownContent.ts`, `src/codeHighlight.ts`, and
+`src/components/MarkdownContent.tsx` with colocated tests (stale "Active."
+status corrected in the 2026-07-06 spec audit).
 
 ## Goal
 

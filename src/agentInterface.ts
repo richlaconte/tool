@@ -8,6 +8,7 @@ import { searchAreas } from './areaSearch.ts'
 import {
   AREA_KINDS,
   AREA_STATUSES,
+  isAreaAssigneeKind,
   removeAreaLinksForDeletedAreas,
   type AreaKind,
   type AreaLink,
@@ -1399,6 +1400,16 @@ const validateAreaMetadata = (
       metadata.tags.some((tag) => typeof tag !== 'string'))
   ) {
     errors.push(`Operation ${index + 1} has invalid Area tags.`)
+  }
+
+  if (
+    metadata.assignee !== undefined &&
+    (!isRecord(metadata.assignee) ||
+      !isAreaAssigneeKind(metadata.assignee.kind) ||
+      typeof metadata.assignee.name !== 'string' ||
+      !metadata.assignee.name.trim())
+  ) {
+    errors.push(`Operation ${index + 1} has an invalid Area assignee.`)
   }
 }
 

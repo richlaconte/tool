@@ -99,6 +99,10 @@ const areaMetadata = {
   kind: 'decision' as const,
   status: 'decided' as const,
   tags: ['architecture', 'agent'],
+  assignee: {
+    kind: 'agent' as const,
+    name: 'GLM Worker',
+  },
   filePath: 'src/App.tsx',
   url: 'https://example.com/decision',
   evidence: [

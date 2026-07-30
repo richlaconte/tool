@@ -41,6 +41,8 @@ export type CollaborationServerOptions = {
 }
 
 export type CollaborationServer = {
+  closeConnections(): void
+  destroy(): Promise<void>
   handleUpgrade(
     request: IncomingMessage,
     socket: Duplex,
@@ -202,6 +204,16 @@ export const createCollaborationServer = ({
   })
 
   return {
+    closeConnections() {
+      hocuspocusServer.hocuspocus.closeConnections()
+      // The v4 Server wrapper owns an internal http.Server that is never
+      // listened on here (we only re-emit its upgrade event) but still
+      // shows up as an active handle; close it so tests can exit.
+      hocuspocusServer.httpServer.close()
+    },
+    async destroy() {
+      await hocuspocusServer.destroy()
+    },
     handleUpgrade(request, socket, head) {
       hocuspocusServer.httpServer.emit(
         'upgrade',

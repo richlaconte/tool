@@ -16,6 +16,7 @@ dist-ssr
 
 # Playwright
 e2e/.test-data
+e2e/.smoke-data
 e2e/.debug
 playwright-report
 test-results

@@ -6,7 +6,15 @@
 export const dynamic = 'force-dynamic'
 
 export const GET = (request: Request) => {
-  const origin = new URL(request.url).origin
+  // Behind the Fly proxy, `request.url` reflects the internal listen address
+  // (0.0.0.0:3000), so derive the public origin from forwarded headers first.
+  const protocol =
+    getFirstHeaderValue(request.headers.get('x-forwarded-proto')) ?? 'https'
+  const host =
+    getFirstHeaderValue(request.headers.get('x-forwarded-host')) ??
+    getFirstHeaderValue(request.headers.get('host')) ??
+    new URL(request.url).host
+  const origin = `${protocol}://${host}`
 
   return Response.json({
     protected_resource: `${origin}/api/mcp`,
@@ -21,3 +29,6 @@ export const GET = (request: Request) => {
     ],
   })
 }
+
+const getFirstHeaderValue = (value: string | null) =>
+  value?.split(',')[0]?.trim() || null

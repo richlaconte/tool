@@ -40,6 +40,7 @@ overrides — do not renumber mid-flight work.
 | 6 | [Async Change Awareness](2026-07-06-async-change-awareness.md) | P2 | 2 | 0 | 0 | 1 | The async agent-edit recap; sequenced after #5 for reversible jumps (dependency override). |
 | 7 | [Read-Anywhere Responsive View Mode](2026-07-02-responsive-view-mode.md) | P2 | 1 | 0 | 1 | 1 | Share-link reach on phones; reuses the outline component. |
 | 8 | [Product Site, Docs, and Launch Narrative](2026-07-02-product-site-launch.md) | P1* | 1 | 1 | 2 | 0 | *Gated: start when a launch date exists or the queue above is nearly drained — the site must document what shipped, and it owns the MCP registry listing. |
+| 9 | [Area Command Box: Isolating Slash Commands from Section Content](2026-07-30-area-command-box.md) | P1 | 1 | 0 | 1 | 2 | Selection-state `/` opens an element-anchored command box; slash commands stop polluting Area text. |
 
 ### Tier 1 — Canvas Table Stakes
 
@@ -93,6 +94,17 @@ preempt normal queue order when they threaten the core promise of a shared
 canvas.
 
 All Tier 7 specs are complete.
+
+### Tier 8 — 2026-07-30 Command Surface Isolation
+
+Drafted on 2026-07-30 from a product/UX research pass over slash-command and
+element-anchored command surfaces (Notion, Slack, Figma, Linear,
+Tiptap/Floating UI, CKEditor contextual toolbars). The signal: slash commands
+are Cascadery's signature interaction, yet they only exist inline in Area
+text — polluting content, invisible to collaborators mid-typing, and
+unreachable from selection state.
+
+- [Area Command Box: Isolating Slash Commands from Section Content](2026-07-30-area-command-box.md) — queue #9
 
 ## Completed MVP Specs
 

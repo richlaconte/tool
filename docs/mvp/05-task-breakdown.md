@@ -1,5 +1,7 @@
 # 05 — Task Breakdown (Working Document)
 
+> **BUILD STATUS 2026-07-31:** TASKS 1–16 executed and verified by the agent — 42 tests green, lint clean, build green (62 KB gz), serving smoke-tested. TASK 15 shipped goal/concede/whistle SFX; first-session coach marks (US-14) deferred to post-playtest. TASK 17 (Vercel deploy + external playtest) remains for the founders. Commits: 6a88219 (1–5), 0235d8d (6–7), fdbdaf7 (8–9), 1640321 (10–14), HEAD (15–16).
+
 Ordered, atomic tasks for the AI coding agent. Rules (from `README.md`): **one task per fresh agent session; commit after each; a task is done only when its verification passes and a human approves.** Mark `[x]` + commit hash as tasks complete.
 
 Dependencies are sequential unless marked `[P]` (parallel-safe with the previous task).

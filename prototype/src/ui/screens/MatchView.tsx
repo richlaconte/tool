@@ -3,6 +3,7 @@ import { useStore } from '../../state/store';
 import { PLAYER_ID } from '../../sim/tournament';
 import type { MatchEvent } from '../../types';
 import { isNotable, minuteOf, narrate } from '../narratives';
+import { concedeSound, goalSound, whistleSound } from '../sound';
 
 type Speed = 'normal' | 'fast' | 'turbo';
 
@@ -53,13 +54,22 @@ export function MatchView() {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
   }, [idx]);
 
+  // Sound effects keyed to revealed events (US-13).
+  const playerTeam = match?.home.managerId === PLAYER_ID ? 'HOME' : 'AWAY';
+  useEffect(() => {
+    if (!current) return;
+    if (current.type === 'GOAL' || current.narrativeKey === 'goal.penalty') {
+      if (current.team === playerTeam) goalSound(); else concedeSound();
+    }
+    if (current.type === 'FULLTIME') whistleSound();
+  }, [idx]);
+
   if (!game || !match) return null;
 
   const homeName =
     game.managers.find((m) => m.id === match.home.managerId)?.name ?? 'Home';
   const awayName =
     game.managers.find((m) => m.id === match.away.managerId)?.name ?? 'Away';
-  const playerTeam = match.home.managerId === PLAYER_ID ? 'HOME' : 'AWAY';
 
   // Ball position on the pitch strip, derived from the current event.
   const ballX = (() => {

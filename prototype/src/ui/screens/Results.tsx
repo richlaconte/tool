@@ -1,4 +1,6 @@
 import { useStore } from '../../state/store';
+import { challengeLink } from '../../state/challenge';
+import { useState } from 'react';
 import { PLAYER_ID } from '../../sim/tournament';
 import {
   DAMAGE_BASE,
@@ -13,6 +15,7 @@ import { StandingsTable } from '../components/StandingsTable';
 
 export function Results() {
   const { game, nextRound, rematch, abandonRun } = useStore();
+  const [copied, setCopied] = useState(false);
   if (!game) return null;
   const player = game.managers.find((m) => m.id === PLAYER_ID)!;
   const match = game.lastMatch;
@@ -64,6 +67,17 @@ export function Results() {
             : `Eliminated in round ${game.round}. The transfer market never sleeps — run it back.`}
         </p>
         <StandingsTable managers={game.managers} />
+        <button
+          type="button"
+          onClick={() => {
+            const link = challengeLink(player.squad, game.seed);
+            navigator.clipboard?.writeText(link).catch(() => window.prompt('Copy this link:', link));
+            setCopied(true);
+          }}
+          className="rounded-xl bg-amber-400/20 px-6 py-2.5 font-semibold text-amber-200 ring-1 ring-amber-400/50 hover:bg-amber-400/30"
+        >
+          {copied ? '✅ Link copied — send it to a friend!' : '⚔️ Challenge a friend with this squad'}
+        </button>
         <div className="flex gap-3">
           <button
             type="button"

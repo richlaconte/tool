@@ -64,6 +64,7 @@ export function aiTakeTransferWindow(
   rng: Rng,
   input: ManagerState,
   round: number,
+  pool: PlayerCard[],
 ): ManagerState {
   let m: ManagerState = {
     ...input,
@@ -81,7 +82,7 @@ export function aiTakeTransferWindow(
   }
 
   // Buy loop.
-  let shop = generateShop(rng, round);
+  let shop = generateShop(rng, round, pool);
   for (let guard = 0; guard < 10; guard++) {
     const affordable = shop.filter((c) => c.tier <= m.credits);
     if (affordable.length === 0) break;

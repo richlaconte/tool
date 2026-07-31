@@ -11,6 +11,7 @@ import {
   resolveRound,
 } from '../sim/tournament';
 import { deriveSeed, makeRng } from '../sim/rng';
+import { generateRunPool } from '../sim/players';
 import { clearRun, loadRun, saveRun } from './persist';
 
 export type Screen = 'LANDING' | 'GAME';
@@ -107,7 +108,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const { game, rerollCount } = get();
     if (!game || game.phase !== 'TRANSFER_WINDOW') return;
     const rng = makeRng(deriveSeed(game.seed, 'reroll', game.round, rerollCount));
-    const res = reroll(playerOf(game), game.round, rng);
+    const res = reroll(playerOf(game), game.round, rng, generateRunPool(game.seed));
     if (!res) return;
     const next = {
       ...replacePlayer(game, res.manager),

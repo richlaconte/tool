@@ -108,6 +108,7 @@ export function TacticsBoard() {
                       title={outOfPosition ? 'Out of position! Tap to bench' : 'Tap to bench'}
                     >
                       {NATIONALITY_FLAG[c.nationality]} {c.name}
+                      {c.star > 1 ? ` ${'★'.repeat(c.star)}` : ''}
                       {outOfPosition ? ' ⚠️' : ''}
                     </span>
                   );
@@ -139,6 +140,7 @@ export function TacticsBoard() {
               }`}
             >
               {NATIONALITY_FLAG[c.nationality]} {c.name} · {c.naturalPosition}
+              {c.star > 1 ? ` ${'★'.repeat(c.star)}` : ''}
             </button>
           ))}
         </div>

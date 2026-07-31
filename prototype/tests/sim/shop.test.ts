@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BENCH_MAX, REROLL_COST, STARTING_CREDITS } from '../../src/sim/config';
-import { generateCard, generateShop } from '../../src/sim/players';
+import { generateCard, generateRunPool, generateShop } from '../../src/sim/players';
 import { buy, reroll, sell, unfieldedCount } from '../../src/sim/shop';
 import { makeRng } from '../../src/sim/rng';
 import type { ManagerState } from '../../src/types';
@@ -21,7 +21,7 @@ function freshManager(rngCredits = STARTING_CREDITS): ManagerState {
 describe('shop', () => {
   it('buy deducts tier price and adds the card unfielded', () => {
     const rng = makeRng(1);
-    const shop = generateShop(rng, 1);
+    const shop = generateShop(rng, 1, generateRunPool(1));
     const m = freshManager();
     const card = shop[0];
     const res = buy(m, shop, card.id);
@@ -34,7 +34,7 @@ describe('shop', () => {
 
   it('buy rejects when credits are insufficient (never goes negative)', () => {
     const rng = makeRng(2);
-    const shop = generateShop(rng, 7); // high-tier shop
+    const shop = generateShop(rng, 7, generateRunPool(7)); // high-tier shop
     const expensive = shop.reduce((a, b) => (a.tier > b.tier ? a : b));
     const m = freshManager(expensive.tier - 1);
     expect(buy(m, shop, expensive.id)).toBeNull();
@@ -44,7 +44,7 @@ describe('shop', () => {
   it('buy rejects when bench is full', () => {
     const rng = makeRng(3);
     let m = freshManager(999);
-    let shop = generateShop(rng, 3);
+    let shop = generateShop(rng, 3, generateRunPool(3));
     for (let i = 0; i < BENCH_MAX; i++) {
       const res = buy(m, shop, shop[0].id);
       expect(res).not.toBeNull();
@@ -58,7 +58,7 @@ describe('shop', () => {
 
   it('sell refunds the full tier price and removes from lineup', () => {
     const rng = makeRng(4);
-    const shop = generateShop(rng, 2);
+    const shop = generateShop(rng, 2, generateRunPool(2));
     let m = freshManager();
     const card = shop[0];
     m = buy(m, shop, card.id)!.manager;
@@ -80,7 +80,7 @@ describe('shop', () => {
   it('reroll costs 1 credit and returns a fresh 5-card shop', () => {
     const rng = makeRng(5);
     const m = freshManager();
-    const res = reroll(m, 1, rng);
+    const res = reroll(m, 1, rng, generateRunPool(1));
     expect(res).not.toBeNull();
     expect(res!.manager.credits).toBe(m.credits - REROLL_COST);
     expect(res!.shop).toHaveLength(5);
@@ -89,6 +89,6 @@ describe('shop', () => {
   it('reroll rejects when broke', () => {
     const rng = makeRng(6);
     const m = freshManager(0);
-    expect(reroll(m, 1, rng)).toBeNull();
+    expect(reroll(m, 1, rng, generateRunPool(1))).toBeNull();
   });
 });

@@ -21,7 +21,7 @@ import {
 import { aiSetLineup, aiTakeTransferWindow } from './ai';
 import { resolveSquad } from './combos';
 import { simulateMatch } from './match';
-import { generateShop } from './players';
+import { generateRunPool, generateShop } from './players';
 import { AI_MANAGER_NAMES } from './players.data';
 import { deriveSeed, makeRng } from './rng';
 
@@ -95,13 +95,14 @@ function shuffled<T>(items: T[], seed: number): T[] {
 export function prepareRound(input: GameState): GameState {
   const state = structuredClone(input);
   const cap = capForRound(state.round);
+  const pool = generateRunPool(state.seed);
 
   for (const m of state.managers) {
     if (m.eliminated) continue;
     m.squadCap = cap;
     if (m.id !== PLAYER_ID) {
       const rng = makeRng(deriveSeed(state.seed, 'ai', state.round, m.id));
-      const withBuys = aiTakeTransferWindow(rng, m, state.round);
+      const withBuys = aiTakeTransferWindow(rng, m, state.round, pool);
       const withLineup = aiSetLineup(withBuys);
       m.squad = withLineup.squad;
       m.credits = withLineup.credits;
@@ -119,6 +120,7 @@ export function prepareRound(input: GameState): GameState {
   state.currentShop = generateShop(
     makeRng(deriveSeed(state.seed, 'shop', state.round, 'player')),
     state.round,
+    pool,
   );
 
   // Pairing: shuffle survivors, pair adjacents, odd one out gets a bye.

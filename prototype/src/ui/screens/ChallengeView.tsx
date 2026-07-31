@@ -3,6 +3,7 @@ import type { ChallengePayload, MatchResult, Squad } from '../../types';
 import { aiSetLineup, aiTakeTransferWindow } from '../../sim/ai';
 import { resolveSquad } from '../../sim/combos';
 import { simulateMatch } from '../../sim/match';
+import { generateRunPool } from '../../sim/players';
 import { deriveSeed, makeRng } from '../../sim/rng';
 import type { ManagerState } from '../../types';
 import { NATIONALITY_FLAG } from '../../sim/players.data';
@@ -21,7 +22,7 @@ function buildChallengerSquad(seed: number, variant: number): Squad {
     winStreak: 0,
     eliminated: false,
   };
-  m = aiTakeTransferWindow(rng, m, 4);
+  m = aiTakeTransferWindow(rng, m, 4, generateRunPool(deriveSeed(seed, 'pool', variant)));
   m = aiSetLineup(m);
   return m.squad;
 }

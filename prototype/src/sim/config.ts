@@ -40,6 +40,25 @@ export const SHOP_TIER_ODDS_BY_ROUND: number[][] = [
 // ─── Player generation ──────────────────────────────────────────────
 export const STAT_MIN = 40;
 export const STAT_MAX = 99;
+
+// ─── Star merging (TFT-style) ───────────────────────────────────────
+export const STAR_COPY_REQUIREMENT = 3; // 3 copies of star N → one star N+1
+export const STAR_MAX = 3;
+export const STAR_MULTIPLIER: Record<2 | 3, number> = {
+  2: 1.8, // × base stats
+  3: 1.8, // × star-2 stats (≈ 3.24× base)
+};
+// Sell refund: full cost of all merged copies (tier × 3^(star-1)).
+// Run pool: fixed set of templates shops draw from, so duplicates appear
+// and merging is achievable (TFT shared-pool feel, without scarcity).
+export const RUN_POOL_TIER_COUNTS: Record<CostTier, number> = {
+  1: 10,
+  2: 9,
+  3: 8,
+  4: 6,
+  5: 3,
+};
+
 export const TIER_STAT_TOTAL: Record<CostTier, number> = {
   1: 200,
   2: 230,

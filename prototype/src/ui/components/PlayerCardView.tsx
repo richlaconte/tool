@@ -7,6 +7,7 @@ interface Props {
   selected?: boolean;
   compact?: boolean;
   footer?: React.ReactNode;
+  mergeBadge?: string;
 }
 
 const TIER_COLOR: Record<number, string> = {
@@ -17,7 +18,7 @@ const TIER_COLOR: Record<number, string> = {
   5: 'border-amber-400',
 };
 
-export function PlayerCardView({ card, onClick, selected, compact, footer }: Props) {
+export function PlayerCardView({ card, onClick, selected, compact, footer, mergeBadge }: Props) {
   return (
     <button
       type="button"
@@ -29,11 +30,17 @@ export function PlayerCardView({ card, onClick, selected, compact, footer }: Pro
       <div className="flex items-center justify-between gap-1">
         <span className="truncate text-sm font-semibold">
           {NATIONALITY_FLAG[card.nationality]} {card.name}
+          {card.star > 1 && (
+            <span className="ml-1 text-amber-300">{'★'.repeat(card.star)}</span>
+          )}
         </span>
         <span className="shrink-0 rounded bg-black/40 px-1.5 py-0.5 text-xs font-bold text-amber-300">
           {card.tier}💰
         </span>
       </div>
+      {mergeBadge && (
+        <div className="mt-0.5 text-xs font-semibold text-sky-300">{mergeBadge}</div>
+      )}
       <div className="mt-0.5 text-xs text-emerald-300/80">
         {card.naturalPosition} · {ARCHETYPE_LABEL[card.archetype]} · {POSITION_LABEL[card.naturalPosition]}
       </div>

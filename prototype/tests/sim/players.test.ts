@@ -6,7 +6,7 @@ import {
   TIER_STAT_JITTER,
   TIER_STAT_TOTAL,
 } from '../../src/sim/config';
-import { generateCard, generateShop, rollTier } from '../../src/sim/players';
+import { generateCard, generateRunPool, generateShop, rollTier } from '../../src/sim/players';
 import { REAL_NAME_BLOCKLIST } from '../../src/sim/players.data';
 import { makeRng } from '../../src/sim/rng';
 import type { PlayerCard } from '../../src/types';
@@ -77,9 +77,32 @@ describe('players', () => {
 
   it('generateShop returns 5 cards and ids are unique', () => {
     const rng = makeRng(31);
-    const shop = generateShop(rng, 4);
+    const pool = generateRunPool(31);
+    const shop = generateShop(rng, 4, pool);
     expect(shop).toHaveLength(5);
     expect(new Set(shop.map((c) => c.id)).size).toBe(5);
+  });
+
+  it('run pool is deterministic, distinct by template, and enables duplicates', () => {
+    const p1 = generateRunPool(42);
+    const p2 = generateRunPool(42);
+    expect(p1.map((t) => t.templateId)).toEqual(p2.map((t) => t.templateId));
+    expect(new Set(p1.map((t) => t.templateId)).size).toBe(p1.length);
+    // Templates are 1★ and stats are deterministic per templateId.
+    const a = p1[0];
+    expect(a.star).toBe(1);
+    expect(p2[0].stats).toEqual(a.stats);
+
+    // Over many shops from the same pool, duplicate templates must appear.
+    const rng = makeRng(7);
+    const seen = new Map<string, number>();
+    for (let i = 0; i < 40; i++) {
+      for (const c of generateShop(rng, 5, p1)) {
+        seen.set(c.templateId, (seen.get(c.templateId) ?? 0) + 1);
+      }
+    }
+    const maxCopies = Math.max(...seen.values());
+    expect(maxCopies).toBeGreaterThanOrEqual(3); // merging is reachable
   });
 
   it('shop tier odds shift upward in later rounds', () => {

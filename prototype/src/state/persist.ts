@@ -22,6 +22,14 @@ export function loadRun(): GameState | null {
       sessionStorage.removeItem(KEY);
       return null;
     }
+    // Discard stale saves from before the star-merging amendment.
+    const hasLegacyCards = parsed.managers?.some((m) =>
+      m.squad?.cards?.some((c) => typeof c.templateId !== 'string'),
+    );
+    if (hasLegacyCards) {
+      sessionStorage.removeItem(KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;

@@ -2,6 +2,7 @@ import { useStore } from '../../state/store';
 import { PLAYER_ID } from '../../sim/tournament';
 import { detectCombos } from '../../sim/combos';
 import { REROLL_COST } from '../../sim/config';
+import { sellValue } from '../../sim/shop';
 import { PlayerCardView } from '../components/PlayerCardView';
 import { ComboPanel } from '../components/ComboPanel';
 
@@ -43,16 +44,30 @@ export function TransferWindow() {
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {game.currentShop.map((c) => (
-              <PlayerCardView
-                key={c.id}
-                card={c}
-                onClick={player.credits >= c.tier ? () => buyCard(c.id) : undefined}
-              />
-            ))}
+            {game.currentShop.map((c) => {
+              const owned = player.squad.cards.filter(
+                (o) => o.templateId === c.templateId && o.star === c.star,
+              ).length;
+              return (
+                <PlayerCardView
+                  key={c.id}
+                  card={c}
+                  onClick={player.credits >= c.tier ? () => buyCard(c.id) : undefined}
+                  mergeBadge={
+                    owned > 0
+                      ? owned === 2
+                        ? '✨ Buy to merge → ★★'
+                        : `you own ×${owned}`
+                      : undefined
+                  }
+                />
+              );
+            })}
           </div>
         )}
-        <p className="mt-1 text-xs text-emerald-400/50">Tap a card to sign it.</p>
+        <p className="mt-1 text-xs text-emerald-400/50">
+          Tap a card to sign it. 3 copies of the same player auto-merge into a ★★ (then ★★★).
+        </p>
       </section>
 
       <section>
@@ -73,7 +88,7 @@ export function TransferWindow() {
                 onClick={() => sellCard(c.id)}
                 footer={
                   <span className="mt-1 block text-center text-xs text-rose-300/80">
-                    Sell +{c.tier}💰
+                    Sell +{sellValue(c)}💰
                   </span>
                 }
               />

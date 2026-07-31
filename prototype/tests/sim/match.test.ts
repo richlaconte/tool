@@ -18,6 +18,8 @@ function makeCard(overrides: Partial<PlayerCard> & { stats?: Partial<PlayerStats
   idCounter++;
   return {
     id: `test-card-${idCounter}`,
+    templateId: `test-template-${idCounter}`,
+    star: 1,
     name: `T. Testington${idCounter}`,
     nationality: 'ENG' as Nationality,
     archetype: 'Poacher' as Archetype,

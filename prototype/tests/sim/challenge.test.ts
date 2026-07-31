@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { atob, btoa } from 'node:buffer';
-import { generateShop } from '../../src/sim/players';
+import { generateRunPool, generateShop } from '../../src/sim/players';
 import { makeRng } from '../../src/sim/rng';
 import type { Squad } from '../../src/types';
 
@@ -15,7 +15,7 @@ const { encodeChallenge, readChallengeFromHash } = await import(
 describe('friend challenge (US-11)', () => {
   it('encodes and decodes a squad + seed round-trip via URL hash', () => {
     const rng = makeRng(7);
-    const cards = generateShop(rng, 3);
+    const cards = generateShop(rng, 3, generateRunPool(3));
     const squad: Squad = {
       cards,
       lineup: [

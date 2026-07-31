@@ -14,6 +14,8 @@ export type PositionLine = 'GK' | 'DEF' | 'MID' | 'FWD';
 
 export type CostTier = 1 | 2 | 3 | 4 | 5;
 
+export type StarLevel = 1 | 2 | 3;
+
 // ─── Players ────────────────────────────────────────────────────────
 
 export interface PlayerStats {
@@ -25,12 +27,17 @@ export interface PlayerStats {
 
 export interface PlayerCard {
   id: string;
+  /** AMENDMENT 2026-07-31 (star merging): stable identity of the player template.
+   *  Two cards with the same templateId are copies of the SAME player and can
+   *  be merged (3 copies of star N → one card of star N+1). */
+  templateId: string;
+  star: StarLevel;
   name: string;
   nationality: Nationality;
   archetype: Archetype;
   naturalPosition: PositionLine;
   tier: CostTier;
-  stats: PlayerStats;
+  stats: PlayerStats; // includes star multiplier — sim/UI never re-derive it
 }
 
 // ─── Squad & placement ──────────────────────────────────────────────

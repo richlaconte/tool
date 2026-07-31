@@ -16,6 +16,9 @@ export type PositionLine = 'GK' | 'DEF' | 'MID' | 'FWD';
 
 export type CostTier = 1 | 2 | 3 | 4 | 5;
 
+// AMENDMENT 2026-07-31 (founder-requested): star merging, TFT-style.
+export type StarLevel = 1 | 2 | 3;
+
 // ─── Players ────────────────────────────────────────────────────────
 
 export interface PlayerStats {
@@ -27,6 +30,11 @@ export interface PlayerStats {
 
 export interface PlayerCard {
   id: string;              // unique per card instance (uuid-ish, sim-generated)
+  // AMENDMENT 2026-07-31: templateId identifies the player template; cards
+  // sharing it are copies of the same player. 3 copies of star N merge into
+  // one star N+1 card (max 3). Stats include the star multiplier.
+  templateId: string;
+  star: StarLevel;
   name: string;            // fictional, from data layer pools
   nationality: Nationality;
   archetype: Archetype;

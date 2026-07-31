@@ -8,6 +8,8 @@ function card(overrides: Partial<PlayerCard>): PlayerCard {
   n++;
   return {
     id: `c${n}`,
+    templateId: `test-template-${overrides.nationality ?? 'ENG'}-${n}`,
+    star: 1,
     name: `X. Player${n}`,
     nationality: 'ENG',
     archetype: 'Poacher',

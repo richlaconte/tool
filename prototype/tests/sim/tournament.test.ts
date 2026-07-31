@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { aiSetLineup, aiTakeTransferWindow, squadStrength } from '../../src/sim/ai';
+import { generateRunPool, generateShop } from '../../src/sim/players';
 import { MANAGER_COUNT, MAX_ROUNDS, STARTING_CREDITS } from '../../src/sim/config';
 import { buy } from '../../src/sim/shop';
-import { generateShop } from '../../src/sim/players';
 import { advanceRound, createRun, PLAYER_ID, resolveRound } from '../../src/sim/tournament';
 import { makeRng } from '../../src/sim/rng';
 import type { GameState, ManagerState } from '../../src/types';
@@ -12,7 +12,7 @@ function autoPlayPlayer(state: GameState): GameState {
   const s = structuredClone(state);
   const rng = makeRng(state.seed ^ 0xabcdef);
   const idx = s.managers.findIndex((m) => m.id === PLAYER_ID);
-  const withBuys = aiTakeTransferWindow(rng, s.managers[idx], s.round);
+  const withBuys = aiTakeTransferWindow(rng, s.managers[idx], s.round, generateRunPool(s.seed));
   s.managers[idx] = aiSetLineup(withBuys);
   return s;
 }
@@ -146,7 +146,7 @@ describe('tournament', () => {
 
   it('shop economy integration: buy through the real shop path', () => {
     const rng = makeRng(1);
-    const shop = generateShop(rng, 1);
+    const shop = generateShop(rng, 1, generateRunPool(1));
     const m: ManagerState = {
       id: 'x',
       name: 'X',

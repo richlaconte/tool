@@ -31,7 +31,8 @@ Player identity (name pools per nationality, flag, archetype label) lives entire
 ## 2. Economy & Transfer Window
 
 - Starting credits: **8**. 
-- Shop: 5 cards, drawn by tier odds for the current round. Reroll: **1 credit**. Sell value: tier price (full refund in MVP — generosity keeps experimentation high).
+- Shop: 5 cards, drawn by tier odds for the current round **from a fixed per-run template pool (36 templates; tier mix 10/9/8/6/3)** — a shared-pool feel so duplicates appear and merging is achievable. Reroll: **1 credit**. Sell value: full refund of every merged copy (tier × 3^(star−1)).
+- **Star merging (added 2026-07-31):** every card is a copy of a deterministic template (`templateId`). Owning **3 copies of the same template at the same star auto-merges** into one card of the next star (max ★★★): ★★ = 1.8× base stats, ★★★ = 1.8× again (≈3.24×, stats capped at 99). Merges chain (9 copies → ★★★), fielded copies keep their lineup slot, and buying the merging copy is allowed even on a full bench.
 - **Prize money after each match:** 4 base + 1 per goal scored (cap +3) + 2 for a win.
 - **Squad cap:** starts at 4 fielded players, +1 every 2 rounds, max 7. (Fewer than 11 keeps decisions snappy and the pitch readable — this is an auto-battler, not a full sim. Formation slots: 1 GK + up to 6 across DEF/MID/FWD lines; a lineup must always field a GK.)
 - Bench: max 4. Buying with a full bench is blocked.

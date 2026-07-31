@@ -57,7 +57,7 @@ A session: 8 managers (you + 7 AI), each 20 HP. Rounds continue until one manage
 
 - Live synchronous multiplayer, matchmaking, lobbies
 - More combo families (club-style, league), player traits/injuries/morale
-- Economy depth: interest, win/loss streaks, player leveling (star merging)
+- Economy depth: interest, win/loss streaks (star merging shipped 2026-07-31)
 - Meta progression, profiles, leaderboards, daily challenges
 - Monetization of any kind
 

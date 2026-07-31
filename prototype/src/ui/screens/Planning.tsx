@@ -40,7 +40,10 @@ function PlayerChip({
         outOfPosition ? 'ring-2 ring-rose-400' : 'ring-1 ring-white/20'
       }`}
     >
-      <span className="text-sm leading-none">{NATIONALITY_FLAG[card.nationality]}</span>{' '}
+      <span className="text-sm leading-none">{NATIONALITY_FLAG[card.nationality]}</span>
+      <span className="rounded bg-black/40 px-1 py-px text-[10px] font-black uppercase tracking-wide text-white/70">
+        {card.naturalPosition}
+      </span>
       {card.name}
       <span className={`ml-0.5 tracking-tight ${card.star > 1 ? 'text-amber-300' : 'text-white/45'}`}>
         {'★'.repeat(card.star)}

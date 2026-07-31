@@ -48,18 +48,18 @@ function PlayerChip({
           : title
       }
       style={{ backgroundColor: `${NATIONALITY_COLOR[card.nationality]}30` }}
-      className={`rounded-md px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${ring}`}
+      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${ring}`}
     >
       <span className="text-sm leading-none">{NATIONALITY_FLAG[card.nationality]}</span>
-      <span className="rounded bg-black/40 px-1 py-px text-[10px] font-black uppercase tracking-wide text-white/70">
+      <span className="rounded bg-black/40 px-1 py-px text-[10px] font-black uppercase leading-tight tracking-wide text-white/70">
         {card.naturalPosition}
       </span>
-      {card.name}
-      <span className={`ml-0.5 tracking-tight ${card.star > 1 ? 'text-amber-300' : 'text-white/45'}`}>
+      <span>{card.name}</span>
+      <span className={`tracking-tight ${card.star > 1 ? 'text-amber-300' : 'text-white/45'}`}>
         {'★'.repeat(card.star)}
       </span>
       {outOfPosition ? (
-        <span className="ml-0.5 font-black text-rose-300">×{fit}</span>
+        <span className="font-black text-rose-300">×{fit}</span>
       ) : null}
     </button>
   );
@@ -130,7 +130,7 @@ export function Planning() {
                 <span className="w-10 shrink-0 text-[11px] font-black uppercase tracking-widest text-white/50">
                   {label}
                 </span>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-1 flex-wrap items-center justify-evenly gap-x-1 gap-y-1.5">
                   {inLine.length === 0 && (
                     <span className="text-xs text-white/35">
                       {selected ? 'tap to place here' : '·'}

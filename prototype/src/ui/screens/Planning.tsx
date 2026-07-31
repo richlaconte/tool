@@ -95,13 +95,7 @@ export function Planning() {
 
       {/* Pitch board */}
       <div className="px-3 pt-2">
-        <div
-          className="overflow-hidden rounded-md border border-emerald-700/70"
-          style={{
-            background:
-              'repeating-linear-gradient(180deg, #065f46 0px, #065f46 22px, #047857 22px, #047857 44px)',
-          }}
-        >
+        <div className="overflow-hidden rounded-md border border-emerald-700/70">
           {ZONES.map(({ slot, label }, zi) => {
             const inLine = squad.lineup.filter((l) => l.slot === slot);
             return (
@@ -109,16 +103,13 @@ export function Planning() {
                 key={slot}
                 type="button"
                 onClick={() => placeIn(slot)}
-                className={`relative flex w-full items-center gap-2 border-b border-white/10 px-2 py-2.5 text-left last:border-b-0 ${
-                  selected ? 'cursor-pointer hover:bg-white/5' : 'cursor-default'
-                }`}
+                className={`flex min-h-[48px] w-full items-center gap-2 border-b border-white/10 px-2 py-2 text-left last:border-b-0 ${
+                  zi % 2 === 0 ? 'bg-emerald-800' : 'bg-emerald-700'
+                } ${selected ? 'cursor-pointer hover:brightness-110' : 'cursor-default'}`}
               >
                 <span className="w-10 shrink-0 text-[11px] font-black uppercase tracking-widest text-white/50">
                   {label}
                 </span>
-                {zi === 0 && (
-                  <span className="pointer-events-none absolute left-1/2 top-0 h-px w-full -translate-x-1/2 bg-white/10" />
-                )}
                 <div className="flex flex-wrap items-center gap-1.5">
                   {inLine.length === 0 && (
                     <span className="text-xs text-white/35">

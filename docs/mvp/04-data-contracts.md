@@ -43,9 +43,13 @@ export interface Placement {
   slot: PositionLine;      // where they actually play (may ≠ naturalPosition)
 }
 
+// AMENDMENT 2026-07-31 (founder-approved during build): bench storage was
+// ambiguous — fielded cards had no home. Squad now owns all cards; bench is
+// derived (cards not referenced by lineup), max 4 unfielded.
 export interface Squad {
-  lineup: Placement[];     // fielded players; exactly one slot 'GK'; length ≤ squadCap
-  bench: PlayerCard[];     // ≤ 4
+  cards: PlayerCard[];      // ALL owned cards (fielded + unfielded)
+  lineup: Placement[];     // fielded players; cardId must exist in cards;
+                           // exactly one slot 'GK'; length ≤ squadCap
 }
 
 // ─── Combinations ───────────────────────────────────────────────────
@@ -155,7 +159,7 @@ export interface ChallengePayload {
 ## Invariants the sim must enforce (test these)
 
 1. `Squad.lineup` contains exactly one placement with `slot === 'GK'`.
-2. `Squad.lineup.length ≤ ManagerState.squadCap`; `Squad.bench.length ≤ 4`.
+2. `Squad.lineup.length ≤ ManagerState.squadCap`; every `lineup.cardId` exists in `Squad.cards`; unfielded cards (`cards.length - lineup.length`) ≤ 4.
 3. `ManagerState.credits` never goes negative — invalid actions are rejected by sim functions, not by UI hiding buttons.
 4. Every `MatchEvent` after a `GOAL` reflects the updated running score.
 5. `GameState.seed` is the sole entropy source; no sim function accepts or uses any other randomness.

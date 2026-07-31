@@ -25,6 +25,67 @@ function dwellFor(e: MatchEvent, speed: Speed, turboDwell: number): number {
 
 const OUTCOME_TYPES = new Set(['GOAL', 'SAVED', 'BLOCKED', 'MISSED', 'PENALTY']);
 
+// ─── Ball trajectory ────────────────────────────────────────────────
+// Deterministic per-event ball positions: build-up uses midfield lanes,
+// chances push into the box, goals hit the net, misses go wide, corners
+// reach the flag. The ball glides between positions at narration speed.
+
+interface BallPos {
+  x: number; // 0–100, HOME attacks toward 100
+  y: number; // 0–100, 50 = center lane
+}
+
+function hash01(n: number): number {
+  let h = Math.imul(n >>> 0, 2654435761) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 2246822519) >>> 0;
+  return ((h ^ (h >>> 7)) >>> 0) / 4294967296;
+}
+
+function positionFor(e: MatchEvent, prev: BallPos): BallPos {
+  const towardHome = e.team === 'HOME';
+  const depth = (d: number): number => (towardHome ? d : 100 - d);
+  const lane = 20 + hash01(e.tick * 31 + 7) * 60;
+  const wide = hash01(e.tick * 17 + 3) > 0.5 ? 7 : 93;
+  switch (e.type) {
+    case 'KICKOFF':
+    case 'FULLTIME':
+      return { x: 50, y: 50 };
+    case 'COUNTER':
+      return { x: depth(48 + hash01(e.tick) * 10), y: lane };
+    case 'ATTACK':
+      return { x: depth(56 + hash01(e.tick) * 12), y: lane };
+    case 'CHANCE':
+      return { x: depth(74 + hash01(e.tick * 3) * 12), y: 35 + hash01(e.tick * 5) * 30 };
+    case 'GOAL':
+      return { x: depth(96), y: 44 + hash01(e.tick * 11) * 12 };
+    case 'PENALTY':
+      return { x: depth(89), y: 50 };
+    case 'SAVED':
+      return { x: depth(90), y: 42 + hash01(e.tick * 11) * 16 };
+    case 'BLOCKED':
+      return { x: depth(80), y: lane };
+    case 'MISSED':
+      return { x: depth(92), y: wide };
+    case 'CORNER':
+      return { x: depth(97), y: wide };
+    case 'FOUL':
+    case 'CARD':
+      return { x: depth(38 + hash01(e.tick) * 22), y: lane };
+    default:
+      return prev;
+  }
+}
+
+function ballPath(events: MatchEvent[]): BallPos[] {
+  const path: BallPos[] = [];
+  let prev: BallPos = { x: 50, y: 50 };
+  for (const e of events) {
+    prev = positionFor(e, prev);
+    path.push(prev);
+  }
+  return path;
+}
+
 export function MatchView() {
   const { game, finishMatch } = useStore();
   const match = game?.lastMatch ?? null;
@@ -64,6 +125,9 @@ export function MatchView() {
     if (current.type === 'FULLTIME') whistleSound();
   }, [idx]);
 
+  // Ball trajectory: deterministic per-event positions, glided at narration speed.
+  const path = useMemo(() => ballPath(events), [events]);
+
   if (!game || !match) return null;
 
   const homeName =
@@ -71,17 +135,9 @@ export function MatchView() {
   const awayName =
     game.managers.find((m) => m.id === match.away.managerId)?.name ?? 'Away';
 
-  // Ball position on the pitch strip, derived from the current event.
-  const ballX = (() => {
-    if (!current) return 50;
-    const attacking = current.team;
-    const deep = ['CHANCE', 'GOAL', 'SAVED', 'BLOCKED', 'MISSED', 'PENALTY', 'CORNER'].includes(
-      current.type,
-    );
-    const towardHome = attacking === 'HOME';
-    const base = deep ? (towardHome ? 82 : 18) : towardHome ? 62 : 38;
-    return base;
-  })();
+  const ball: BallPos = idx > 0 ? path[idx - 1] : { x: 50, y: 50 };
+  const glideMs = current ? dwellFor(current, speed, turboDwell) : 700;
+  const trail = path.slice(Math.max(0, idx - 5), Math.max(0, idx - 1));
   const isGoal = current?.type === 'GOAL' || current?.narrativeKey === 'goal.penalty';
   const playerScored = isGoal && current?.team === playerTeam;
 
@@ -104,9 +160,24 @@ export function MatchView() {
         <div className="absolute inset-y-0 left-1/2 w-px bg-emerald-100/20" />
         <div className="absolute inset-y-2 left-2 w-10 border border-emerald-100/20" />
         <div className="absolute inset-y-2 right-2 w-10 border border-emerald-100/20" />
+        {trail.map((p, i) => (
+          <div
+            key={i}
+            className="absolute h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/40"
+            style={{
+              left: `${p.x}%`,
+              top: `${p.y}%`,
+              opacity: 0.15 + (0.35 * (i + 1)) / trail.length,
+            }}
+          />
+        ))}
         <div
-          className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-white shadow transition-all duration-700"
-          style={{ left: `${ballX}%` }}
+          className="absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow transition-all ease-in-out"
+          style={{
+            left: `${ball.x}%`,
+            top: `${ball.y}%`,
+            transitionDuration: `${glideMs}ms`,
+          }}
         />
         {isGoal && (
           <div

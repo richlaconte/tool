@@ -103,3 +103,43 @@ Zero budget eliminates the two biggest ways to fail (paying for licenses before 
 ## 6. One-paragraph honest summary
 
 The version of this plan where you use real players without a license behind an LLC has only bad endings: best case the game stays small and unsellable; worst case an injunction kills it and names the founders. The version where you prove the mechanic with fictional players costs almost nothing, tests the *actual* risk (is the watch phase fun?), and produces the only asset acquirers pay for — working retention on clean IP. EA is not your buyer at any realistic scale; Take-Two/Zynga, Scopely, Sorare, Mythical, or an Asian mobile-sports publisher is. Form the LLC for hygiene, build fictional, architect for license injection, raise on retention data, license second, sell third.
+
+---
+
+## 7. Amendment: preserving the "Messi + Haaland" dream-pairing appeal at $0
+
+**Founder challenge (valid):** fictional players sacrifice the fantasy-draft moment — "I paired Messi with Haaland and destroyed them" — which is half the emotional hook and the cheapest marketing creative imaginable. Accepted: fictional-first is the plan's single biggest product sacrifice. Here is the honest accounting and the mitigation.
+
+### 7.1 What is NOT a solution — the soundalike trap
+
+Do **not** ship "M. Essi" / "Halaand" / "Kyle Muabbey"-style near-identical fake players:
+
+- **Legally it's worse, not safer.** The US cases (Hart/Keller) punished *recognizable identity without names attached*. A soundalike name + correct nationality + correct position + correct stats is still that player's identity — and the thin disguise documents *intent to appropriate*, which reads terribly in front of a judge and in acquirer diligence.
+- **Commercially it's mocked.** Outlets openly ridicule soundalike rosters ("playing with a slightly off-putting version of Kylian Mbappé named Kyle Muabbey"). It signals "bootleg" to exactly the fans you're courting.
+- Rule: either a player is clearly fictional (own name, own identity) or licensed-real. Nothing in between.
+
+### 7.2 The proven $0 route: the PES/FM mod playbook (option files)
+
+Konami shipped "Man Blue" for 25 years while millions of players enjoyed fully real clubs — because PES had an **Edit Mode** and the community distributed **option files** (data packs with real names/kits) that users imported themselves. Football Manager's ecosystem does the same: DF11's 250,000-face megapack, real-name fixes for unlicensed national teams. The publisher never ships or hosts the infringing content; the community creates and shares it; the game is merely *editable*.
+
+**Translation for Tactics FC (Phase 1 feature, explicitly added to the plan):**
+
+1. Ship the official game 100% fictional.
+2. Build a **robust player/team editor** + **importable data format** (share codes or JSON import) from day one — it's the same "data layer" architecture the exit strategy already requires, just exposed to users.
+3. Let the community build and circulate real-player databases on *their* channels (Discord, Reddit, spreadsheets). You don't create it, preload it, advertise it, or host a repository of it. If you ever host user uploads, you inherit notice-and-takedown obligations — keep the official channels clean.
+4. Marketing, store pages, and ads remain fictional-only, forever, until FIFPRO signs.
+
+**Legal posture honesty:** this is the documented industry norm (PES option files, FM facepacks have operated openly for 15–25+ years without publishers being sued over them), but it is "tolerated precedent," not a statute. The bright lines that keep it defensible: you never ship the content, never imply endorsement, and you respond to any takedown demand instantly. This is a counsel-review item in Phase 2, not a founder judgment call.
+
+### 7.3 Making fictional players earn attachment (so the wait hurts less)
+
+The pairing fantasy is ultimately about *attachment to characters* — TFT proves attachment to invented units ("my Jinx/Vi combo") carries an auto-battler. Accelerate attachment deliberately:
+
+- **Strong archetype identity:** players should be recognizable *as types* in one glance ("the mercurial left-footed 10," "the Nordic goal cyborg") — decodable without being identifiable individuals (§7.1's bright line).
+- **Star-up = character arc:** 1★ prospect → 3★ world-class with name chants, portrait glow-ups, signature vignettes. Players fall in love with who a unit *becomes*.
+- **Persistent lore:** your fictional houses/clubs get identities, rivalries, and histories — the trait system's chemistry links double as storytelling.
+- **Replayable moments:** post-match share cards ("Your 3★ captain scored a 92' winner") give fictional players the clip economy that real stars would have provided.
+
+### 7.4 The reframe
+
+The fictional era is **not the product — it's the down payment on the real-player product.** The plan already injects real names at Phase 3 (post-raise, FIFPRO-signed). The question was never "fictional or Messi?" — it's "Messi now with injunction risk and zero budget, or Messi in month 12–20 as a funded, licensed, acquirable game." The option-file playbook (§7.2) bridges the emotional gap in the meantime at $0, using the exact mechanism Konami and Sports Interactive have relied on for decades.

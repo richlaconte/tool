@@ -68,15 +68,14 @@ A session: 8 managers (you + 7 AI), each 20 HP. Rounds continue until one manage
 - Native mobile apps
 - Any feature requiring network beyond static hosting
 
-## Screens (5)
+## Screens (4)
+
+*(Style refactor, implemented — see `06-style-refactor.md`: Transfer Window and Tactics Board are merged into one persistent TFT-style Planning screen.)*
 
 1. **Landing** — title, "New Run", "How to Play" (3-panel explainer), "Continue" if a saved run exists.
-2. **Transfer Window** — shop row of 5 cards, credits, reroll button, bench, combo panel, "Confirm & Continue".
-3. **Tactics Board** — pitch diagram with placement slots by line (GK/DEF/MID/FWD), bench, combo panel, squad cap, "Kick Off".
-4. **Match View** — animated pitch (dots-and-trails level of fidelity is fine), event timeline feed, scoreboard, speed controls, Turbo button.
-5. **Results & Standings** — match summary, damage, prize, 8-manager standings table, next-round button; end-of-run variant with placement + rematch.
-
-(Transfer Window and Tactics Board may be one combined screen if simpler — agent's choice, documented in the task.)
+2. **Planning** — one persistent screen with persistent top HUD (round/HP/credits/streak/next opponent), combo panel, striped pitch board with line zones (GK/DEF/MID/FWD), bench with sell mode, shop bottom bar (5 cards, reroll), and one sticky amber "Kick Off vs {opponent}" CTA. All planning actions (buy/sell/reroll/place/unplace) available in both TRANSFER_WINDOW and TACTICS phases.
+3. **Match View** — animated pitch with physics-ball movement, event timeline feed (color-coded friendly/enemy, defined minute-badge style), scoreboard, speed controls, Turbo button.
+4. **Results & Standings** — match summary, damage, prize, 8-manager standings table, next-round button; end-of-run variant with placement + rematch.
 
 ## Acceptance criteria (prototype level)
 

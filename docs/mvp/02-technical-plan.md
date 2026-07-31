@@ -42,8 +42,8 @@ prototype/
       store.ts      # Zustand store: screen, phase, GameState, persistence
       persist.ts    # sessionStorage save/load (serialize GameState)
     ui/
-      screens/      # Landing, TransferWindow, TacticsBoard, MatchView, Results
-      components/   # PlayerCard, PitchView, ComboPanel, EventFeed, StandingsTable
+      screens/      # Landing, Planning (merged shop+board, TFT-style), MatchView, Results
+      components/   # Hud, PlayerCardView, PitchView, ComboPanel, EventFeed, StandingsTable
       App.tsx
     main.tsx
   tests/

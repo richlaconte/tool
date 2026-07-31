@@ -6,69 +6,69 @@ export function Landing() {
   const [showHelp, setShowHelp] = useState(false);
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-6 p-6 text-center">
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-8 p-6 text-center">
       <div>
-        <div className="text-5xl">⚽</div>
-        <h1 className="mt-2 text-4xl font-black tracking-tight">Tactics FC</h1>
-        <p className="mt-2 text-emerald-300/80">
-          Build your squad. Find the combos. Watch them win — or fall apart.
+        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-amber-300">
+          8 managers enter · 1 survives
+        </p>
+        <h1 className="mt-2 text-5xl font-black uppercase leading-none tracking-tight">
+          Tactics
+          <span className="block text-emerald-400">FC</span>
+        </h1>
+        <p className="mx-auto mt-3 max-w-xs text-sm text-emerald-200/80">
+          Sign footballers. Stack nationalities, lines and flair into combos.
+          Then watch your squad win — or fall apart — on the pitch.
         </p>
       </div>
 
-      <div className="flex w-full flex-col gap-3">
+      <div className="flex w-full flex-col gap-2.5">
         {saveAvailable && (
           <button
             type="button"
             onClick={continueRun}
-            className="rounded-xl bg-amber-400 px-6 py-3 text-lg font-bold text-emerald-950 hover:bg-amber-300"
+            className="rounded-md bg-amber-400 px-6 py-3.5 text-lg font-black uppercase tracking-wide text-emerald-950 hover:bg-amber-300"
           >
-            ▶ Continue Run
+            Continue Run
           </button>
         )}
         <button
           type="button"
           onClick={newRun}
-          className="rounded-xl bg-emerald-500 px-6 py-3 text-lg font-bold text-emerald-950 hover:bg-emerald-400"
+          className={`rounded-md px-6 py-3.5 text-lg font-black uppercase tracking-wide ${
+            saveAvailable
+              ? 'bg-black/30 text-emerald-100 hover:bg-black/50'
+              : 'bg-amber-400 text-emerald-950 hover:bg-amber-300'
+          }`}
         >
           New Run
         </button>
         <button
           type="button"
           onClick={() => setShowHelp((v) => !v)}
-          className="rounded-xl bg-black/30 px-6 py-2.5 font-medium text-emerald-200 hover:bg-black/40"
+          className="rounded-md px-6 py-2 text-xs font-bold uppercase tracking-widest text-emerald-300/70 hover:text-emerald-100"
         >
-          How to Play
+          {showHelp ? 'Hide guide' : 'How to play'}
         </button>
       </div>
 
       {showHelp && (
-        <div className="w-full space-y-3 rounded-xl bg-black/30 p-4 text-left text-sm">
-          <div>
-            <span className="font-bold text-amber-300">1 · Transfer Window</span>
-            <p className="text-emerald-200/80">
-              Buy footballers from the shop. Sell anyone for a full refund. Reroll
-              for 1💰 if nothing fits.
-            </p>
-          </div>
-          <div>
-            <span className="font-bold text-amber-300">2 · Tactics</span>
-            <p className="text-emerald-200/80">
-              Place players in their lines — out-of-position players are worse.
-              Stack nationalities, defenders, Brazilian flair, or poachers to
-              unlock powerful combos.
-            </p>
-          </div>
-          <div>
-            <span className="font-bold text-amber-300">3 · Match</span>
-            <p className="text-emerald-200/80">
-              Your squad plays automatically against a rival manager. Lose and you
-              take damage — last manager standing out of 8 wins.
-            </p>
-          </div>
+        <div className="w-full space-y-3 rounded-md border border-emerald-800/60 bg-black/30 p-4 text-left text-sm">
+          {[
+            ['1 · Sign players', 'Buy from the transfer market. Duplicates merge: 3 copies of the same player become a ★★, nine become a ★★★.'],
+            ['2 · Set your lines', 'Place players on the pitch in their natural lines. Stack nationalities, defenders, Brazilian flair or poachers to unlock combo bonuses.'],
+            ['3 · Watch the match', 'Your squad plays automatically against a rival. Lose and you take damage — last manager standing wins.'],
+          ].map(([title, body]) => (
+            <div key={title}>
+              <span className="text-[11px] font-black uppercase tracking-widest text-amber-300">
+                {title}
+              </span>
+              <p className="mt-0.5 text-emerald-200/80">{body}</p>
+            </div>
+          ))}
         </div>
       )}
 
-      <p className="text-xs text-emerald-400/50">Prototype · all players fictional</p>
+      <p className="text-xs text-emerald-400/40">Prototype · all players fictional</p>
     </div>
   );
 }

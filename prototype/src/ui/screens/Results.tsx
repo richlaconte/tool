@@ -12,6 +12,7 @@ import {
   WIN_STREAK_DAMAGE_CAP,
 } from '../../sim/config';
 import { StandingsTable } from '../components/StandingsTable';
+import { Hud } from '../components/Hud';
 
 export function Results() {
   const { game, nextRound, rematch, abandonRun } = useStore();
@@ -74,7 +75,7 @@ export function Results() {
             navigator.clipboard?.writeText(link).catch(() => window.prompt('Copy this link:', link));
             setCopied(true);
           }}
-          className="rounded-xl bg-amber-400/20 px-6 py-2.5 font-semibold text-amber-200 ring-1 ring-amber-400/50 hover:bg-amber-400/30"
+          className="rounded-md bg-amber-400/20 px-6 py-2.5 font-semibold text-amber-200 ring-1 ring-amber-400/50 hover:bg-amber-400/30"
         >
           {copied ? '✅ Link copied — send it to a friend!' : '⚔️ Challenge a friend with this squad'}
         </button>
@@ -82,14 +83,14 @@ export function Results() {
           <button
             type="button"
             onClick={rematch}
-            className="rounded-xl bg-emerald-500 px-8 py-3 text-lg font-bold text-emerald-950 hover:bg-emerald-400"
+            className="rounded-md bg-amber-400 px-8 py-3 text-lg font-black uppercase tracking-wide text-emerald-950 hover:bg-amber-300"
           >
-            🔄 Rematch
+            Rematch
           </button>
           <button
             type="button"
             onClick={abandonRun}
-            className="rounded-xl bg-black/40 px-6 py-3 font-semibold hover:bg-black/60"
+            className="rounded-md bg-black/40 px-6 py-3 font-semibold hover:bg-black/60"
           >
             Main Menu
           </button>
@@ -99,11 +100,14 @@ export function Results() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 p-4">
-      <header>
-        <h2 className="text-xl font-bold">Round {game.round} · Results</h2>
-      </header>
-      <div className="rounded-xl bg-black/30 p-4">
+    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 pb-4">
+      <Hud game={game} />
+      <div className="px-4 pt-2">
+        <h2 className="text-[11px] font-black uppercase tracking-widest text-emerald-300/60">
+          Round {game.round} · Results
+        </h2>
+      </div>
+      <div className="mx-4 rounded-md bg-black/30 p-4">
         <p className="text-lg font-bold">{headline}</p>
         <p className="mt-1 text-sm text-emerald-300/80">{detail}</p>
         <p className="mt-2 text-sm">
@@ -111,14 +115,18 @@ export function Results() {
           <span className="font-bold text-amber-300">{player.credits}💰</span>
         </p>
       </div>
-      <StandingsTable managers={game.managers} />
-      <button
-        type="button"
-        onClick={nextRound}
-        className="mt-auto rounded-xl bg-emerald-500 px-6 py-3 text-lg font-bold text-emerald-950 hover:bg-emerald-400"
-      >
-        Next Round →
-      </button>
+      <div className="px-4">
+        <StandingsTable managers={game.managers} />
+      </div>
+      <div className="mt-auto border-t border-emerald-800/60 bg-emerald-950/95 p-3">
+        <button
+          type="button"
+          onClick={nextRound}
+          className="w-full rounded-md bg-amber-400 px-6 py-3.5 text-lg font-black uppercase tracking-wide text-emerald-950 hover:bg-amber-300"
+        >
+          Next Round
+        </button>
+      </div>
     </div>
   );
 }

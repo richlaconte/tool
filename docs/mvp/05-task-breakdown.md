@@ -76,6 +76,8 @@ Pitch diagram (GK/DEF/MID/FWD slot rows), drag-and-drop with tap fallback, swap/
 - **Verify:** manual — out-of-position placement visibly warns/buffs change; AC-7 tap flow at 390px.
 - [ ] done — commit:
 
+> **STATUS (style refactor, implemented):** TASK 11 + TASK 12 superseded by the merged `Planning.tsx` screen (TFT layout: HUD top, pitch board, bench, shop bottom bar, one Kick Off CTA) plus persistent `Hud.tsx` on Match/Results. Phase guards in the store now accept planning actions in both TRANSFER_WINDOW and TACTICS phases. Decision record: `06-style-refactor.md`.
+
 ### TASK 13 — Match View UI (the show)
 Renders `MatchResult.events` as playback (never re-simulates): pitch animation (dots/trails acceptable), narrated event feed from `narrativeKey` templates (commentary names players and references causes per US-6), scoreboard, play/pause, 1×/2×, **Turbo (full match ≈15s, AC per pillar 3)**, skip-to-result.
 - **Verify:** manual — full match ≈90s at 1×, ≈15s Turbo; feed events match the event log exactly; zero console errors (**AC-1** partial).

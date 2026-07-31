@@ -83,7 +83,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   buyCard: (cardId) => {
     const { game } = get();
-    if (!game || game.phase !== 'TRANSFER_WINDOW') return;
+    if (!game || (game.phase !== 'TRANSFER_WINDOW' && game.phase !== 'TACTICS')) return;
     const res = buy(playerOf(game), game.currentShop, cardId);
     if (!res) return;
     const next = {
@@ -96,7 +96,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   sellCard: (cardId) => {
     const { game } = get();
-    if (!game || game.phase !== 'TRANSFER_WINDOW') return;
+    if (!game || (game.phase !== 'TRANSFER_WINDOW' && game.phase !== 'TACTICS')) return;
     const next_manager = sell(playerOf(game), cardId);
     if (!next_manager) return;
     const next = replacePlayer(game, next_manager);
@@ -106,7 +106,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   rerollShop: () => {
     const { game, rerollCount } = get();
-    if (!game || game.phase !== 'TRANSFER_WINDOW') return;
+    if (!game || (game.phase !== 'TRANSFER_WINDOW' && game.phase !== 'TACTICS')) return;
     const rng = makeRng(deriveSeed(game.seed, 'reroll', game.round, rerollCount));
     const res = reroll(playerOf(game), game.round, rng, generateRunPool(game.seed));
     if (!res) return;
@@ -120,7 +120,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   confirmTransfer: () => {
     const { game } = get();
-    if (!game || game.phase !== 'TRANSFER_WINDOW') return;
+    if (!game || (game.phase !== 'TRANSFER_WINDOW' && game.phase !== 'TACTICS')) return;
     const next: GameState = { ...game, phase: 'TACTICS' };
     persist(next);
     set({ game: next });
@@ -128,7 +128,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   placePlayer: (cardId, slot) => {
     const { game } = get();
-    if (!game || game.phase !== 'TACTICS') return;
+    if (!game || (game.phase !== 'TRANSFER_WINDOW' && game.phase !== 'TACTICS')) return;
     const p = playerOf(game);
     const card = p.squad.cards.find((c) => c.id === cardId);
     if (!card) return;
@@ -156,7 +156,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   unplacePlayer: (cardId) => {
     const { game } = get();
-    if (!game || game.phase !== 'TACTICS') return;
+    if (!game || (game.phase !== 'TRANSFER_WINDOW' && game.phase !== 'TACTICS')) return;
     const p = playerOf(game);
     const next = replacePlayer(game, {
       ...p,
@@ -171,7 +171,7 @@ export const useStore = create<StoreState>((set, get) => ({
 
   kickOff: () => {
     const { game } = get();
-    if (!game || game.phase !== 'TACTICS') return;
+    if (!game || (game.phase !== 'TRANSFER_WINDOW' && game.phase !== 'TACTICS')) return;
     const p = playerOf(game);
     const hasGk = p.squad.lineup.some((l) => l.slot === 'GK');
     if (!hasGk || p.squad.lineup.length === 0) return;

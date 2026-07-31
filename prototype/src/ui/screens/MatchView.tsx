@@ -4,6 +4,7 @@ import { PLAYER_ID } from '../../sim/tournament';
 import type { MatchEvent } from '../../types';
 import { isNotable, minuteOf, narrate } from '../narratives';
 import { concedeSound, goalSound, whistleSound } from '../sound';
+import { Hud } from '../components/Hud';
 
 type Speed = 'normal' | 'fast' | 'turbo';
 
@@ -142,21 +143,23 @@ export function MatchView() {
   const playerScored = isGoal && current?.team === playerTeam;
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-3 p-4">
+    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col gap-3 pb-4">
+      <Hud game={game} />
+      <div className="flex flex-col gap-3 px-4">
       {/* Scoreboard */}
-      <header className="flex items-center justify-between rounded-xl bg-black/40 px-4 py-3">
+      <header className="mt-1 flex items-center justify-between rounded-md bg-black/40 px-4 py-3">
         <div className="w-24 truncate text-sm font-bold">{homeName}</div>
         <div className="text-center">
-          <div className="text-2xl font-black tracking-widest">
+          <div className="text-2xl font-black tabular-nums tracking-widest">
             {current ? current.homeScore : 0} – {current ? current.awayScore : 0}
           </div>
-          <div className="text-xs text-amber-300">{current ? minuteOf(current) : "0'"}</div>
+          <div className="font-mono text-xs font-bold text-amber-300">{current ? minuteOf(current) : "0'"}</div>
         </div>
         <div className="w-24 truncate text-right text-sm font-bold">{awayName}</div>
       </header>
 
       {/* Pitch strip */}
-      <div className="relative h-28 overflow-hidden rounded-xl border-2 border-emerald-700/60 bg-gradient-to-r from-emerald-800 via-emerald-700 to-emerald-800">
+      <div className="relative h-28 overflow-hidden rounded-md border-2 border-emerald-700/60 bg-gradient-to-r from-emerald-800 via-emerald-700 to-emerald-800">
         <div className="absolute inset-y-0 left-1/2 w-px bg-emerald-100/20" />
         {/* penalty boxes */}
         <div className="absolute inset-y-2 left-2 w-10 border border-emerald-100/20" />
@@ -249,7 +252,7 @@ export function MatchView() {
       {/* Event feed */}
       <div
         ref={feedRef}
-        className="flex-1 space-y-1.5 overflow-y-auto rounded-xl bg-black/30 p-3"
+        className="flex-1 space-y-1.5 overflow-y-auto rounded-md bg-black/30 p-3"
         style={{ maxHeight: '40vh' }}
       >
         {events.slice(0, idx).map((e, i) => {
@@ -299,11 +302,12 @@ export function MatchView() {
         <button
           type="button"
           onClick={finishMatch}
-          className="rounded-xl bg-emerald-500 px-6 py-3 text-lg font-bold text-emerald-950 hover:bg-emerald-400"
+          className="rounded-md bg-amber-400 px-6 py-3.5 text-lg font-black uppercase tracking-wide text-emerald-950 hover:bg-amber-300"
         >
-          Continue →
+          Continue
         </button>
       )}
+      </div>
     </div>
   );
 }

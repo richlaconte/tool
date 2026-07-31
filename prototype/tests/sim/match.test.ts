@@ -3,6 +3,7 @@ import { resolveSquad } from '../../src/sim/combos';
 import { simulateMatch } from '../../src/sim/match';
 import { generateCard } from '../../src/sim/players';
 import { makeRng, type Rng } from '../../src/sim/rng';
+import { narrate } from '../../src/ui/narratives';
 import type {
   Archetype,
   Nationality,
@@ -182,6 +183,27 @@ describe('match engine', () => {
       if (r.homeGoals > r.awayGoals) wins++;
     }
     expect(wins / N).toBeGreaterThan(0.75);
+  });
+
+  it('regression: blocked shots always name a blocker, even with no DEF fielded', () => {
+    const noDefSquad = makeSquad([
+      { card: gkCard(), slot: 'GK' },
+      { card: makeCard({ archetype: 'Playmaker', naturalPosition: 'MID' }), slot: 'MID' },
+      { card: makeCard({}), slot: 'FWD' },
+    ]);
+    const opp = snap(balancedOpponent(), 'opp');
+    let sawBlock = false;
+    for (let i = 0; i < 200; i++) {
+      const r = simulateMatch(snap(noDefSquad, 'nd'), opp, 60_000 + i);
+      for (const e of r.events) {
+        if (e.type === 'BLOCKED') {
+          sawBlock = true;
+          expect(e.secondaryId).toBeDefined();
+          expect(narrate(e, r.home, r.away)).not.toContain('by !');
+        }
+      }
+    }
+    expect(sawBlock).toBe(true); // the test only guards if blocks actually occurred
   });
 
   it('invariant 4: running score is consistent after every GOAL', () => {

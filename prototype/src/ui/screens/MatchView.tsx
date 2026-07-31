@@ -158,8 +158,12 @@ export function MatchView() {
       {/* Pitch strip */}
       <div className="relative h-28 overflow-hidden rounded-xl border-2 border-emerald-700/60 bg-gradient-to-r from-emerald-800 via-emerald-700 to-emerald-800">
         <div className="absolute inset-y-0 left-1/2 w-px bg-emerald-100/20" />
+        {/* penalty boxes */}
         <div className="absolute inset-y-2 left-2 w-10 border border-emerald-100/20" />
         <div className="absolute inset-y-2 right-2 w-10 border border-emerald-100/20" />
+        {/* goal mouths — deliberately small so in-the-net vs wide reads instantly */}
+        <div className="absolute left-0 top-1/2 h-8 w-1.5 -translate-y-1/2 rounded-r-sm bg-emerald-50/90" />
+        <div className="absolute right-0 top-1/2 h-8 w-1.5 -translate-y-1/2 rounded-l-sm bg-emerald-50/90" />
         {trail.map((p, i) => (
           <div
             key={i}
@@ -254,19 +258,34 @@ export function MatchView() {
             OUTCOME_TYPES.has(e.type) && e.probability !== undefined
               ? ` (${Math.round(e.probability * 100)}%)`
               : '';
+          const neutral = e.type === 'KICKOFF' || e.type === 'FULLTIME';
+          // Redundant team encoding: border position + tint + icons in the
+          // narration — never color alone (WCAG 1.4.1). Strong color is
+          // reserved for goals so routine events don't create rainbow noise.
+          const sideClass = neutral
+            ? 'border-zinc-500/50'
+            : mine
+              ? 'border-emerald-400/80 bg-emerald-400/5'
+              : 'border-rose-400/80 bg-rose-400/5';
+          const textClass =
+            e.type === 'GOAL'
+              ? mine
+                ? 'font-semibold text-amber-300'
+                : 'font-semibold text-rose-300'
+              : i === idx - 1
+                ? 'font-semibold text-emerald-50'
+                : 'text-emerald-200/70';
           return (
             <div
               key={i}
-              className={`flex gap-2 text-sm ${
-                i === idx - 1 ? 'font-semibold text-emerald-50' : 'text-emerald-200/70'
-              } ${e.type === 'GOAL' ? (mine ? 'text-amber-300' : 'text-rose-300') : ''}`}
+              className={`flex items-baseline gap-2 rounded-sm border-l-2 py-0.5 pl-1.5 pr-1 text-sm ${sideClass} ${textClass}`}
             >
-              <span className="w-8 shrink-0 text-right text-xs text-emerald-400/50">
+              <span className="w-9 shrink-0 rounded bg-black/60 px-1 py-0.5 text-center font-mono text-[11px] font-bold text-amber-200/90">
                 {minuteOf(e)}
               </span>
               <span>
                 {narrate(e, match.home, match.away)}
-                <span className="text-xs text-emerald-400/40">{prob}</span>
+                <span className="text-xs opacity-60">{prob}</span>
               </span>
             </div>
           );

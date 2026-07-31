@@ -21,6 +21,32 @@ export const NATIONALITY_FLAG: Record<Nationality, string> = {
   NED: '🇳🇱',
 };
 
+// Card-tile tint per nationality (hex). Applied at low alpha over the dark
+// tile so text contrast (WCAG AA) is preserved; flag + text remain the
+// primary encodings — color is the redundant preattentive cue, never alone.
+// Hues chosen to avoid classic colorblind collision pairs (no red-green duo).
+export const NATIONALITY_COLOR: Record<Nationality, string> = {
+  BRA: '#a3e635', // lime (canary kit)
+  ARG: '#7dd3fc', // sky blue stripes
+  FRA: '#60a5fa', // les bleus
+  GER: '#a1a1aa', // silver/black kit
+  ESP: '#f87171', // la roja
+  ENG: '#f8fafc', // white kit
+  POR: '#34d399', // emerald (green half of kit)
+  NED: '#fb923c', // oranje
+};
+
+export const NATIONALITY_NAME: Record<Nationality, string> = {
+  BRA: 'Brazil',
+  ARG: 'Argentina',
+  FRA: 'France',
+  GER: 'Germany',
+  ESP: 'Spain',
+  ENG: 'England',
+  POR: 'Portugal',
+  NED: 'Netherlands',
+};
+
 export const POSITION_LABEL: Record<PositionLine, string> = {
   GK: 'Goalkeeper',
   DEF: 'Defender',

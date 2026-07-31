@@ -37,7 +37,9 @@ export function narrate(e: MatchEvent, home: SquadSnapshot, away: SquadSnapshot)
     case 'shot.saved':
       return `${actor} shoots — ${secondary} with a strong hand! Saved.`;
     case 'shot.blocked':
-      return `${actor}'s effort is blocked by ${secondary}!`;
+      return secondary
+        ? `${actor}'s effort is blocked by ${secondary}!`
+        : `${actor}'s effort is charged down by a wall of defenders!`;
     case 'shot.missed':
       return `${actor} blazes it wide. The fans groan.`;
     case 'setpiece.corner':

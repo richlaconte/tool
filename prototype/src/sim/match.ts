@@ -260,9 +260,19 @@ export function simulateMatch(
             ? 'BLOCKED'
             : 'MISSED';
       const gkPlayer = bySlot(def, 'GK')[0];
+      // BUGFIX 2026-07-31: blocker was undefined when the defending side fields
+      // no DEF-slot players → "blocked by !". Fall back to any defender.
+      const defenders = bySlot(def, 'DEF');
+      const outfield = def.players.filter((p) => p.slot !== 'GK');
+      const blockPool =
+        defenders.length > 0
+          ? defenders
+          : outfield.length > 0
+            ? outfield
+            : def.players;
       const blocker =
-        type === 'BLOCKED' && bySlot(def, 'DEF').length > 0
-          ? bySlot(def, 'DEF')[Math.floor(rng.next() * bySlot(def, 'DEF').length)]
+        type === 'BLOCKED' && blockPool.length > 0
+          ? blockPool[Math.floor(rng.next() * blockPool.length)]
           : undefined;
       push({
         tick,

@@ -1,5 +1,5 @@
 import type { ComboState } from '../../types';
-import { NATIONALITY_FLAG } from '../../sim/players.data';
+import { Flag } from './Flag';
 
 const FAMILY_LABEL: Record<string, string> = {
   NationalPride: 'National Pride',
@@ -41,7 +41,11 @@ export function ComboPanel({ combos }: { combos: ComboState[] }) {
             }`}
             title={c.tier > 0 ? `Tier ${c.tier} active` : 'Inactive'}
           >
-            {c.family === 'NationalPride' && c.key ? NATIONALITY_FLAG[c.key] + ' ' : ''}
+            {c.family === 'NationalPride' && c.key ? (
+              <>
+                <Flag nationality={c.key} />{' '}
+              </>
+            ) : null}
             {FAMILY_LABEL[c.family]} {c.count}
             {!atMax ? `/${next}` : ''}
             {c.tier > 0 ? ` ★${c.tier}` : ''}

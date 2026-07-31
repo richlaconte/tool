@@ -2,10 +2,10 @@ import type { PlayerCard } from '../../types';
 import {
   ARCHETYPE_LABEL,
   NATIONALITY_COLOR,
-  NATIONALITY_FLAG,
   NATIONALITY_NAME,
   POSITION_LABEL,
 } from '../../sim/players.data';
+import { Flag } from './Flag';
 
 interface Props {
   card: PlayerCard;
@@ -40,8 +40,8 @@ export function PlayerCardView({ card, onClick, selected, compact, footer, merge
     >
       <div className="flex items-center justify-between gap-1">
         <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold">
-          <span className="shrink-0 text-xl leading-none" role="img" aria-label={NATIONALITY_NAME[card.nationality]}>
-            {NATIONALITY_FLAG[card.nationality]}
+          <span className="shrink-0 leading-none">
+            <Flag nationality={card.nationality} size="lg" />
           </span>
           <span className="truncate">
             {card.name}

@@ -6,7 +6,7 @@ import { simulateMatch } from '../../sim/match';
 import { generateRunPool } from '../../sim/players';
 import { deriveSeed, makeRng } from '../../sim/rng';
 import type { ManagerState } from '../../types';
-import { NATIONALITY_FLAG } from '../../sim/players.data';
+import { Flag } from '../components/Flag';
 import { isNotable, minuteOf, narrate } from '../narratives';
 import { concedeSound, goalSound, whistleSound } from '../sound';
 
@@ -92,7 +92,7 @@ export function ChallengeView({ payload }: { payload: ChallengePayload }) {
               key={c.id}
               className="rounded-full bg-emerald-700/50 px-2.5 py-1 text-xs font-medium"
             >
-              {NATIONALITY_FLAG[c.nationality]} {c.name} · {slot}
+              <Flag nationality={c.nationality} /> {c.name} · {slot}
             </span>
           ))}
         </div>
@@ -118,7 +118,7 @@ export function ChallengeView({ payload }: { payload: ChallengePayload }) {
                     const c = s.cards.find((x) => x.id === l.cardId)!;
                     return (
                       <span key={l.cardId} className="rounded bg-black/30 px-1.5 py-0.5 text-[10px]">
-                        {NATIONALITY_FLAG[c.nationality]} {c.name}
+                        <Flag nationality={c.nationality} /> {c.name}
                       </span>
                     );
                   })}

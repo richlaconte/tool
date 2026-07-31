@@ -4,9 +4,10 @@ import { detectCombos } from '../../sim/combos';
 import { positionFit, REROLL_COST } from '../../sim/config';
 import { sellValue } from '../../sim/shop';
 import type { PlayerCard, PositionLine } from '../../types';
-import { NATIONALITY_COLOR, NATIONALITY_FLAG } from '../../sim/players.data';
+import { NATIONALITY_COLOR } from '../../sim/players.data';
 import { Hud, nextOpponentName, playerManager } from '../components/Hud';
 import { PlayerCardView, TIER_COLOR } from '../components/PlayerCardView';
+import { Flag } from '../components/Flag';
 import { ComboPanel } from '../components/ComboPanel';
 
 // ─── TFT-style planning screen: combos, pitch board, bench, shop, one CTA ───
@@ -50,7 +51,9 @@ function PlayerChip({
       style={{ backgroundColor: `${NATIONALITY_COLOR[card.nationality]}30` }}
       className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${TIER_COLOR[card.tier]} ${ring}`}
     >
-      <span className="text-sm leading-none">{NATIONALITY_FLAG[card.nationality]}</span>
+      <span className="text-sm leading-none">
+        <Flag nationality={card.nationality} />
+      </span>
       <span className="rounded bg-black/40 px-1 py-px text-[10px] font-black uppercase leading-tight tracking-wide text-white/70">
         {card.naturalPosition}
       </span>
@@ -130,7 +133,7 @@ export function Planning() {
                 <span className="w-10 shrink-0 text-[11px] font-black uppercase tracking-widest text-white/50">
                   {label}
                 </span>
-                <div className="flex flex-1 flex-wrap items-center justify-evenly gap-x-1 gap-y-1.5">
+                <div className="flex flex-1 flex-wrap items-center justify-start gap-x-1.5 gap-y-1.5">
                   {inLine.length === 0 && (
                     <span className="text-xs text-white/35">
                       {selected ? 'tap to place here' : '·'}

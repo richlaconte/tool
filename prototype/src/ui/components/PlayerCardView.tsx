@@ -16,7 +16,7 @@ interface Props {
   mergeBadge?: string;
 }
 
-const TIER_COLOR: Record<number, string> = {
+export const TIER_COLOR: Record<number, string> = {
   1: 'border-zinc-500',
   2: 'border-emerald-500',
   3: 'border-sky-500',

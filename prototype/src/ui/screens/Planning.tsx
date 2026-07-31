@@ -6,7 +6,7 @@ import { sellValue } from '../../sim/shop';
 import type { PlayerCard, PositionLine } from '../../types';
 import { NATIONALITY_COLOR, NATIONALITY_FLAG } from '../../sim/players.data';
 import { Hud, nextOpponentName, playerManager } from '../components/Hud';
-import { PlayerCardView } from '../components/PlayerCardView';
+import { PlayerCardView, TIER_COLOR } from '../components/PlayerCardView';
 import { ComboPanel } from '../components/ComboPanel';
 
 // ─── TFT-style planning screen: combos, pitch board, bench, shop, one CTA ───
@@ -37,7 +37,7 @@ function PlayerChip({
     ? 'ring-2 ring-amber-300 brightness-110'
     : outOfPosition
       ? 'ring-2 ring-rose-400'
-      : 'ring-1 ring-white/20';
+      : '';
   return (
     <button
       type="button"
@@ -48,7 +48,7 @@ function PlayerChip({
           : title
       }
       style={{ backgroundColor: `${NATIONALITY_COLOR[card.nationality]}30` }}
-      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${ring}`}
+      className={`inline-flex items-center gap-1 rounded-md border-2 px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${TIER_COLOR[card.tier]} ${ring}`}
     >
       <span className="text-sm leading-none">{NATIONALITY_FLAG[card.nationality]}</span>
       <span className="rounded bg-black/40 px-1 py-px text-[10px] font-black uppercase leading-tight tracking-wide text-white/70">

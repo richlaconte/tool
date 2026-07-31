@@ -160,13 +160,11 @@ describe('match engine', () => {
     ]);
     const rng = makeRng(777);
     let wins = 0;
-    let draws = 0;
     const N = 1000;
     for (let i = 0; i < N; i++) {
       const opp = snap(randomSquad(rng, 3), 'opp');
       const r = simulateMatch(snap(comboSquad, 'combo'), opp, 80_000 + i);
       if (r.homeGoals > r.awayGoals) wins++;
-      else if (r.homeGoals === r.awayGoals) draws++;
     }
     expect(wins / N).toBeGreaterThan(0.6);
   });

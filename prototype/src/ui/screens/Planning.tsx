@@ -42,7 +42,9 @@ function PlayerChip({
     >
       <span className="text-sm leading-none">{NATIONALITY_FLAG[card.nationality]}</span>{' '}
       {card.name}
-      {card.star > 1 ? <span className="text-amber-300"> {'★'.repeat(card.star)}</span> : null}
+      <span className={`ml-0.5 tracking-tight ${card.star > 1 ? 'text-amber-300' : 'text-white/45'}`}>
+        {'★'.repeat(card.star)}
+      </span>
       {outOfPosition ? ' ⚠' : ''}
     </button>
   );

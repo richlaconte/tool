@@ -29,12 +29,17 @@ function PlayerChip({
   onClick: () => void;
   title?: string;
 }) {
-  const outOfPosition = slot !== undefined && positionFit(card.naturalPosition, slot) < 1;
+  const fit = slot !== undefined ? positionFit(card.naturalPosition, slot) : 1;
+  const outOfPosition = fit < 1;
   return (
     <button
       type="button"
       onClick={onClick}
-      title={title}
+      title={
+        outOfPosition
+          ? `${card.name} is a ${card.naturalPosition} playing ${slot} — stats ×${fit}. Tap to send to bench.`
+          : title
+      }
       style={{ backgroundColor: `${NATIONALITY_COLOR[card.nationality]}30` }}
       className={`rounded-md px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${
         outOfPosition ? 'ring-2 ring-rose-400' : 'ring-1 ring-white/20'
@@ -48,7 +53,9 @@ function PlayerChip({
       <span className={`ml-0.5 tracking-tight ${card.star > 1 ? 'text-amber-300' : 'text-white/45'}`}>
         {'★'.repeat(card.star)}
       </span>
-      {outOfPosition ? ' ⚠' : ''}
+      {outOfPosition ? (
+        <span className="ml-0.5 font-black text-rose-300">×{fit}</span>
+      ) : null}
     </button>
   );
 }
@@ -66,6 +73,12 @@ export function Planning() {
   const bench = squad.cards.filter((c) => !fieldedIds.has(c.id));
   const gkCount = squad.lineup.filter((l) => l.slot === 'GK').length;
   const valid = gkCount === 1 && squad.lineup.length >= 2;
+  const outOfPosition = squad.lineup.flatMap((l) => {
+    const card = squad.cards.find((c) => c.id === l.cardId);
+    if (!card) return [];
+    const fit = positionFit(card.naturalPosition, l.slot);
+    return fit < 1 ? [{ card, slot: l.slot, fit }] : [];
+  });
   const combos = detectCombos(squad);
   const opponent = nextOpponentName(game);
   const canReroll = player.credits >= REROLL_COST;
@@ -140,6 +153,17 @@ export function Planning() {
             ? 'Now tap a line on the pitch to place them.'
             : `Fielded ${squad.lineup.length}/${squadCap} · tap a bench player, then a line.`}
         </p>
+        {outOfPosition.length > 0 && (
+          <p className="mt-1 text-[11px] font-semibold text-rose-300">
+            Out of position:{' '}
+            {outOfPosition
+              .map(
+                ({ card, slot, fit }) =>
+                  `${card.name} (${card.naturalPosition} at ${slot} — stats ×${fit})`,
+              )
+              .join(' · ')}
+          </p>
+        )}
       </div>
 
       {/* Bench */}

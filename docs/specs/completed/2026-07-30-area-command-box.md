@@ -2,11 +2,32 @@
 
 ## Status
 
-Priority: P1 — queue #9 (scored 2026-07-30). See the Priority Queue in
-README.md before starting work.
+Completed on 2026-07-31.
 
-Created on 2026-07-30 from a product/UX research pass over slash-command and
-element-anchored command surfaces. Active.
+Core shipped: the Area Command Box opens on `/` with Area(s) selected or
+from the Area toolbar button, anchors above/below the primary Area with
+flip/shift collision handling and per-frame anchor tracking, validates the
+draft live with the inline CSS grammar, commits to all selected Areas
+without ever touching `area.text`, and dismisses on Escape/outside press.
+Suggestions, target chip, scope line, ARIA combobox/listbox semantics,
+focus restore, and `command_box_opened` / `command_box_abandoned`
+telemetry are in. Unit, UI-source, and Playwright coverage landed with it.
+
+Two deliberate simplifications from the draft design, noted for the
+record:
+
+- A selection change while the box is open re-anchors to the new primary
+  Area with a fresh (empty) draft instead of closing on a dirty draft —
+  half-written commands are still never redirected to another Area, and
+  the box doesn't vanish mid-gesture.
+- `command_box_abandoned` fires on explicit dismissals (Escape, outside
+  press); selection-driven re-anchors don't count as abandonment.
+- The `source` dimension on `slash_command_used` was dropped: the
+  telemetry pipeline stores event-name counters only, so migration from
+  the inline path is read from `command_box_opened` vs. total
+  `slash_command_used` instead.
+
+(Original priority scoring: P1 — queue #9, scored 2026-07-30.)
 
 ## Problem
 

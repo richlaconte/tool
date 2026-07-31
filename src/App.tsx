@@ -10,6 +10,8 @@ import type { CSSProperties, ChangeEvent, FormEvent } from 'react'
 import Area from './components/Area'
 import AreaStyleDialog from './components/AreaStyleDialog'
 import CommandPalette from './components/CommandPalette'
+import AreaCommandBox from './components/AreaCommandBox'
+import { getAreaAccessibleLabel } from './areaA11y'
 import {
   deleteAreas,
   duplicateAreas,
@@ -1362,6 +1364,10 @@ function App({
   const [styleDialogAreaId, setStyleDialogAreaId] = useState<
     string | null
   >(null)
+  const [commandBoxState, setCommandBoxState] = useState<{
+    anchorAreaId: string
+    draft: string
+  } | null>(null)
   const [commentPanelAreaId, setCommentPanelAreaId] = useState<
     string | null
   >(null)
@@ -3059,6 +3065,21 @@ function App({
         return
       }
 
+      if (keyboardAction === 'open-area-command-box') {
+        if (selectedAreaIds.length > 0) {
+          if (!commandBoxState) {
+            trackTelemetryEvent('command_box_opened')
+          }
+
+          setCommandBoxState({
+            anchorAreaId: selectedAreaIds[0],
+            draft: '',
+          })
+        }
+
+        return
+      }
+
       setCommandPaletteQuery(
         keyboardAction === 'open-empty-command-palette' ||
           e.key === 'Escape'
@@ -3074,6 +3095,7 @@ function App({
     }
   }, [
     areas,
+    commandBoxState,
     commandPaletteQuery,
     collaborativeSync,
     deselectCurrentArea,
@@ -4771,6 +4793,75 @@ function App({
             }
           : area
       )
+    )
+  }
+
+  const openAreaCommandBox = (areaId: string) => {
+    if (isViewOnly) return
+
+    if (!commandBoxState) {
+      trackTelemetryEvent('command_box_opened')
+    }
+
+    setCommandBoxState({ anchorAreaId: areaId, draft: '' })
+  }
+
+  const closeAreaCommandBox = (committed: boolean) => {
+    if (!committed) {
+      trackTelemetryEvent('command_box_abandoned')
+    }
+
+    setCommandBoxState(null)
+  }
+
+  const commitAreaCommandBox = (property: string, value: string) => {
+    if (isViewOnly || !commandBoxState) return
+
+    trackTelemetryEvent('slash_command_used')
+
+    const resolvedValue = resolveThemeColorTokens(
+      value,
+      page.settings.theme.colors
+    )
+    const targetAreaIds = new Set(
+      getAreaActionTargetIds(commandBoxState.anchorAreaId)
+    )
+
+    setAreas((prev) =>
+      prev.map((area) =>
+        targetAreaIds.has(area.id)
+          ? {
+              ...area,
+              styles: {
+                ...area.styles,
+                [property]: resolvedValue,
+              },
+            }
+          : area
+      )
+    )
+    setCommandBoxState(null)
+    setKeyboardAnnouncement(
+      targetAreaIds.size > 1
+        ? `Applied ${property} to ${targetAreaIds.size} areas.`
+        : `Applied ${property} to the selected area.`
+    )
+  }
+
+  // Selection follow rule: an open box re-anchors to the new primary
+  // selected Area with a fresh draft (a half-written command is never
+  // redirected to another Area); with no selection left, the box closes.
+  // Adjusted during render per the React docs "previous props" pattern.
+  const primarySelectedAreaId = selectedAreaIds[0] ?? null
+
+  if (
+    commandBoxState &&
+    commandBoxState.anchorAreaId !== primarySelectedAreaId
+  ) {
+    setCommandBoxState(
+      primarySelectedAreaId
+        ? { anchorAreaId: primarySelectedAreaId, draft: '' }
+        : null
     )
   }
 
@@ -6509,6 +6600,18 @@ function App({
           setCommentPanelAreaId(null)
           setStyleDialogAreaId(areaId)
         }}
+        onOpenCommandBox={(areaId) => {
+          if (isViewOnly) return
+
+          setSelectedAreaIds((currentSelectedAreaIds) =>
+            currentSelectedAreaIds.includes(areaId)
+              ? currentSelectedAreaIds
+              : [areaId]
+          )
+          setSelectedLinkId(null)
+          setLinkFlyoutLinkId(null)
+          openAreaCommandBox(areaId)
+        }}
         onOpenComments={openCommentsForArea}
         onResize={resizeAreaById}
         onCommitCssCommand={commitAreaCssCommand}
@@ -7410,6 +7513,46 @@ function App({
             <span aria-hidden="true">x</span>
           </button>
         </div>
+      )}
+
+      {commandBoxState &&
+        !isViewOnly &&
+        openDialogId === null &&
+        commandPaletteQuery === null &&
+        styleDialogArea === null && (
+        <AreaCommandBox
+          anchorAreaId={commandBoxState.anchorAreaId}
+          draft={commandBoxState.draft}
+          targetCount={
+            getAreaActionTargetIds(commandBoxState.anchorAreaId).length
+          }
+          targetLabel={(() => {
+            const anchorArea = areas.find(
+              (area) => area.id === commandBoxState.anchorAreaId
+            )
+
+            return anchorArea
+              ? getAreaAccessibleLabel(anchorArea)
+              : 'Area'
+          })()}
+          supportsDeclaration={(property, value) =>
+            typeof CSS !== 'undefined' &&
+            CSS.supports(
+              property,
+              resolveThemeColorTokens(
+                value,
+                page.settings.theme.colors
+              )
+            )
+          }
+          onClose={closeAreaCommandBox}
+          onCommit={commitAreaCommandBox}
+          onDraftChange={(draft) =>
+            setCommandBoxState((current) =>
+              current ? { ...current, draft } : current
+            )
+          }
+        />
       )}
 
       {shouldShowCommandPalette && (

@@ -2,6 +2,8 @@ export const TELEMETRY_EVENTS = [
   'page_created',
   'area_created',
   'slash_command_used',
+  'command_box_opened',
+  'command_box_abandoned',
   'context_kit_inserted',
   'share_link_created',
   'export_markdown',

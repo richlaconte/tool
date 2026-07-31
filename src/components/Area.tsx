@@ -88,6 +88,7 @@ type AreaProps = {
   onDelete: (id: string) => void
   onConvertMermaid?: (id: string, code: string) => void
   onOpenStyles: (id: string) => void
+  onOpenCommandBox: (id: string) => void
   onOpenComments: (id: string) => void
   onResize: (
     id: string,
@@ -145,6 +146,7 @@ const Area = ({
   onDelete,
   onConvertMermaid,
   onOpenStyles,
+  onOpenCommandBox,
   onOpenComments,
   onResize,
   onCommitCssCommand,
@@ -770,6 +772,22 @@ const Area = ({
                 </>
               )}
               <button
+                aria-label="Open command box"
+                className="area-action-button area-action-button--priority-medium"
+                title="Command box (/)"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onOpenCommandBox(area.id)
+                }}
+                onPointerDown={(e) => {
+                  e.stopPropagation()
+                }}
+              >
+                <SlashCommandIcon />
+              </button>
+              <button
                 aria-label="Open Area styles"
                 className="area-action-button area-action-button--priority-low"
                 type="button"
@@ -1214,6 +1232,24 @@ const StyleSlidersIcon = () => (
     <path d="M10 9.8v3.4" />
     <circle cx="6" cy="4.5" r="1.5" />
     <circle cx="10" cy="11.5" r="1.5" />
+  </svg>
+)
+
+const SlashCommandIcon = () => (
+  <svg
+    aria-hidden="true"
+    className="area-control-icon area-control-icon--stroke"
+    fill="none"
+    focusable="false"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="1.7"
+    viewBox="0 0 16 16"
+  >
+    <path d="M9.5 2.5 6 13.5" />
+    <path d="M2.5 10.5h3" />
+    <path d="M10.5 5.5h3" />
   </svg>
 )
 

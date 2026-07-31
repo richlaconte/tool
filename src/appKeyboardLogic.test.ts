@@ -366,6 +366,65 @@ test('keyboard nudge delta follows snap grid and shift multiplier', () => {
   )
 })
 
+test('slash opens the Area command box when an area is selected', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: '/',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+    }),
+    'open-area-command-box'
+  )
+})
+
+test('slash stays inline while editing text or without a selection', () => {
+  assert.equal(
+    getAppKeyboardAction({
+      key: '/',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: true,
+    }),
+    'ignore'
+  )
+  assert.equal(
+    getAppKeyboardAction({
+      key: '/',
+      hasSelectedArea: false,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+    }),
+    'open-command-palette'
+  )
+  assert.equal(
+    getAppKeyboardAction({
+      key: '/',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      isReadOnly: true,
+    }),
+    'ignore'
+  )
+  assert.equal(
+    getAppKeyboardAction({
+      key: '/',
+      hasSelectedArea: true,
+      isCommandPaletteOpen: false,
+      isDialogOpen: false,
+      isEditableTarget: false,
+      hasMetaOrCtrlModifier: true,
+      hasModifier: true,
+    }),
+    'ignore'
+  )
+})
+
 test('question mark opens keyboard shortcuts only outside text editing', () => {
   assert.equal(
     getAppKeyboardAction({

@@ -7,6 +7,7 @@ export type AppKeyboardAction =
   | 'open-command-palette'
   | 'open-empty-command-palette'
   | 'open-search-palette'
+  | 'open-area-command-box'
   | 'close-command-palette'
   | 'ignore'
 
@@ -117,6 +118,16 @@ export const getAppKeyboardAction = (
     !hasAltModifier
   ) {
     return 'open-keyboard-shortcuts'
+  }
+
+  if (
+    state.key === '/' &&
+    state.hasSelectedArea &&
+    !state.isEditableTarget &&
+    !hasMetaOrCtrlModifier &&
+    !hasAltModifier
+  ) {
+    return 'open-area-command-box'
   }
 
   if (state.key === 'Escape') {

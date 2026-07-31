@@ -23,14 +23,21 @@ function PlayerChip({
   slot,
   onClick,
   title,
+  highlighted,
 }: {
   card: PlayerCard;
   slot?: PositionLine;
   onClick: () => void;
   title?: string;
+  highlighted?: boolean;
 }) {
   const fit = slot !== undefined ? positionFit(card.naturalPosition, slot) : 1;
   const outOfPosition = fit < 1;
+  const ring = highlighted
+    ? 'ring-2 ring-amber-300 brightness-110'
+    : outOfPosition
+      ? 'ring-2 ring-rose-400'
+      : 'ring-1 ring-white/20';
   return (
     <button
       type="button"
@@ -41,9 +48,7 @@ function PlayerChip({
           : title
       }
       style={{ backgroundColor: `${NATIONALITY_COLOR[card.nationality]}30` }}
-      className={`rounded-md px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${
-        outOfPosition ? 'ring-2 ring-rose-400' : 'ring-1 ring-white/20'
-      }`}
+      className={`rounded-md px-2 py-1 text-xs font-semibold shadow-sm transition hover:brightness-125 ${ring}`}
     >
       <span className="text-sm leading-none">{NATIONALITY_FLAG[card.nationality]}</span>
       <span className="rounded bg-black/40 px-1 py-px text-[10px] font-black uppercase tracking-wide text-white/70">
@@ -64,7 +69,6 @@ export function Planning() {
   const { game, buyCard, sellCard, rerollShop, placePlayer, unplacePlayer, kickOff } =
     useStore();
   const [selected, setSelected] = useState<string | null>(null);
-  const [sellMode, setSellMode] = useState(false);
   if (!game) return null;
 
   const player = playerManager(game);
@@ -82,13 +86,16 @@ export function Planning() {
   const combos = detectCombos(squad);
   const opponent = nextOpponentName(game);
   const canReroll = player.credits >= REROLL_COST;
+  const selectedCard = selected ? squad.cards.find((c) => c.id === selected) : undefined;
 
   const onBenchTap = (c: PlayerCard) => {
-    if (sellMode) {
-      sellCard(c.id);
-      return;
-    }
     setSelected(selected === c.id ? null : c.id);
+  };
+
+  const sellSelected = () => {
+    if (!selectedCard) return;
+    sellCard(selectedCard.id);
+    setSelected(null);
   };
 
   const placeIn = (slot: PositionLine) => {
@@ -172,15 +179,20 @@ export function Planning() {
           <span className="text-[11px] font-black uppercase tracking-widest text-emerald-300/60">
             Squad ({squad.cards.length})
           </span>
-          <button
-            type="button"
-            onClick={() => setSellMode((v) => !v)}
-            className={`rounded-md px-2 py-1 text-xs font-bold ${
-              sellMode ? 'bg-rose-500/80 text-white' : 'bg-black/30 text-emerald-200 hover:bg-black/50'
-            }`}
-          >
-            {sellMode ? 'Done selling' : 'Sell mode'}
-          </button>
+          {selectedCard ? (
+            <button
+              type="button"
+              onClick={sellSelected}
+              title={`Sell ${selectedCard.name} for +${sellValue(selectedCard)} CR`}
+              className="rounded-md bg-rose-500/80 px-2.5 py-1 text-xs font-bold text-white hover:bg-rose-400"
+            >
+              Sell {selectedCard.name} · +{sellValue(selectedCard)} CR
+            </button>
+          ) : (
+            <span className="text-[11px] text-emerald-300/50">
+              tap a player to field or sell
+            </span>
+          )}
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {bench.length === 0 && (
@@ -194,21 +206,16 @@ export function Planning() {
             <PlayerChip
               key={c.id}
               card={c}
-              title={sellMode ? `Sell for +${sellValue(c)} CR` : 'Tap to select, then tap a line'}
+              highlighted={selected === c.id}
+              title={
+                selected === c.id
+                  ? 'Selected — tap a line on the pitch to field, or Sell above'
+                  : 'Tap to select, then tap a line on the pitch'
+              }
               onClick={() => onBenchTap(c)}
             />
           ))}
-          {selected && !sellMode && (
-            <span className="self-center text-xs font-bold text-amber-300">
-              → placing…
-            </span>
-          )}
         </div>
-        {sellMode && (
-          <p className="mt-1 text-[11px] text-rose-300/80">
-            Sell mode: tap a benched player to sell at full value.
-          </p>
-        )}
       </div>
 
       {/* Shop — TFT bottom bar */}

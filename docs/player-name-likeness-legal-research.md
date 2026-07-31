@@ -139,6 +139,25 @@ Scale: Severity 1–5 (Negligible→Critical), Likelihood 1–5 (Remote→Almost
 
 ---
 
+## 6.5 Appendix: How the three big publishers actually do it (verified playbooks)
+
+### EA Sports (FC/FIFA) — "license everything"
+- FIFPRO group license (extended Oct 2021) for 17,000+ players' names *and graphics*; layered with exclusive/semi-exclusive league, club, competition (UEFA), and stadium deals built over ~30 years — a licensing web analysts describe as EA's structural moat. Individual deals layered on top for legends and cover stars. This is the most expensive posture in the industry and not replicable on a startup budget.
+
+### Konami (PES/eFootball) — "license the players, fake the clubs"
+- Held FIFPRO since the ISS era → **real player names** throughout the series' history, while unlicensed clubs shipped under transparent fake names that became franchise folklore ("Man Blue" = Man City, "London FC" = Chelsea, "MD White" = Real Madrid, "PM Black White" = Juventus).
+- A Konami mobile game's own license text shows the full stack in one place: FIFPRO Commercial Enterprises (player names/images) + league bodies (LFP, Eredivisie) + individual clubs (AC Milan) + UEFA + even adidas (kit/boot marks). Each is a separate contract.
+- Exclusivity wars cut both ways: Juventus exclusive to Konami (2019) forced EA to use "Piemonte Calcio"; when Bayern's Konami deal lapsed (Jun 2025), eFootball replaced Bayern's name/crest/kits with generics and deleted the Allianz Arena — **but players kept their names and faces**, because those come from the separate FIFPRO grant.
+- Cautionary note: the Brazil TJSP ruling (§2.4) was a **PES case** — Konami held FIFPRO and club contracts and still lost to an individual player claim.
+
+### Sports Interactive/SEGA (Football Manager) — "names and stats, almost no faces"
+- **FIFPRO agreement in place since at least FM 2005** (confirmed in SEGA's own Oct 2004 press release) plus league-by-league branding licenses (English Football League, Spain, US, Dutch, Portuguese, AC Milan at launch; full Premier League only from 2023).
+- **The signature move: real players ship as silhouettes.** FM includes player pictures only "where available" under specific league licenses (FM 2005: ~6,450 pictures across a database of hundreds of thousands of people). Modern FM shows real players as black shadow icons; real-photo facepacks (Cut-Out, DF11's 250k faces) are *community mods* SI neither ships nor (visibly) enforces against — the mod ecosystem absorbs the licensing gap.
+- SI actively **blocks** facepacks from applying real faces to fictional generated players, keeping the boundary clean.
+- **Newgens** (fictional youth players) get procedurally generated 3D faces — visual richness with zero likeness exposure, because the people don't exist.
+- Unlicensed clubs renamed: Juventus "Zebre" (FM20, Konami exclusivity), Manchester United "Manchester UFC"/"Man Red" (2021–2023 post-lawsuit) until the 2023 Premier League deal.
+- **Lesson for Tactics FC:** FM proves a names+stats-first game with no real faces can be a 30-year commercial franchise — but note SI still *pays* for FIFPRO and league licenses; they are not free-riding on the CBC-style factual-data theory. Also note the mod safety valve doesn't exist on mobile app stores: anything shipped inside your app is your liability.
+
 ## 7. Key sources
 
 - *Hart v. EA* (3d Cir. 2013), *Keller v. EA* (9th Cir. 2013), *Davis v. EA* (9th Cir. 2015) — via Crowell client alert; Hodgson Russ "Of Athletes and Video Games"; Albany Law Journal of Science & Technology
@@ -151,5 +170,6 @@ Scale: Severity 1–5 (Negligible→Critical), Likelihood 1–5 (Remote→Almost
 - Player trademarks — CJEU *EUIPO v Messi* via Stanford/NJORD/Garrigues; Mundo Deportivo & beIN (Mbappé/Yamal/Messi/Ronaldo mark counts, Jun 2026); reggster.com
 - FIFPRO structure & licenses — playtoearn.com/egamers.io (Soccerverse, Dec 2025); Naavik NIL digest; sportbusiness.com (EA–FIFPRO extension, Oct 2021)
 - Tattoo/creative-content carve-outs — Foot Anstey, "Protection of image rights in video games" (Solid Oak v. Take-Two; Alexander v. Take-Two)
+- Publisher playbooks — SEGA/SI FM 2005 licensing press release (FIFPRO agreement, picture counts); Goal.com "fake team names on PES"; Juventus–Konami exclusive announcement (2019); gamingonphone (Bayern license lapse, Jun 2025); breakingthelines (eFootball 2025 licenses); fullerfm & SI community forums (newgen faces, facepack policy); GALA Sports IPO materials (FIFPRO + club license stack on mobile)
 
 **Disclaimer:** This document is research synthesis for product planning, prepared without access to any actual license agreements (all commercial terms are confidential). It is not legal advice. Retain qualified counsel in each launch jurisdiction before shipping real-player content.
